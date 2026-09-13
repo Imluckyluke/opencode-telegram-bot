@@ -109,6 +109,11 @@ Manual checks:
 
 By default, adding a new locale dictionary and registering it does not require new tests if localization logic is unchanged.
 
+Two existing tests keep a hand-written list of locales and must get the new one, otherwise they silently skip it:
+
+- `tests/i18n/placeholders.test.ts` - placeholders match `en`
+- `tests/i18n/callback-answer-length.test.ts` - callback answers fit Telegram's limit
+
 Add or update tests only if you change locale resolution/normalization behavior (for example alias handling).
 
 Relevant test files if needed:
@@ -123,5 +128,6 @@ Relevant test files if needed:
 - [ ] Added locale entry to `LOCALE_DEFINITIONS` (`en` first, then alphabetical)
 - [ ] Updated `README.md` (`Languages:` line, `Supported locales:` list, `BOT_LOCALE` table row)
 - [ ] Updated `.env.example` (`# Supported locales:` comment)
+- [ ] Added the locale to `tests/i18n/placeholders.test.ts` and `tests/i18n/callback-answer-length.test.ts`
 - [ ] Ran `npm run build`, `npm run lint`, `npm run typecheck`, `npm test`
 - [ ] Manually validated `BOT_LOCALE` and wizard language selection

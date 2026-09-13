@@ -7,6 +7,7 @@ import { it } from "./it.js";
 import { ko } from "./ko.js";
 import { pt } from "./pt.js";
 import { ru } from "./ru.js";
+import { tr } from "./tr.js";
 import { zh } from "./zh.js";
 
 interface LocaleDefinition {
@@ -70,6 +71,12 @@ const LOCALE_DEFINITIONS = [
     label: "Русский",
     dateLocale: "ru-RU",
     dictionary: ru,
+  },
+  {
+    code: "tr",
+    label: "Türkçe",
+    dateLocale: "tr-TR",
+    dictionary: tr,
   },
   {
     code: "zh",

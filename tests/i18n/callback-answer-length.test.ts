@@ -9,6 +9,7 @@ import { fr } from "../../src/i18n/fr.js";
 import { it as itLocale } from "../../src/i18n/it.js";
 import { pt } from "../../src/i18n/pt.js";
 import { ru } from "../../src/i18n/ru.js";
+import { tr } from "../../src/i18n/tr.js";
 import { zh } from "../../src/i18n/zh.js";
 import { defined } from "../helpers/defined.js";
 
@@ -24,6 +25,7 @@ const LOCALES: Record<string, I18nDictionary> = {
   it: itLocale,
   pt,
   ru,
+  tr,
   zh,
 };
 
