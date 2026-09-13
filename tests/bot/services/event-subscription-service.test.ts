@@ -42,12 +42,15 @@ function createFakeBot(): { bot: Bot<Context>; api: FakeBotApi } {
   return { bot: { api } as unknown as Bot<Context>, api };
 }
 
-function emitAssistantMessage(summaryAggregator: { processEvent(event: Event): void }): void {
+function emitAssistantMessage(
+  summaryAggregator: { processEvent(event: Event): void },
+  messageId = "message-1",
+): void {
   summaryAggregator.processEvent({
     type: "message.updated",
     properties: {
       info: {
-        id: "message-1",
+        id: messageId,
         sessionID: "session-1",
         role: "assistant",
         time: { created: Date.now() },
@@ -83,14 +86,15 @@ function emitWriteTool(summaryAggregator: { processEvent(event: Event): void }):
 function emitThinkingPart(
   summaryAggregator: { processEvent(event: Event): void },
   text: string,
+  messageId = "message-1",
 ): void {
   summaryAggregator.processEvent({
     type: "message.part.updated",
     properties: {
       part: {
-        id: "reasoning-1",
+        id: `reasoning-${messageId}`,
         sessionID: "session-1",
-        messageID: "message-1",
+        messageID: messageId,
         type: "reasoning",
         text,
       },
@@ -626,6 +630,125 @@ describe("bot/services/event-subscription-service", () => {
       expect(cardMessages.every((text) => !(text.includes("inspect task 1") && text.includes("inspect task 2")))).toBe(
         true,
       );
+    });
+  });
+
+  describe("compact progress at the start of work", () => {
+    it("shows thinking on the progress message before any tool runs", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitThinkingPart(summaryAggregator, "planning");
+      await flushPendingDispatch();
+
+      const texts = collectSentTexts(api);
+      expect(texts.some((text) => text.includes("💭 Thinking..."))).toBe(true);
+      expect(api.sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it("shows writing on the progress message when the model writes first", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitAssistantTextPart(summaryAggregator, "Here is the answer");
+      await flushPendingDispatch();
+
+      expect(collectSentTexts(api).some((text) => text.includes("✍️ Writing answer..."))).toBe(true);
+    });
+
+    it("reuses the thinking message for a later tool and then writing", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitThinkingPart(summaryAggregator, "planning");
+      await flushPendingDispatch();
+      emitBashTool(summaryAggregator, "running");
+      await flushPendingDispatch();
+      emitAssistantTextPart(summaryAggregator, "Here is the answer");
+      await flushPendingDispatch();
+
+      const progressSends = api.sendMessage.mock.calls.filter((call) =>
+        String(call[1]).includes("⏳ Working"),
+      );
+      expect(progressSends).toHaveLength(1);
+      expect(collectSentTexts(api).some((text) => text.includes("✍️ Writing answer..."))).toBe(true);
+    });
+
+    it("deletes the progress message on idle when delete on finish is on", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      settingsStore.setDeleteCompactProgressOnFinish(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitThinkingPart(summaryAggregator, "planning");
+      await flushPendingDispatch();
+      emitSessionIdle(summaryAggregator);
+      await flushPendingDispatch();
+
+      expect(api.deleteMessage).toHaveBeenCalled();
+    });
+
+    it("finalizes a second run while the first card is still being finalized", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      let nextMessageId = 100;
+      api.sendMessage.mockImplementation(async () => ({ message_id: nextMessageId++ }));
+
+      let releaseFirstEdit: (() => void) | undefined;
+      api.editMessageText.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseFirstEdit = () => resolve(undefined);
+          }),
+      );
+
+      useTrackerFakeTimers();
+      emitThinkingPart(summaryAggregator, "run-a");
+      await flushPendingDispatch();
+      emitSessionIdle(summaryAggregator);
+      await flushPendingDispatch();
+
+      emitAssistantMessage(summaryAggregator, "message-2");
+      emitThinkingPart(summaryAggregator, "run-b", "message-2");
+      await flushPendingDispatch();
+      emitSessionIdle(summaryAggregator);
+      await flushPendingDispatch();
+
+      expect(api.editMessageText).toHaveBeenCalledTimes(2);
+      expect(
+        api.editMessageText.mock.calls.every((call) => String(call[2]).includes("✅ Finished Work")),
+      ).toBe(true);
+
+      releaseFirstEdit?.();
+    });
+
+    it("edits the progress message to the finished summary on idle when delete on finish is off", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitThinkingPart(summaryAggregator, "planning");
+      await flushPendingDispatch();
+      emitSessionIdle(summaryAggregator);
+      await flushPendingDispatch();
+
+      expect(collectSentTexts(api).some((text) => text.includes("✅ Finished Work"))).toBe(true);
     });
   });
 

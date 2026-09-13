@@ -42,6 +42,7 @@ function createInitialState(sessionId: string): CompactProgressState {
 
 export class CompactProgressStreamer {
   private readonly states = new Map<string, CompactProgressState>();
+  private readonly finalizing = new Set<CompactProgressState>();
   private readonly throttleMs: StreamThrottleMs;
   private readonly sendText: CompactProgressStreamerOptions["sendText"];
   private readonly editText: CompactProgressStreamerOptions["editText"];
@@ -63,7 +64,7 @@ export class CompactProgressStreamer {
   }
 
   updateThinking(sessionId: string): void {
-    this.updateActivityState(sessionId, t("progress.compact.thinking"), false);
+    this.updateActivity(sessionId, t("progress.compact.thinking"));
   }
 
   updateResponding(sessionId: string): void {
@@ -102,24 +103,32 @@ export class CompactProgressStreamer {
     }
 
     this.clearTimer(state);
-    await state.task.catch(() => false);
-
-    if (deleteOnFinish && this.deleteText) {
-      await this.deleteProgressMessage(state);
-      this.cancelState(state);
-      this.states.delete(sessionId);
-      return;
-    }
-
-    state.latestText = t("progress.compact.done", {
-      header: t("progress.compact.finished_header"),
-      tools: state.toolCallIds.size,
-      files: state.filePaths.size,
-    });
-
-    await this.syncState(state, "finalize");
-    this.cancelState(state);
     this.states.delete(sessionId);
+    this.finalizing.add(state);
+
+    try {
+      await state.task.catch(() => false);
+
+      if (state.cancelled) {
+        return;
+      }
+
+      if (deleteOnFinish && this.deleteText) {
+        await this.deleteProgressMessage(state);
+        return;
+      }
+
+      state.latestText = t("progress.compact.done", {
+        header: t("progress.compact.finished_header"),
+        tools: state.toolCallIds.size,
+        files: state.filePaths.size,
+      });
+
+      await this.syncState(state, "finalize");
+    } finally {
+      this.finalizing.delete(state);
+      this.cancelState(state);
+    }
   }
 
   private async deleteProgressMessage(state: CompactProgressState): Promise<void> {
@@ -139,13 +148,17 @@ export class CompactProgressStreamer {
 
   clearSession(sessionId: string, reason: string): void {
     const state = this.states.get(sessionId);
-    if (!state) {
+    if (state) {
+      this.clearTimer(state);
+      this.cancelState(state);
+      this.states.delete(sessionId);
+    }
+
+    const cancelledFinalizing = this.cancelFinalizing(sessionId);
+    if (!state && !cancelledFinalizing) {
       return;
     }
 
-    this.clearTimer(state);
-    this.cancelState(state);
-    this.states.delete(sessionId);
     logger.debug(`[CompactProgress] Cleared session: session=${sessionId}, reason=${reason}`);
   }
 
@@ -155,6 +168,7 @@ export class CompactProgressStreamer {
       this.cancelState(state);
     }
     this.states.clear();
+    this.cancelFinalizing();
     logger.debug(`[CompactProgress] Cleared all sessions: reason=${reason}`);
   }
 
@@ -255,5 +269,16 @@ export class CompactProgressStreamer {
 
   private cancelState(state: CompactProgressState): void {
     state.cancelled = true;
+  }
+
+  private cancelFinalizing(sessionId?: string): boolean {
+    let cancelled = false;
+    for (const state of this.finalizing) {
+      if (sessionId === undefined || state.sessionId === sessionId) {
+        this.cancelState(state);
+        cancelled = true;
+      }
+    }
+    return cancelled;
   }
 }

@@ -71,7 +71,7 @@ describe("bot/streaming/compact-progress-streamer", () => {
     );
   });
 
-  it("does not create a message for thinking-only activity", async () => {
+  it("creates a message for thinking-only activity", async () => {
     const sendText = vi.fn().mockResolvedValue(10);
     const editText = vi.fn().mockResolvedValue(undefined);
     const streamer = new CompactProgressStreamer({ throttleMs: 0, sendText, editText });
@@ -80,8 +80,33 @@ describe("bot/streaming/compact-progress-streamer", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await streamer.finalize("s1");
 
-    expect(sendText).not.toHaveBeenCalled();
-    expect(editText).not.toHaveBeenCalled();
+    expect(sendText).toHaveBeenCalledTimes(1);
+    expect(sendText).toHaveBeenCalledWith("s1", "⏳ Working\n💭 Thinking...");
+    expect(editText).toHaveBeenCalledTimes(1);
+    expect(editText).toHaveBeenCalledWith(
+      "s1",
+      10,
+      "✅ Finished Work\ntool calls: 0 · changed files: 0",
+    );
+  });
+
+  it("creates a message for writing-only activity", async () => {
+    const sendText = vi.fn().mockResolvedValue(10);
+    const editText = vi.fn().mockResolvedValue(undefined);
+    const streamer = new CompactProgressStreamer({ throttleMs: 0, sendText, editText });
+
+    streamer.updateResponding("s1");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await streamer.finalize("s1");
+
+    expect(sendText).toHaveBeenCalledTimes(1);
+    expect(sendText).toHaveBeenCalledWith("s1", "⏳ Working\n✍️ Writing answer...");
+    expect(editText).toHaveBeenCalledTimes(1);
+    expect(editText).toHaveBeenCalledWith(
+      "s1",
+      10,
+      "✅ Finished Work\ntool calls: 0 · changed files: 0",
+    );
   });
 
   it("updates active progress when thinking starts", async () => {
@@ -108,6 +133,31 @@ describe("bot/streaming/compact-progress-streamer", () => {
     );
   });
 
+  it("keeps thinking, a tool, and writing on one message", async () => {
+    const sendText = vi.fn().mockResolvedValue(10);
+    const editText = vi.fn().mockResolvedValue(undefined);
+    const streamer = new CompactProgressStreamer({ throttleMs: 0, sendText, editText });
+
+    streamer.updateThinking("s1");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    streamer.updateActivity("s1", "reading");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    streamer.updateResponding("s1");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await streamer.finalize("s1");
+
+    expect(sendText).toHaveBeenCalledTimes(1);
+    expect(sendText).toHaveBeenCalledWith("s1", "⏳ Working\n💭 Thinking...");
+    expect(editText).toHaveBeenNthCalledWith(1, "s1", 10, "⏳ Working\nreading");
+    expect(editText).toHaveBeenNthCalledWith(2, "s1", 10, "⏳ Working\n✍️ Writing answer...");
+    expect(editText).toHaveBeenNthCalledWith(
+      3,
+      "s1",
+      10,
+      "✅ Finished Work\ntool calls: 0 · changed files: 0",
+    );
+  });
+
   it("counts unique tool calls and changed files", async () => {
     const sendText = vi.fn().mockResolvedValue(20);
     const editText = vi.fn().mockResolvedValue(undefined);
@@ -128,6 +178,90 @@ describe("bot/streaming/compact-progress-streamer", () => {
       "s1",
       "✅ Finished Work\ntool calls: 2 · changed files: 2",
     );
+    expect(editText).not.toHaveBeenCalled();
+  });
+
+  it("lets a new run create progress while the previous card is still finalizing", async () => {
+    const sendText = vi.fn().mockResolvedValue(10);
+    const editText = vi.fn().mockResolvedValue(undefined);
+    const streamer = new CompactProgressStreamer({ throttleMs: 0, sendText, editText });
+
+    streamer.updateActivity("s1", "run-a");
+    const finalizePromise = streamer.finalize("s1");
+    streamer.updateThinking("s1");
+    await finalizePromise;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(sendText.mock.calls.some((call) => String(call[1]).includes("run-a") || String(call[1]).includes("Finished Work"))).toBe(
+      true,
+    );
+    expect(sendText.mock.calls.some((call) => String(call[1]).includes("💭 Thinking..."))).toBe(true);
+  });
+
+  it("finalizes a second run while the first card is still being finalized", async () => {
+    const sendText = vi.fn().mockImplementation(async (_sessionId: string, _text: string) => {
+      return sendText.mock.calls.length * 10;
+    });
+    const editText = vi.fn().mockResolvedValue(undefined);
+    const streamer = new CompactProgressStreamer({ throttleMs: 0, sendText, editText });
+
+    streamer.updateActivity("s1", "run-a");
+    const firstFinalize = streamer.finalize("s1");
+    streamer.updateThinking("s1");
+    const secondFinalize = streamer.finalize("s1");
+    await Promise.all([firstFinalize, secondFinalize]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(sendText.mock.calls.some((call) => String(call[1]).includes("run-a"))).toBe(true);
+    expect(sendText.mock.calls.some((call) => String(call[1]).includes("💭 Thinking..."))).toBe(true);
+    expect(editText).toHaveBeenCalledTimes(2);
+    expect(editText.mock.calls.every((call) => String(call[2]).includes("✅ Finished Work"))).toBe(true);
+  });
+
+  it("does not finish a detached card after the session is cleared", async () => {
+    let releaseSend: (() => void) | undefined;
+    const sendText = vi.fn().mockImplementation(
+      () =>
+        new Promise<number>((resolve) => {
+          releaseSend = () => resolve(10);
+        }),
+    );
+    const editText = vi.fn().mockResolvedValue(undefined);
+    const deleteText = vi.fn().mockResolvedValue(undefined);
+    const streamer = new CompactProgressStreamer({
+      throttleMs: 0,
+      sendText,
+      editText,
+      deleteText,
+    });
+
+    streamer.updateActivity("s1", "working");
+    const finalizePromise = streamer.finalize("s1", true);
+    streamer.clearSession("s1", "session_error");
+    releaseSend?.();
+    await finalizePromise;
+
+    expect(editText).not.toHaveBeenCalled();
+    expect(deleteText).not.toHaveBeenCalled();
+  });
+
+  it("does not finish a detached card after all sessions are cleared", async () => {
+    let releaseSend: (() => void) | undefined;
+    const sendText = vi.fn().mockImplementation(
+      () =>
+        new Promise<number>((resolve) => {
+          releaseSend = () => resolve(10);
+        }),
+    );
+    const editText = vi.fn().mockResolvedValue(undefined);
+    const streamer = new CompactProgressStreamer({ throttleMs: 0, sendText, editText });
+
+    streamer.updateActivity("s1", "working");
+    const finalizePromise = streamer.finalize("s1");
+    streamer.clearAll("runtime_clear");
+    releaseSend?.();
+    await finalizePromise;
+
     expect(editText).not.toHaveBeenCalled();
   });
 

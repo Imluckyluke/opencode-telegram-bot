@@ -132,7 +132,6 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   private nextDraftId = 1;
   private readonly thinkingSections = new Map<string, ThinkingSection[]>();
   private readonly sessionCompletionTasks = new Map<string, Promise<void>>();
-  private readonly compactProgressFinalizationTasks = new Map<string, Promise<void>>();
   private readonly assistantEditResponseStreamer: ResponseStreamer;
   private readonly assistantDraftResponseStreamer: ResponseStreamer;
   private readonly thinkingResponseStreamer: ResponseStreamer;
@@ -520,7 +519,6 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     this.toolCallStreamer.clearAll(reason);
     this.toolMessageBatcher.clearAll(reason);
     this.compactProgressStreamer.clearAll(reason);
-    this.compactProgressFinalizationTasks.clear();
     this.thinkingSections.clear();
     this.sessionCompletionTasks.clear();
     this.clearToolElapsedState(null, reason);
@@ -553,7 +551,6 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       this.toolCallStreamer.clearAll("summary_aggregator_clear");
       this.clearAllResponseStreams("summary_aggregator_clear");
       this.compactProgressStreamer.clearAll("summary_aggregator_clear");
-      this.compactProgressFinalizationTasks.clear();
       this.thinkingSections.clear();
       this.clearToolElapsedState(null, "summary_aggregator_clear");
     });
@@ -569,27 +566,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       }
 
       if (isCompactProgressMode()) {
-        void this.finalizeCompactProgress(sessionId)
-          .then(() => {
-            const activeSession = getCurrentSession();
-            if (!activeSession || activeSession.id !== sessionId) {
-              return;
-            }
-
-            const preparedStreamPayload = this.prepareStreamingPayload(messageText);
-            if (!preparedStreamPayload) {
-              return;
-            }
-
-            preparedStreamPayload.sendOptions = { disable_notification: true };
-            preparedStreamPayload.editOptions = undefined;
-
-            this.enqueueAssistantResponse(sessionId, messageId, preparedStreamPayload);
-          })
-          .catch((error) => {
-            logger.error("[Bot] Failed to finalize compact progress before assistant stream", error);
-          });
-        return;
+        this.compactProgressStreamer.updateResponding(sessionId);
       }
 
       const preparedStreamPayload = this.prepareStreamingPayload(messageText);
@@ -643,10 +620,6 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           });
 
           await this.completeThinkingStream(sessionId, messageId);
-
-          if (isCompactProgressMode()) {
-            await this.finalizeCompactProgress(sessionId);
-          }
 
           const assistantResponseMode = this.getAssistantResponseStreamMode(sessionId, messageId);
 
@@ -1155,23 +1128,31 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     summaryAggregator.setOnSessionIdle(async (sessionId) => {
       resetStreamThrottle(sessionId);
       await markAttachedSessionIdle(sessionId);
-      // Cleared unconditionally: a session can go idle after it stopped being
-      // the current one, and the early returns below would leak the tracker
-      // or fire a compact-progress timer armed before the run stopped.
+      // Dropped immediately when this session is no longer current: the early
+      // returns below would otherwise leave a compact-progress timer armed.
+      // A still-current session keeps the card until after in-flight completion
+      // work, then finalizes it (delete or finished summary).
       this.clearToolElapsedState(sessionId, "session_idle");
-      this.compactProgressStreamer.clearSession(sessionId, "session_idle");
+      const currentSessionAtIdle = getCurrentSession();
+      const canFinalizeCompactProgress =
+        Boolean(this.botInstance && this.chatIdInstance) && currentSessionAtIdle?.id === sessionId;
+      if (!canFinalizeCompactProgress) {
+        this.compactProgressStreamer.clearSession(sessionId, "session_idle");
+      }
       await this.sessionCompletionTasks.get(sessionId)?.catch(() => undefined);
 
       const completedRun = assistantRunState.finishRun(sessionId, "session_idle");
       clearPromptResponseMode(sessionId);
 
       if (!this.botInstance || !this.chatIdInstance) {
+        this.compactProgressStreamer.clearSession(sessionId, "session_idle");
         foregroundSessionState.markIdle(sessionId);
         return;
       }
 
       const currentSession = getCurrentSession();
       if (!currentSession || currentSession.id !== sessionId) {
+        this.compactProgressStreamer.clearSession(sessionId, "session_idle");
         foregroundSessionState.markIdle(sessionId);
         await scheduledTaskRuntime.flushDeferredDeliveries();
         return;
@@ -1182,6 +1163,8 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           this.toolMessageBatcher.flushSession(sessionId, "session_idle"),
           this.toolCallStreamer.breakSession(sessionId, "session_idle"),
         ]);
+
+        await this.finalizeCompactProgress(sessionId);
 
         if (getShowAssistantRunFooter() && completedRun?.hasCompletedResponse) {
           const agent = completedRun.actualAgent || completedRun.configuredAgent;
@@ -1656,21 +1639,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   }
 
   private finalizeCompactProgress(sessionId: string): Promise<void> {
-    const existingTask = this.compactProgressFinalizationTasks.get(sessionId);
-    if (existingTask) {
-      return existingTask;
-    }
-
-    const nextTask = this.compactProgressStreamer
-      .finalize(sessionId, getDeleteCompactProgressOnFinish())
-      .finally(() => {
-      if (this.compactProgressFinalizationTasks.get(sessionId) === nextTask) {
-        this.compactProgressFinalizationTasks.delete(sessionId);
-      }
-    });
-
-    this.compactProgressFinalizationTasks.set(sessionId, nextTask);
-    return nextTask;
+    return this.compactProgressStreamer.finalize(sessionId, getDeleteCompactProgressOnFinish());
   }
 
   private getNextDraftId(): number {
