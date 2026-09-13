@@ -179,4 +179,91 @@ describe("bot/streaming/running-tool-tracker", () => {
     expect(heartbeats).toEqual([]);
     expect(ticks.map((tick) => tick.callId)).toEqual(["call-2"]);
   });
+
+  it("returns undefined from newestCallId when the session has no calls", () => {
+    const { tracker } = createTracker();
+
+    tracker.track("s2", "call-2");
+
+    expect(tracker.newestCallId("s1")).toBeUndefined();
+  });
+
+  it("returns the only tracked call for the session", () => {
+    const { tracker } = createTracker();
+
+    tracker.track("s1", "call-1");
+
+    expect(tracker.newestCallId("s1")).toBe("call-1");
+  });
+
+  it("picks the later start when two calls belong to one session", () => {
+    vi.useFakeTimers();
+    const { tracker } = createTracker();
+
+    tracker.track("s1", "call-1");
+    vi.advanceTimersByTime(1000);
+    tracker.track("s1", "call-2");
+
+    expect(tracker.newestCallId("s1")).toBe("call-2");
+  });
+
+  it("does not let a released call win newestCallId", () => {
+    vi.useFakeTimers();
+    const { tracker } = createTracker();
+
+    tracker.track("s1", "call-1");
+    vi.advanceTimersByTime(1000);
+    tracker.track("s1", "call-2");
+    tracker.release("call-2");
+
+    expect(tracker.newestCallId("s1")).toBe("call-1");
+  });
+
+  it("lists tracked calls newest first", () => {
+    vi.useFakeTimers();
+    const { tracker } = createTracker();
+
+    tracker.track("s1", "call-1");
+    vi.advanceTimersByTime(1000);
+    tracker.track("s1", "call-2");
+    tracker.track("s2", "call-other");
+
+    expect(tracker.trackedCallIds("s1")).toEqual(["call-2", "call-1"]);
+  });
+
+  it("ignores a call from another session when picking newestCallId", () => {
+    vi.useFakeTimers();
+    const { tracker } = createTracker();
+
+    tracker.track("s1", "call-1");
+    vi.advanceTimersByTime(1000);
+    tracker.track("s2", "call-2");
+
+    expect(tracker.newestCallId("s1")).toBe("call-1");
+  });
+
+  it("returns no display tick until the threshold", async () => {
+    vi.useFakeTimers();
+    const { tracker } = createTracker();
+
+    tracker.track("s1", "call-1");
+    await vi.advanceTimersByTimeAsync(15 * SECOND);
+
+    expect(tracker.displayTick("call-1")).toBeUndefined();
+  });
+
+  it("returns the bucketed display tick, not raw elapsed", async () => {
+    vi.useFakeTimers();
+    const { tracker } = createTracker();
+
+    tracker.track("s1", "call-1");
+    await vi.advanceTimersByTimeAsync(12 * MINUTE);
+
+    expect(tracker.displayTick("call-1")).toEqual({
+      sessionId: "s1",
+      callId: "call-1",
+      elapsedMs: 10 * MINUTE,
+      isFinal: false,
+    });
+  });
 });

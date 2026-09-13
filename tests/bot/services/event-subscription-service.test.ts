@@ -165,20 +165,22 @@ function emitPermissionAsked(
 function emitBashTool(
   summaryAggregator: { processEvent(event: Event): void },
   status: "running" | "completed" | "error",
+  options: { callId?: string; command?: string } = {},
 ): void {
+  const callId = options.callId ?? "call-bash";
   summaryAggregator.processEvent({
     type: "message.part.updated",
     properties: {
       part: {
-        id: "part-bash",
+        id: `part-${callId}`,
         sessionID: "session-1",
         messageID: "message-1",
         type: "tool",
-        callID: "call-bash",
+        callID: callId,
         tool: "bash",
         state: {
           status,
-          input: { command: "npm test" },
+          input: { command: options.command ?? "npm test" },
           metadata: {},
           ...(status === "completed" ? { output: "ok" } : {}),
           ...(status === "error" ? { error: "command failed" } : {}),
@@ -188,25 +190,86 @@ function emitBashTool(
   } as unknown as Event);
 }
 
-function emitTaskTool(summaryAggregator: { processEvent(event: Event): void }): void {
+function emitReadTool(
+  summaryAggregator: { processEvent(event: Event): void },
+  status: "running" | "completed" | "error",
+  options: { callId: string; filePath: string },
+): void {
   summaryAggregator.processEvent({
     type: "message.part.updated",
     properties: {
       part: {
-        id: "part-task",
+        id: `part-${options.callId}`,
         sessionID: "session-1",
         messageID: "message-1",
         type: "tool",
-        callID: "call-task",
+        callID: options.callId,
+        tool: "read",
+        state: {
+          status,
+          input: { filePath: options.filePath },
+          metadata: {},
+          ...(status === "completed" ? { output: "ok" } : {}),
+          ...(status === "error" ? { error: "read failed" } : {}),
+        },
+      },
+    },
+  } as unknown as Event);
+}
+
+function emitBareTool(
+  summaryAggregator: { processEvent(event: Event): void },
+  status: "running" | "completed" | "error",
+  callId: string,
+): void {
+  summaryAggregator.processEvent({
+    type: "message.part.updated",
+    properties: {
+      part: {
+        id: `part-${callId}`,
+        sessionID: "session-1",
+        messageID: "message-1",
+        type: "tool",
+        callID: callId,
+        tool: "unknown_tool",
+        state: {
+          status,
+          input: {},
+          metadata: {},
+          ...(status === "completed" ? { output: "ok" } : {}),
+          ...(status === "error" ? { error: "failed" } : {}),
+        },
+      },
+    },
+  } as unknown as Event);
+}
+
+function emitTaskTool(
+  summaryAggregator: { processEvent(event: Event): void },
+  options: { callId?: string; status?: "running" | "completed" | "error" } = {},
+): void {
+  const callId = options.callId ?? "call-task";
+  const status = options.status ?? "running";
+  summaryAggregator.processEvent({
+    type: "message.part.updated",
+    properties: {
+      part: {
+        id: `part-${callId}`,
+        sessionID: "session-1",
+        messageID: "message-1",
+        type: "tool",
+        callID: callId,
         tool: "task",
         state: {
-          status: "running",
+          status,
           input: {
             description: "Explore the project",
             subagent_type: "explore",
             prompt: "Inspect architecture",
           },
           metadata: {},
+          ...(status === "completed" ? { output: "ok" } : {}),
+          ...(status === "error" ? { error: "task failed" } : {}),
         },
       },
     },
@@ -594,6 +657,219 @@ describe("bot/services/event-subscription-service", () => {
       );
     });
 
+    it("falls back to the still-running bash after parallel reads finish in compact mode", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitBashTool(summaryAggregator, "running", { command: "sleep 90" });
+      emitReadTool(summaryAggregator, "running", { callId: "call-read-1", filePath: "README.md" });
+      emitReadTool(summaryAggregator, "completed", { callId: "call-read-1", filePath: "README.md" });
+      emitReadTool(summaryAggregator, "running", { callId: "call-read-2", filePath: "AGENTS.md" });
+      emitReadTool(summaryAggregator, "completed", { callId: "call-read-2", filePath: "AGENTS.md" });
+      await vi.advanceTimersByTimeAsync(ELAPSED_SETTLE_MS);
+
+      const lastText = collectSentTexts(api).pop() ?? "";
+      expect(lastText).toContain("sleep 90");
+      expect(lastText).toContain("· 🕒 20s");
+      expect(lastText).not.toContain("AGENTS.md");
+      expect(lastText).not.toContain("README.md");
+    });
+
+    it("lets a new compact tool take the line and returns to the remaining one with its timer", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitBashTool(summaryAggregator, "running", { command: "sleep 90" });
+      await vi.advanceTimersByTimeAsync(ELAPSED_SETTLE_MS);
+      emitReadTool(summaryAggregator, "running", { callId: "call-read-1", filePath: "AGENTS.md" });
+      await flushPendingDispatch();
+
+      expect(collectSentTexts(api).pop() ?? "").toContain("AGENTS.md");
+
+      emitReadTool(summaryAggregator, "completed", { callId: "call-read-1", filePath: "AGENTS.md" });
+      await flushPendingDispatch();
+
+      const lastText = collectSentTexts(api).pop() ?? "";
+      expect(lastText).toContain("sleep 90");
+      expect(lastText).toMatch(/· 🕒 \d+[ms]/);
+      expect(lastText).not.toContain("AGENTS.md");
+    });
+
+    it("shows the most recently started still-running tool in compact mode", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitBashTool(summaryAggregator, "running", { command: "sleep 90" });
+      await flushPendingDispatch();
+      emitReadTool(summaryAggregator, "running", { callId: "call-read-1", filePath: "AGENTS.md" });
+      await flushPendingDispatch();
+
+      const lastText = collectSentTexts(api).pop() ?? "";
+      expect(lastText).toContain("AGENTS.md");
+      expect(lastText).not.toContain("sleep 90");
+    });
+
+    it("leaves the finished tool on the compact line once nothing is still running", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitBashTool(summaryAggregator, "running", { command: "sleep 90" });
+      emitReadTool(summaryAggregator, "running", { callId: "call-read-1", filePath: "AGENTS.md" });
+      emitReadTool(summaryAggregator, "completed", { callId: "call-read-1", filePath: "AGENTS.md" });
+      emitBashTool(summaryAggregator, "completed", { command: "sleep 90" });
+      await flushPendingDispatch();
+
+      const lastText = collectSentTexts(api).pop() ?? "";
+      expect(lastText).toContain("sleep 90");
+      expect(lastText).not.toContain("🕒");
+    });
+
+    it("treats an error sibling like a finish and falls back to the still-running tool", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitBashTool(summaryAggregator, "running", { command: "sleep 90" });
+      emitReadTool(summaryAggregator, "running", { callId: "call-read-1", filePath: "AGENTS.md" });
+      emitReadTool(summaryAggregator, "error", { callId: "call-read-1", filePath: "AGENTS.md" });
+      await vi.advanceTimersByTimeAsync(ELAPSED_SETTLE_MS);
+
+      const lastText = collectSentTexts(api).pop() ?? "";
+      expect(lastText).toContain("sleep 90");
+      expect(lastText).toContain("· 🕒 20s");
+      expect(lastText).not.toContain("AGENTS.md");
+    });
+
+    it("applies the same compact fallback when a task tool runs beside bash", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitBashTool(summaryAggregator, "running", { command: "sleep 90" });
+      emitTaskTool(summaryAggregator);
+      await flushPendingDispatch();
+      expect(collectSentTexts(api).pop() ?? "").toContain("Running Task");
+
+      emitTaskTool(summaryAggregator, { status: "completed" });
+      await vi.advanceTimersByTimeAsync(ELAPSED_SETTLE_MS);
+
+      const lastText = collectSentTexts(api).pop() ?? "";
+      expect(lastText).toContain("sleep 90");
+      expect(lastText).toMatch(/· 🕒 \d+[ms]/);
+    });
+
+    it("keeps the running compact tool on the line when thinking or writing arrives", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitBashTool(summaryAggregator, "running", { command: "sleep 90" });
+      await flushPendingDispatch();
+      emitThinkingPart(summaryAggregator, "planning");
+      await flushPendingDispatch();
+      emitAssistantTextPart(summaryAggregator, "Here is the answer");
+      await flushPendingDispatch();
+
+      const lastText = collectSentTexts(api).pop() ?? "";
+      expect(lastText).toContain("sleep 90");
+      expect(lastText).not.toContain("Thinking");
+      expect(lastText).not.toContain("Writing answer");
+    });
+
+    it("shows a detail-less running sibling instead of a finished compact tool", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitBashTool(summaryAggregator, "running", { command: "sleep 90" });
+      emitReadTool(summaryAggregator, "running", { callId: "call-read-1", filePath: "AGENTS.md" });
+      emitBareTool(summaryAggregator, "running", "call-bare");
+      emitReadTool(summaryAggregator, "completed", { callId: "call-read-1", filePath: "AGENTS.md" });
+      await vi.advanceTimersByTimeAsync(ELAPSED_SETTLE_MS);
+
+      const lastText = collectSentTexts(api).pop() ?? "";
+      expect(lastText).toContain("unknown_tool");
+      expect(lastText).toContain("· 🕒 20s");
+      expect(lastText).not.toContain("AGENTS.md");
+    });
+
+    it("does not leave a finished compact tool on the line when only a detail-less sibling remains", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitReadTool(summaryAggregator, "running", { callId: "call-read-1", filePath: "AGENTS.md" });
+      emitBareTool(summaryAggregator, "running", "call-bare");
+      emitReadTool(summaryAggregator, "completed", { callId: "call-read-1", filePath: "AGENTS.md" });
+      await vi.advanceTimersByTimeAsync(ELAPSED_SETTLE_MS);
+
+      const lastText = collectSentTexts(api).pop() ?? "";
+      expect(lastText).not.toContain("AGENTS.md");
+      expect(lastText).toContain("unknown_tool");
+      expect(lastText).toContain("· 🕒 20s");
+    });
+
+    it("does not let an older compact tool steal the line on a later running update", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitBashTool(summaryAggregator, "running", { command: "sleep 90" });
+      await flushPendingDispatch();
+      emitReadTool(summaryAggregator, "running", { callId: "call-read-1", filePath: "AGENTS.md" });
+      await flushPendingDispatch();
+      emitBashTool(summaryAggregator, "running", { command: "sleep 90" });
+      await flushPendingDispatch();
+
+      const lastText = collectSentTexts(api).pop() ?? "";
+      expect(lastText).toContain("AGENTS.md");
+      expect(lastText).not.toContain("sleep 90");
+    });
+
+    it("shows the existing duration bucket when falling back after ten minutes", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      const settingsStore = await import("../../../src/app/stores/settings-store.js");
+      settingsStore.setCompactOutputMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      useTrackerFakeTimers();
+      emitBashTool(summaryAggregator, "running", { command: "sleep 90" });
+      await vi.advanceTimersByTimeAsync(12 * 60_000);
+      emitReadTool(summaryAggregator, "running", { callId: "call-read-1", filePath: "AGENTS.md" });
+      emitReadTool(summaryAggregator, "completed", { callId: "call-read-1", filePath: "AGENTS.md" });
+      await flushPendingDispatch();
+
+      const lastText = collectSentTexts(api).pop() ?? "";
+      expect(lastText).toContain("sleep 90");
+      expect(lastText).toContain("· 🕒 10m");
+      expect(lastText).not.toContain("12m");
+      expect(lastText).not.toContain("AGENTS.md");
+    });
+
     it("keeps subagent cards ticking without any incoming events", async () => {
       const { api, summaryAggregator } = await setupService(false);
 
@@ -672,6 +948,14 @@ describe("bot/services/event-subscription-service", () => {
       emitThinkingPart(summaryAggregator, "planning");
       await flushPendingDispatch();
       emitBashTool(summaryAggregator, "running");
+      await flushPendingDispatch();
+      emitAssistantTextPart(summaryAggregator, "not yet");
+      await flushPendingDispatch();
+
+      expect(collectSentTexts(api).some((text) => text.includes("✍️ Writing answer..."))).toBe(false);
+      expect(collectSentTexts(api).pop() ?? "").toContain("npm test");
+
+      emitBashTool(summaryAggregator, "completed");
       await flushPendingDispatch();
       emitAssistantTextPart(summaryAggregator, "Here is the answer");
       await flushPendingDispatch();

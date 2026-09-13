@@ -123,6 +123,40 @@ export class RunningToolTracker {
     }
   }
 
+  trackedCallIds(sessionId: string): string[] {
+    const matches: { callId: string; startedAt: number }[] = [];
+
+    for (const [callId, call] of this.calls) {
+      if (call.sessionId === sessionId) {
+        matches.push({ callId, startedAt: call.startedAt });
+      }
+    }
+
+    matches.reverse();
+    matches.sort((left, right) => right.startedAt - left.startedAt);
+    return matches.map((entry) => entry.callId);
+  }
+
+  newestCallId(sessionId: string): string | undefined {
+    return this.trackedCallIds(sessionId)[0];
+  }
+
+  displayTick(callId: string, now: number = Date.now()): RunningToolTick | undefined {
+    const call = this.calls.get(callId);
+    if (!call) {
+      return undefined;
+    }
+
+    const elapsedMs = now - call.startedAt;
+    if (elapsedMs < this.thresholdMs) {
+      return undefined;
+    }
+
+    const isFinal = elapsedMs >= this.maxTrackingMs || call.stopped;
+    const bucketMs = isFinal ? this.maxTrackingMs : bucketElapsedMs(elapsedMs);
+    return { sessionId: call.sessionId, callId, elapsedMs: bucketMs, isFinal };
+  }
+
   private ensureTimer(): void {
     if (this.timer) {
       return;

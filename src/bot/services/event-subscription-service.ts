@@ -9,7 +9,11 @@ import {
   type SubagentInfo,
   type ToolInfo,
 } from "../../app/managers/summary-aggregation-manager.js";
-import { formatCompactToolActivity, formatToolInfo } from "../../app/formatters/summary-formatter.js";
+import {
+  formatCompactToolActivity,
+  formatCompactToolInfo,
+  formatToolInfo,
+} from "../../app/formatters/summary-formatter.js";
 import { renderSubagentCard } from "../../app/formatters/subagent-formatter.js";
 import {
   RUNNING_ICON,
@@ -565,7 +569,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
-      if (isCompactProgressMode()) {
+      if (isCompactProgressMode() && !this.runningToolTracker.newestCallId(sessionId)) {
         this.compactProgressStreamer.updateResponding(sessionId);
       }
 
@@ -751,13 +755,25 @@ class EventSubscriptionService implements BotEventSubscriptionService {
         return;
       }
 
-      const activity = this.getCompactToolActivity(toolInfo);
-      if (activity) {
-        this.compactActivityBySession.set(toolInfo.sessionId, {
-          callId: toolInfo.callId,
-          activity,
-        });
-        this.compactProgressStreamer.updateActivity(toolInfo.sessionId, activity);
+      if (isTerminal) {
+        const fallback = this.pickCompactFallback(toolInfo.sessionId);
+        if (fallback) {
+          this.syncCompactToolActivity(toolInfo.sessionId, fallback.callId, fallback.activity);
+        } else if (!this.runningToolTracker.newestCallId(toolInfo.sessionId)) {
+          const activity = this.getCompactToolActivity(toolInfo);
+          if (activity) {
+            this.compactActivityBySession.set(toolInfo.sessionId, {
+              callId: toolInfo.callId,
+              activity,
+            });
+            this.compactProgressStreamer.updateActivity(toolInfo.sessionId, activity);
+          }
+        }
+      } else if (this.runningToolTracker.newestCallId(toolInfo.sessionId) === toolInfo.callId) {
+        const activity = this.getCompactToolActivity(toolInfo);
+        if (activity) {
+          this.syncCompactToolActivity(toolInfo.sessionId, toolInfo.callId, activity);
+        }
       }
 
       if (status === "completed") {
@@ -1012,7 +1028,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       });
 
       if (isCompactProgressMode()) {
-        this.compactProgressStreamer.updateThinking(update.sessionId);
+        if (!this.runningToolTracker.newestCallId(update.sessionId)) {
+          this.compactProgressStreamer.updateThinking(update.sessionId);
+        }
 
         if (update.isFirstUpdate && pinnedMessageManager.isInitialized()) {
           await pinnedMessageManager.refresh();
@@ -1660,12 +1678,42 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     return `subagent:${cardId}`;
   }
 
-  private getCompactToolActivity(toolInfo: ToolInfo): string | null {
+  private getCompactToolActivity(toolInfo: ToolInfo): string {
     if (toolInfo.tool === "task") {
       return t("progress.compact.task");
     }
 
-    return formatCompactToolActivity(toolInfo, 128);
+    return formatCompactToolActivity(toolInfo, 128) ?? formatCompactToolInfo(toolInfo, 128, toolInfo.tool);
+  }
+
+  private pickCompactFallback(
+    sessionId: string,
+  ): { callId: string; activity: string } | null {
+    for (const callId of this.runningToolTracker.trackedCallIds(sessionId)) {
+      const info = this.runningToolInfos.get(this.getToolCacheKey(sessionId, callId));
+      const activity = info ? this.getCompactToolActivity(info) : null;
+      if (activity) {
+        return { callId, activity };
+      }
+    }
+
+    return null;
+  }
+
+  private syncCompactToolActivity(sessionId: string, callId: string, activity: string): void {
+    this.compactActivityBySession.set(sessionId, { callId, activity });
+
+    const tick = this.runningToolTracker.displayTick(callId);
+    const text = tick
+      ? appendDuration(
+          activity,
+          tick.isFinal
+            ? formatDurationOverHours(TOOL_ELAPSED_MAX_TRACKING_HOURS)
+            : formatDuration(tick.elapsedMs),
+        )
+      : activity;
+
+    this.compactProgressStreamer.updateActivity(sessionId, text);
   }
 
   private formatShortSessionId(sessionId: string): string {
