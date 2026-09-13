@@ -101,4 +101,12 @@ describe("bot Telegram 5xx retry policy", () => {
     await expect(result).resolves.toEqual({ message_id: 1 });
     expect(mocked.fetch).toHaveBeenCalledTimes(2);
   });
+
+  it("does not apply the API transformer retry to startup-managed methods", async () => {
+    mocked.fetch.mockResolvedValue(telegramApiResponse(429));
+    const bot = createBot();
+
+    await expect(bot.api.getWebhookInfo()).rejects.toMatchObject({ error_code: 429 });
+    expect(mocked.fetch).toHaveBeenCalledTimes(1);
+  });
 });

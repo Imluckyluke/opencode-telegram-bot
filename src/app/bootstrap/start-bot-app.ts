@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import { cleanupBotRuntime, createBot } from "../../bot/index.js";
+import { cleanupBotRuntime, createBot, restoreFollowedSessionOnPollingStart } from "../../bot/index.js";
 import { createScheduledTaskDeliverySender } from "../../bot/messages/scheduled-task-delivery.js";
 import { config } from "../../config.js";
 import { opencodeAutoRestartService } from "../../opencode/auto-restart.js";
@@ -19,10 +19,112 @@ import { clearServiceStateFile } from "../../runtime/service/manager.js";
 import { getServiceStateFilePathFromEnv, isServiceChildProcess } from "../../runtime/service/env.js";
 import { flushLogger, getLogFilePath, initializeLogger, logger } from "../../utils/logger.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
+import { getTelegramRetryAfterMs } from "../../utils/telegram-rate-limit-retry.js";
 
 const SHUTDOWN_TIMEOUT_MS = 5000;
 const SETTINGS_FLUSH_TIMEOUT_MS = 1000;
 const LOG_FLUSH_TIMEOUT_MS = 1000;
+const TELEGRAM_STARTUP_RETRY_BASE_MS = 1000;
+const TELEGRAM_STARTUP_RETRY_CAP_MS = 60_000;
+const TELEGRAM_FATAL_TOKEN_CODES = new Set([401, 404]);
+
+function getTelegramErrorCode(error: unknown): number | null {
+  if (typeof error !== "object" || error === null) {
+    return null;
+  }
+
+  const errorCode = Reflect.get(error, "error_code");
+  if (typeof errorCode === "number" && Number.isFinite(errorCode)) {
+    return errorCode;
+  }
+
+  return null;
+}
+
+function isFatalTelegramTokenError(error: unknown): boolean {
+  const errorCode = getTelegramErrorCode(error);
+  return errorCode !== null && TELEGRAM_FATAL_TOKEN_CODES.has(errorCode);
+}
+
+function isTelegramStartupServerError(error: unknown): boolean {
+  const errorCode = getTelegramErrorCode(error);
+  return errorCode !== null && errorCode >= 500 && errorCode < 600;
+}
+
+function isRetryableTelegramStartupError(error: unknown): boolean {
+  if (isTelegramStartupServerError(error) || getTelegramRetryAfterMs(error) !== null) {
+    return true;
+  }
+
+  if (typeof error === "object" && error !== null && Reflect.get(error, "name") === "HttpError") {
+    return true;
+  }
+
+  if (error instanceof Error && /Network request for '.+' failed/i.test(error.message)) {
+    return true;
+  }
+
+  return false;
+}
+
+function nextTelegramStartupRetryDelayMs(error: unknown, attempt: number): number {
+  const exponentialMs = Math.min(
+    TELEGRAM_STARTUP_RETRY_BASE_MS * 2 ** Math.max(0, attempt - 1),
+    TELEGRAM_STARTUP_RETRY_CAP_MS,
+  );
+  const fromErrorMs = getTelegramRetryAfterMs(error, TELEGRAM_STARTUP_RETRY_BASE_MS, attempt - 1);
+  if (fromErrorMs === null) {
+    return exponentialMs;
+  }
+
+  return Math.min(Math.max(exponentialMs, fromErrorMs), TELEGRAM_STARTUP_RETRY_CAP_MS);
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function callTelegramAtStartup<T>(
+  label: string,
+  operation: () => Promise<T>,
+  isShutdown: () => boolean,
+): Promise<T | "shutdown"> {
+  let attempt = 0;
+
+  while (true) {
+    if (isShutdown()) {
+      return "shutdown";
+    }
+
+    try {
+      return await operation();
+    } catch (error) {
+      if (isShutdown()) {
+        return "shutdown";
+      }
+
+      if (isFatalTelegramTokenError(error)) {
+        logger.error("[App] Telegram rejected the bot token; not retrying", error);
+        throw error;
+      }
+
+      if (!isRetryableTelegramStartupError(error)) {
+        logger.error("[App] Telegram startup failed; not retrying", error);
+        throw error;
+      }
+
+      attempt += 1;
+      const delayMs = nextTelegramStartupRetryDelayMs(error, attempt);
+      logger.warn(
+        `[App] Telegram ${label} failed (attempt ${attempt}); retrying in ${delayMs}ms`,
+        error,
+      );
+      await wait(delayMs);
+    }
+  }
+}
 
 export async function startBotApp(): Promise<void> {
   await initializeLogger();
@@ -159,7 +261,16 @@ export async function startBotApp(): Promise<void> {
   process.on("SIGINT", handleSigint);
   process.on("SIGTERM", handleSigterm);
 
-  const webhookInfo = await bot.api.getWebhookInfo();
+  const isShutdown = (): boolean => shutdownStarted;
+  const webhookInfo = await callTelegramAtStartup(
+    "getWebhookInfo",
+    () => bot.api.getWebhookInfo(),
+    isShutdown,
+  );
+  if (webhookInfo === "shutdown") {
+    return;
+  }
+
   if (webhookInfo.pending_update_count > 0) {
     // Approximate: more updates can arrive before long polling actually drops
     // the queue, and Telegram does not report how many were discarded.
@@ -169,17 +280,34 @@ export async function startBotApp(): Promise<void> {
   }
   if (webhookInfo.url) {
     logger.info(`[Bot] Webhook detected: ${webhookInfo.url}, removing...`);
-    await bot.api.deleteWebhook();
+    const deleted = await callTelegramAtStartup("deleteWebhook", () => bot.api.deleteWebhook(), isShutdown);
+    if (deleted === "shutdown") {
+      return;
+    }
     logger.info("[Bot] Webhook removed, switching to long polling");
   }
+
+  const identity = await callTelegramAtStartup("getMe", () => bot.api.getMe(), isShutdown);
+  if (identity === "shutdown" || shutdownStarted) {
+    return;
+  }
+  bot.botInfo = identity;
 
   try {
     await bot.start({
       drop_pending_updates: true,
       onStart: (botInfo) => {
         logger.info(`Bot @${botInfo.username} started!`);
+        restoreFollowedSessionOnPollingStart(bot);
       },
     });
+  } catch (error) {
+    if (isFatalTelegramTokenError(error)) {
+      logger.error("[App] Telegram rejected the bot token; not retrying", error);
+    } else {
+      logger.error("[App] Telegram startup failed; not retrying", error);
+    }
+    throw error;
   } finally {
     process.off("unhandledRejection", unhandledRejectionHandler);
     process.off("uncaughtException", uncaughtExceptionHandler);

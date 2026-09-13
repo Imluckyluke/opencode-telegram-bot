@@ -25,6 +25,7 @@ const mocked = vi.hoisted(() => ({
   initializeLoggerMock: vi.fn(),
   getLogFilePathMock: vi.fn(),
   flushLoggerMock: vi.fn(),
+  restoreFollowedSessionOnPollingStartMock: vi.fn(),
   config: {
     opencode: {
       apiUrl: "http://localhost:4096",
@@ -38,6 +39,7 @@ const mocked = vi.hoisted(() => ({
 vi.mock("../../src/bot/index.js", () => ({
   cleanupBotRuntime: mocked.cleanupBotRuntimeMock,
   createBot: mocked.createBotMock,
+  restoreFollowedSessionOnPollingStart: mocked.restoreFollowedSessionOnPollingStartMock,
 }));
 
 vi.mock("../../src/config.js", () => ({
@@ -108,6 +110,7 @@ function createBot() {
   return {
     api: {
       deleteWebhook: vi.fn().mockResolvedValue(undefined),
+      getMe: vi.fn().mockResolvedValue({ username: "test_bot" }),
       getWebhookInfo: vi.fn().mockResolvedValue({ url: "" }),
     },
     start: vi.fn().mockImplementation(async ({ onStart }) => {
@@ -125,6 +128,7 @@ function createPendingBot() {
   const bot = {
     api: {
       deleteWebhook: vi.fn().mockResolvedValue(undefined),
+      getMe: vi.fn().mockResolvedValue({ username: "test_bot" }),
       getWebhookInfo: vi.fn().mockResolvedValue({ url: "" }),
     },
     start: vi.fn().mockImplementation(async ({ onStart }) => {
@@ -194,6 +198,7 @@ describe("app/start-bot-app", () => {
     mocked.initializeLoggerMock.mockReset();
     mocked.getLogFilePathMock.mockReset();
     mocked.flushLoggerMock.mockReset();
+    mocked.restoreFollowedSessionOnPollingStartMock.mockReset();
 
     mocked.createBotMock.mockReturnValue(createBot());
     mocked.autoRestartStartMock.mockResolvedValue(false);
@@ -404,5 +409,250 @@ describe("app/start-bot-app", () => {
     expect(defined(mocked.flushSettingsMock.mock.invocationCallOrder[0])).toBeGreaterThan(
       defined(mocked.scheduledTaskShutdownMock.mock.invocationCallOrder[0]),
     );
+  });
+
+  it("retries getWebhookInfo on a network error then starts polling", async () => {
+    vi.useFakeTimers();
+    const bot = createBot();
+    const networkError = Object.assign(new Error("Network request for 'getWebhookInfo' failed!"), {
+      name: "HttpError",
+    });
+    bot.api.getWebhookInfo
+      .mockRejectedValueOnce(networkError)
+      .mockResolvedValueOnce({ url: "" });
+    mocked.createBotMock.mockReturnValue(bot);
+
+    const appPromise = startBotApp();
+    await vi.advanceTimersByTimeAsync(1000);
+    await appPromise;
+
+    expect(bot.api.getWebhookInfo).toHaveBeenCalledTimes(2);
+    expect(bot.start).toHaveBeenCalledTimes(1);
+    expect(mocked.loggerWarnMock).toHaveBeenCalledWith(
+      "[App] Telegram getWebhookInfo failed (attempt 1); retrying in 1000ms",
+      networkError,
+    );
+
+    vi.useRealTimers();
+  });
+
+  it("retries a 501 server error then starts polling", async () => {
+    vi.useFakeTimers();
+    const bot = createBot();
+    const serverError = Object.assign(new Error("Call to 'getWebhookInfo' failed! (501: Not Implemented)"), {
+      error_code: 501,
+    });
+    bot.api.getWebhookInfo.mockRejectedValueOnce(serverError).mockResolvedValueOnce({ url: "" });
+    mocked.createBotMock.mockReturnValue(bot);
+
+    const appPromise = startBotApp();
+    await vi.advanceTimersByTimeAsync(1000);
+    await appPromise;
+
+    expect(bot.api.getWebhookInfo).toHaveBeenCalledTimes(2);
+    expect(bot.start).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
+
+  it("caps a 429 retry_after at 60 seconds", async () => {
+    vi.useFakeTimers();
+    const bot = createBot();
+    const rateLimitError = Object.assign(
+      new Error("Call to 'getWebhookInfo' failed! (429: Too Many Requests)"),
+      {
+        error_code: 429,
+        parameters: { retry_after: 120 },
+      },
+    );
+    bot.api.getWebhookInfo.mockRejectedValueOnce(rateLimitError).mockResolvedValueOnce({ url: "" });
+    mocked.createBotMock.mockReturnValue(bot);
+
+    const appPromise = startBotApp();
+    await vi.advanceTimersByTimeAsync(59_000);
+    expect(bot.start).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1000);
+    await appPromise;
+
+    expect(bot.start).toHaveBeenCalledTimes(1);
+    expect(mocked.loggerWarnMock).toHaveBeenCalledWith(
+      "[App] Telegram getWebhookInfo failed (attempt 1); retrying in 60000ms",
+      rateLimitError,
+    );
+
+    vi.useRealTimers();
+  });
+
+  it("retries getMe on a network error then starts polling", async () => {
+    vi.useFakeTimers();
+    const bot = createBot();
+    const networkError = Object.assign(new Error("Network request for 'getMe' failed!"), {
+      name: "HttpError",
+    });
+    bot.api.getMe.mockRejectedValueOnce(networkError).mockResolvedValueOnce({ username: "test_bot" });
+    mocked.createBotMock.mockReturnValue(bot);
+
+    const appPromise = startBotApp();
+    await vi.advanceTimersByTimeAsync(1000);
+    await appPromise;
+
+    expect(bot.api.getMe).toHaveBeenCalledTimes(2);
+    expect(bot.start).toHaveBeenCalledTimes(1);
+    expect(mocked.loggerWarnMock).toHaveBeenCalledWith(
+      "[App] Telegram getMe failed (attempt 1); retrying in 1000ms",
+      networkError,
+    );
+
+    vi.useRealTimers();
+  });
+
+  it("retries getWebhookInfo on a 5xx error then starts polling", async () => {
+    vi.useFakeTimers();
+    const bot = createBot();
+    const serverError = Object.assign(new Error("Call to 'getWebhookInfo' failed! (502: Bad Gateway)"), {
+      error_code: 502,
+    });
+    bot.api.getWebhookInfo.mockRejectedValueOnce(serverError).mockResolvedValueOnce({ url: "" });
+    mocked.createBotMock.mockReturnValue(bot);
+
+    const appPromise = startBotApp();
+    await vi.advanceTimersByTimeAsync(1000);
+    await appPromise;
+
+    expect(bot.api.getWebhookInfo).toHaveBeenCalledTimes(2);
+    expect(bot.start).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
+
+  it("retries deleteWebhook on a network error then starts polling", async () => {
+    vi.useFakeTimers();
+    const bot = createBot();
+    const networkError = Object.assign(new Error("Network request for 'deleteWebhook' failed!"), {
+      name: "HttpError",
+    });
+    bot.api.getWebhookInfo.mockResolvedValue({ url: "https://example.invalid/hook", pending_update_count: 0 });
+    bot.api.deleteWebhook.mockRejectedValueOnce(networkError).mockResolvedValueOnce(undefined);
+    mocked.createBotMock.mockReturnValue(bot);
+
+    const appPromise = startBotApp();
+    await vi.advanceTimersByTimeAsync(1000);
+    await appPromise;
+
+    expect(bot.api.deleteWebhook).toHaveBeenCalledTimes(2);
+    expect(bot.start).toHaveBeenCalledTimes(1);
+    expect(mocked.loggerWarnMock).toHaveBeenCalledWith(
+      "[App] Telegram deleteWebhook failed (attempt 1); retrying in 1000ms",
+      networkError,
+    );
+
+    vi.useRealTimers();
+  });
+
+  it("does not retry a rejected bot token and never starts polling", async () => {
+    const bot = createBot();
+    const tokenError = Object.assign(new Error("Call to 'getWebhookInfo' failed! (401: Unauthorized)"), {
+      error_code: 401,
+    });
+    bot.api.getWebhookInfo.mockRejectedValue(tokenError);
+    mocked.createBotMock.mockReturnValue(bot);
+
+    await expect(startBotApp()).rejects.toBe(tokenError);
+
+    expect(bot.api.getWebhookInfo).toHaveBeenCalledTimes(1);
+    expect(bot.start).not.toHaveBeenCalled();
+    expect(mocked.loggerErrorMock).toHaveBeenCalledWith(
+      "[App] Telegram rejected the bot token; not retrying",
+      tokenError,
+    );
+  });
+
+  it("does not retry a 404 token error", async () => {
+    const bot = createBot();
+    const tokenError = Object.assign(new Error("Call to 'getWebhookInfo' failed! (404: Not Found)"), {
+      error_code: 404,
+    });
+    bot.api.getWebhookInfo.mockRejectedValue(tokenError);
+    mocked.createBotMock.mockReturnValue(bot);
+
+    await expect(startBotApp()).rejects.toBe(tokenError);
+    expect(bot.start).not.toHaveBeenCalled();
+  });
+
+  it("does not retry other Telegram startup errors", async () => {
+    const bot = createBot();
+    const conflictError = Object.assign(new Error("Call to 'getWebhookInfo' failed! (409: Conflict)"), {
+      error_code: 409,
+    });
+    bot.api.getWebhookInfo.mockRejectedValue(conflictError);
+    mocked.createBotMock.mockReturnValue(bot);
+
+    await expect(startBotApp()).rejects.toBe(conflictError);
+    expect(bot.start).not.toHaveBeenCalled();
+    expect(mocked.loggerErrorMock).toHaveBeenCalledWith(
+      "[App] Telegram startup failed; not retrying",
+      conflictError,
+    );
+  });
+
+  it("caps the retry delay at 60 seconds", async () => {
+    vi.useFakeTimers();
+    const bot = createBot();
+    const networkError = Object.assign(new Error("Network request for 'getWebhookInfo' failed!"), {
+      name: "HttpError",
+    });
+    bot.api.getWebhookInfo.mockRejectedValue(networkError);
+    mocked.createBotMock.mockReturnValue(bot);
+
+    const appPromise = startBotApp();
+    for (let i = 0; i < 6; i += 1) {
+      await vi.advanceTimersByTimeAsync(60_000);
+    }
+
+    expect(mocked.loggerWarnMock).toHaveBeenCalledWith(
+      "[App] Telegram getWebhookInfo failed (attempt 7); retrying in 60000ms",
+      networkError,
+    );
+    expect(bot.start).not.toHaveBeenCalled();
+
+    bot.api.getWebhookInfo.mockResolvedValueOnce({ url: "" });
+    await vi.advanceTimersByTimeAsync(60_000);
+    await appPromise;
+    expect(bot.start).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
+
+  it("does not start polling when shutdown begins during a retry wait", async () => {
+    vi.useFakeTimers();
+    const bot = createBot();
+    const networkError = Object.assign(new Error("Network request for 'getWebhookInfo' failed!"), {
+      name: "HttpError",
+    });
+    bot.api.getWebhookInfo.mockRejectedValue(networkError);
+    mocked.createBotMock.mockReturnValue(bot);
+
+    const appPromise = startBotApp();
+    await vi.waitFor(() => {
+      expect(mocked.loggerWarnMock).toHaveBeenCalled();
+    });
+
+    expectHandler("SIGINT")();
+    await vi.advanceTimersByTimeAsync(1000);
+    await appPromise;
+
+    expect(bot.start).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it("restores the followed session when polling starts", async () => {
+    const bot = createBot();
+    mocked.createBotMock.mockReturnValue(bot);
+
+    await startBotApp();
+
+    expect(bot).toMatchObject({ botInfo: { username: "test_bot" } });
+    expect(mocked.restoreFollowedSessionOnPollingStartMock).toHaveBeenCalledWith(bot);
   });
 });

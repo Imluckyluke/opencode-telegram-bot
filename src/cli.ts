@@ -2,6 +2,7 @@
 
 import type { RuntimeMode } from "./runtime/mode.js";
 import { parseCliArgs } from "./cli/args.js";
+import { handleCliFailure } from "./cli/failure-exit.js";
 import { resolveRuntimeMode, setRuntimeMode } from "./runtime/mode.js";
 import { getUnsupportedNodeVersionMessage } from "./runtime/node-version.js";
 import { getRuntimePaths } from "./runtime/paths.js";
@@ -38,7 +39,6 @@ const CLI_MESSAGES = {
   lineUptimeSec: (seconds: number) => `Uptime: ${seconds} sec`,
   lineLogFile: (filePath: string) => `Log file: ${filePath}`,
   lineAppHome: (appHome: string) => `App home: ${appHome}`,
-  errorPrefix: (message: string) => `CLI error: ${message}`,
 } as const;
 
 function writeStdout(message: string): void {
@@ -257,11 +257,5 @@ void runCli(process.argv.slice(2))
     process.exitCode = exitCode;
   })
   .catch((error: unknown) => {
-    if (error instanceof Error) {
-      writeStderr(CLI_MESSAGES.errorPrefix(error.message));
-    } else {
-      writeStderr(CLI_MESSAGES.errorPrefix(String(error)));
-    }
-
-    process.exitCode = EXIT_RUNTIME_ERROR;
+    void handleCliFailure(error);
   });

@@ -82,6 +82,7 @@ No public inbound ports are required for normal usage.
 - Whitelist by Telegram user ID (single-user mode)
 - Ignore messages from non-authorized users
 - Ignore updates queued while the bot was offline or unreachable, so they are not executed on startup
+- If Telegram is unreachable at startup (network error, 5xx, 429), keep retrying with a growing delay capped at 60 seconds until it answers, then start polling; a rejected or invalid token (401/404) or any other fatal startup error logs the cause and exits the process with code 1 so a supervisor can restart it
 
 ### Configuration
 
@@ -193,6 +194,7 @@ Agent picker behavior:
 - [x] Optional message queue for text, voice, photos, rich formatted messages with photos, documents, and media groups sent while the agent is busy, managed from the bottom keyboard
 - [x] Native Telegram rich message formatting for assistant replies (Bot API 10.1)
 - [x] Incoming Telegram rich formatted messages (Bot API 10.1): converted to Markdown, accepted anywhere text is accepted, with photos attached and unsupported message types answered explicitly
+- [x] Startup either reaches Telegram polling or the process exits: transient Telegram failures are retried in-process; a bad token or other fatal startup error exits with code 1
 
 ## Current Task List
 

@@ -43,6 +43,8 @@ const TRANSIENT_RETRY_SAFE_TELEGRAM_METHODS = new Set([
   "sendRichMessageDraft",
 ]);
 
+const STARTUP_MANAGED_TELEGRAM_METHODS = new Set(["deleteWebhook", "getMe", "getWebhookInfo"]);
+
 interface TelegramApiErrorResponse {
   ok: false;
   error_code: number;
@@ -131,6 +133,10 @@ export function createBot(localCommandRegistry = LocalCommandRegistry.empty()): 
       const timeSinceLast = now - lastGetUpdatesTime;
       logger.debug(`[Bot API] getUpdates called (${timeSinceLast}ms since last)`);
       lastGetUpdatesTime = now;
+      return prev(method, payload, signal);
+    }
+
+    if (STARTUP_MANAGED_TELEGRAM_METHODS.has(method)) {
       return prev(method, payload, signal);
     }
 
@@ -228,6 +234,19 @@ export function createBot(localCommandRegistry = LocalCommandRegistry.empty()): 
   });
 
   return bot;
+}
+
+export function restoreFollowedSessionOnPollingStart(bot: Bot<Context>): void {
+  safeBackgroundTask({
+    taskName: "bot.restoreAfterPollingStart",
+    task: () =>
+      restoreAttachedCurrentSession({
+        bot,
+        chatId: config.telegram.allowedUserId,
+        ensureEventSubscription: eventSubscriptionService.ensureEventSubscription,
+        forceFullRestore: true,
+      }),
+  });
 }
 
 export function cleanupBotRuntime(reason: string): void {
