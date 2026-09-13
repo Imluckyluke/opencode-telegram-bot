@@ -157,6 +157,7 @@ export const en = {
   "settings.response_streaming.draft": "draft (experimental)",
   "settings.diff_files.label": "Diff files",
   "settings.assistant_footer.label": "Assistant footer",
+  "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "Audio replies",
   "settings.prompt_queue.label": "Message queue",
   "settings.value.on": "On",

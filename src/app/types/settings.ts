@@ -21,6 +21,7 @@ export interface Settings {
   deleteCompactProgressOnFinish?: boolean | undefined;
   showThinkingContent?: boolean | undefined;
   showAssistantRunFooter?: boolean | undefined;
+  pinnedDashboardEnabled?: boolean | undefined;
   responseStreamingMode?: ResponseStreamingMode | undefined;
   sendDiffFileAttachments?: boolean | undefined;
   promptQueueEnabled?: boolean | undefined;

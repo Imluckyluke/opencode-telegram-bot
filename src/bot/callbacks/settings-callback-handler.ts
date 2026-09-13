@@ -6,11 +6,13 @@ import {
   getPromptQueueEnabled,
   getResponseStreamingMode,
   getSendDiffFileAttachments,
+  getPinnedDashboardEnabled,
   getShowAssistantRunFooter,
   getShowThinkingContent,
   getTtsMode,
   setCompactOutputMode,
   setDeleteCompactProgressOnFinish,
+  setPinnedDashboardEnabled,
   setPromptQueueEnabled,
   setResponseStreamingMode,
   setSendDiffFileAttachments,
@@ -23,6 +25,7 @@ import {
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 import { appendInlineMenuCancelButton, ensureActiveInlineMenu } from "../menus/inline-menu.js";
+import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import {
   buildSettingsMenuView,
   SETTINGS_ASSISTANT_FOOTER_CALLBACK,
@@ -30,6 +33,7 @@ import {
   SETTINGS_COMPACT_OUTPUT_CALLBACK,
   SETTINGS_DELETE_PROGRESS_ON_FINISH_CALLBACK,
   SETTINGS_DIFF_FILES_CALLBACK,
+  SETTINGS_PIN_SESSION_DASHBOARD_CALLBACK,
   SETTINGS_PROMPT_QUEUE_CALLBACK,
   SETTINGS_RESPONSE_STREAMING_CALLBACK,
   SETTINGS_THINKING_CONTENT_CALLBACK,
@@ -139,6 +143,22 @@ export async function handleSettingsCallback(ctx: Context): Promise<boolean> {
 
     if (callbackData === SETTINGS_ASSISTANT_FOOTER_CALLBACK) {
       setShowAssistantRunFooter(!getShowAssistantRunFooter());
+      const { text, keyboard } = buildSettingsMenuView();
+      await ctx.answerCallbackQuery({ text: t("settings.saved") });
+      await ctx.editMessageText(text, {
+        reply_markup: appendInlineMenuCancelButton(keyboard, "settings"),
+      });
+      return true;
+    }
+
+    if (callbackData === SETTINGS_PIN_SESSION_DASHBOARD_CALLBACK) {
+      const nextEnabled = !getPinnedDashboardEnabled();
+      const chatId = ctx.chat?.id ?? ctx.callbackQuery?.message?.chat?.id;
+      if (ctx.api && chatId !== undefined) {
+        pinnedMessageManager.initialize(ctx.api, chatId);
+      }
+      await pinnedMessageManager.applyPinnedDashboardEnabled(nextEnabled);
+      setPinnedDashboardEnabled(nextEnabled);
       const { text, keyboard } = buildSettingsMenuView();
       await ctx.answerCallbackQuery({ text: t("settings.saved") });
       await ctx.editMessageText(text, {

@@ -166,6 +166,7 @@ export const de: I18nDictionary = {
   "settings.response_streaming.draft": "draft (experimental)",
   "settings.diff_files.label": "Diff-Dateien",
   "settings.assistant_footer.label": "Antwort-Footer",
+  "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "Audioantworten",
   "settings.prompt_queue.label": "Nachrichtenwarteschlange",
   "settings.value.on": "Ein",

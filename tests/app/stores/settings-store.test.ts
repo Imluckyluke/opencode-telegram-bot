@@ -11,6 +11,7 @@ import {
   getPromptQueueEnabled,
   getResponseStreamingMode,
   getSendDiffFileAttachments,
+  getPinnedDashboardEnabled,
   getShowAssistantRunFooter,
   getShowThinkingContent,
   getScheduledTasks,
@@ -85,6 +86,23 @@ describe("app/stores/settings-store", () => {
     expect(getShowAssistantRunFooter()).toBe(true);
   });
 
+  it("enables the pinned session dashboard by default", async () => {
+    await loadSettings();
+
+    expect(getPinnedDashboardEnabled()).toBe(true);
+  });
+
+  it("loads the pinned session dashboard setting from settings.json", async () => {
+    await writeFile(
+      path.join(tempHome, "settings.json"),
+      JSON.stringify({ pinnedDashboardEnabled: false }),
+    );
+
+    await loadSettings();
+
+    expect(getPinnedDashboardEnabled()).toBe(false);
+  });
+
   it("disables the prompt queue by default", async () => {
     await loadSettings();
 
@@ -106,7 +124,7 @@ describe("app/stores/settings-store", () => {
     vi.resetModules();
     vi.stubEnv(
       "INITIAL_SETTINGS_PRESET",
-      '{"showAssistantRunFooter":false,"compactOutputMode":true,"deleteCompactProgressOnFinish":true,"ttsMode":"auto","responseStreamingMode":"draft","sendDiffFileAttachments":false,"showThinkingContent":false,"promptQueueEnabled":true}',
+      '{"showAssistantRunFooter":false,"compactOutputMode":true,"deleteCompactProgressOnFinish":true,"ttsMode":"auto","responseStreamingMode":"draft","sendDiffFileAttachments":false,"showThinkingContent":false,"promptQueueEnabled":true,"pinnedDashboardEnabled":false}',
     );
 
     const store = await import("../../../src/app/stores/settings-store.js");
@@ -120,6 +138,7 @@ describe("app/stores/settings-store", () => {
     expect(store.getSendDiffFileAttachments()).toBe(false);
     expect(store.getShowThinkingContent()).toBe(false);
     expect(store.getPromptQueueEnabled()).toBe(true);
+    expect(store.getPinnedDashboardEnabled()).toBe(false);
 
     vi.unstubAllEnvs();
     vi.resetModules();

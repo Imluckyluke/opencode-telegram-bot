@@ -219,6 +219,15 @@ export function setShowAssistantRunFooter(enabled: boolean): void {
   void writeSettingsFile(currentSettings);
 }
 
+export function getPinnedDashboardEnabled(): boolean {
+  return currentSettings.pinnedDashboardEnabled ?? true;
+}
+
+export function setPinnedDashboardEnabled(enabled: boolean): void {
+  currentSettings.pinnedDashboardEnabled = enabled;
+  void writeSettingsFile(currentSettings);
+}
+
 export type { ResponseStreamingMode };
 
 export function getResponseStreamingMode(): ResponseStreamingMode {
@@ -340,6 +349,7 @@ function applyInitialSettingsPreset(preset: Record<string, unknown>): void {
     "deleteCompactProgressOnFinish",
     "showThinkingContent",
     "showAssistantRunFooter",
+    "pinnedDashboardEnabled",
     "responseStreamingMode",
     "sendDiffFileAttachments",
     "promptQueueEnabled",
@@ -373,7 +383,7 @@ function applyInitialSettingsPreset(preset: Record<string, unknown>): void {
         currentSettings.responseStreamingMode = value as ResponseStreamingMode;
       }
     } else {
-      // Boolean settings: compactOutputMode, deleteCompactProgressOnFinish, showThinkingContent, showAssistantRunFooter, sendDiffFileAttachments, promptQueueEnabled
+      // Boolean settings: compactOutputMode, deleteCompactProgressOnFinish, showThinkingContent, showAssistantRunFooter, pinnedDashboardEnabled, sendDiffFileAttachments, promptQueueEnabled
       if (typeof value !== "boolean") {
         throw new Error(
           `INITIAL_SETTINGS_PRESET: "${key}" must be a boolean.`,
@@ -395,6 +405,10 @@ function applyInitialSettingsPreset(preset: Record<string, unknown>): void {
         case "showAssistantRunFooter":
           if (currentSettings.showAssistantRunFooter === undefined)
             currentSettings.showAssistantRunFooter = value;
+          break;
+        case "pinnedDashboardEnabled":
+          if (currentSettings.pinnedDashboardEnabled === undefined)
+            currentSettings.pinnedDashboardEnabled = value;
           break;
         case "sendDiffFileAttachments":
           if (currentSettings.sendDiffFileAttachments === undefined)

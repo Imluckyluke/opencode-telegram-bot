@@ -72,7 +72,7 @@ No public inbound ports are required for normal usage.
 
 ### Session status in chat
 
-- Keep a pinned status message in the chat
+- Keep a pinned status message in the chat; it can be turned off in `/settings` (default on)
 - Show session title, project, model, context usage, and changed files; when a variant is set, the model line is `provider/id (variant)`
 - Auto-update status from SSE and tool events
 - Preserve pinned message ID across bot restarts
@@ -95,7 +95,7 @@ No public inbound ports are required for normal usage.
 - Configurable scheduled task limit (default: 10)
 - Configurable bot locale
 - Configurable visibility for thinking content and diff-file attachments
-- Configurable compact output, assistant footer, message queue, and TTS modes (`/settings`)
+- Configurable compact output, assistant footer, pinned session dashboard, message queue, and TTS modes (`/settings`)
 - Configurable opt-in display of full thinking/reasoning content
 - Configurable max code file size in KB (default: 100)
 - Optional STT settings for voice transcription (`STT_API_URL`, `STT_API_KEY`, `STT_MODEL`, `STT_LANGUAGE`)
@@ -166,7 +166,7 @@ Agent picker behavior:
 - [x] Background notifications for detached/non-current sessions in the currently selected project/worktree
 - [x] Telegram-friendly result delivery, including sending generated code/files when needed
 - [x] Interactive question and permission handling directly in chat (buttons + custom answers)
-- [x] Live pinned session status in chat (project, model with variant in parentheses when set, context usage, changed files)
+- [x] Live pinned session status in chat (project, model with variant in parentheses when set, context usage, changed files), with an opt-out in `/settings` that defaults to on
 - [x] In-chat controls for model, agent, variant, and context
 - [x] Built-in and custom command catalog access (`/commands`)
 - [x] Trusted local JSON commands from the persistent application home, executed without OpenCode or model tokens

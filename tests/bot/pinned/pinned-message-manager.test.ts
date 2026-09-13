@@ -16,6 +16,7 @@ const mocked = vi.hoisted(() => ({
   getPinnedMessageId: vi.fn().mockReturnValue(null),
   setPinnedMessageId: vi.fn(),
   clearPinnedMessageId: vi.fn(),
+  getPinnedDashboardEnabled: vi.fn().mockReturnValue(true),
   getStoredModel: vi.fn().mockReturnValue(null),
   getModelContextLimit: vi.fn().mockResolvedValue(204800),
   getGitWorktreeContext: vi.fn(),
@@ -34,6 +35,7 @@ vi.mock("../../../src/app/stores/settings-store.js", () => ({
   getPinnedMessageId: mocked.getPinnedMessageId,
   setPinnedMessageId: mocked.setPinnedMessageId,
   clearPinnedMessageId: mocked.clearPinnedMessageId,
+  getPinnedDashboardEnabled: mocked.getPinnedDashboardEnabled,
 }));
 vi.mock("../../../src/app/services/model-selection-service.js", () => ({ getStoredModel: mocked.getStoredModel }));
 vi.mock("../../../src/app/services/model-context-limit-service.js", () => ({
@@ -79,6 +81,7 @@ describe("pinned/manager", () => {
     sendMessage: ReturnType<typeof vi.fn>;
     editMessageText: ReturnType<typeof vi.fn>;
     pinChatMessage: ReturnType<typeof vi.fn>;
+    unpinChatMessage: ReturnType<typeof vi.fn>;
     unpinAllChatMessages: ReturnType<typeof vi.fn>;
   };
 
@@ -87,6 +90,7 @@ describe("pinned/manager", () => {
       sendMessage: vi.fn().mockResolvedValue({ message_id: 999 }),
       editMessageText: vi.fn().mockResolvedValue(undefined),
       pinChatMessage: vi.fn().mockResolvedValue(undefined),
+      unpinChatMessage: vi.fn().mockResolvedValue(undefined),
       unpinAllChatMessages: vi.fn().mockResolvedValue(undefined),
     };
 
@@ -101,6 +105,7 @@ describe("pinned/manager", () => {
     mocked.getStoredModel.mockReturnValue({ providerID: "openai", modelID: "gpt-5" });
     mocked.getModelContextLimit.mockResolvedValue(204800);
     mocked.getPinnedMessageId.mockReturnValue(null);
+    mocked.getPinnedDashboardEnabled.mockReturnValue(true);
     mocked.opencodeClient.session.messages.mockResolvedValue({ data: [] });
     mocked.opencodeClient.session.diff.mockResolvedValue({ data: [] });
     mocked.opencodeClient.session.get.mockResolvedValue({ data: null });
@@ -892,6 +897,288 @@ describe("pinned/manager", () => {
       expect(pinnedMessageManager.isInitialized()).toBe(false);
       expect(fakeApi.unpinAllChatMessages).not.toHaveBeenCalled();
       expect(mocked.clearPinnedMessageId).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("pinned dashboard setting", () => {
+    it("does not send, pin, or unpin-all on session change when off", async () => {
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+
+      await pinnedMessageManager.onSessionChange("ses-1", "Test Session");
+
+      expect(fakeApi.sendMessage).not.toHaveBeenCalled();
+      expect(fakeApi.pinChatMessage).not.toHaveBeenCalled();
+      expect(fakeApi.unpinAllChatMessages).not.toHaveBeenCalled();
+      expect(fakeApi.editMessageText).not.toHaveBeenCalled();
+    });
+
+    it("does not edit a leftover message on restore when off", async () => {
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+      mocked.getPinnedMessageId.mockReturnValue(777);
+      pinnedMessageManager.initialize(fakeApi as never, 123);
+
+      await pinnedMessageManager.restoreExistingSession("ses-1", "Restored session");
+
+      expect(fakeApi.unpinChatMessage).toHaveBeenCalledWith(123, 777);
+      expect(fakeApi.editMessageText).not.toHaveBeenCalled();
+      expect(fakeApi.sendMessage).not.toHaveBeenCalled();
+      expect(fakeApi.pinChatMessage).not.toHaveBeenCalled();
+      expect(pinnedMessageManager.getState().messageId).toBeNull();
+    });
+
+    it("keeps the leftover id when restore unpin fails transiently", async () => {
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+      mocked.getPinnedMessageId.mockReturnValue(777);
+      pinnedMessageManager.initialize(fakeApi as never, 123);
+      fakeApi.unpinChatMessage.mockRejectedValueOnce(new Error("Bad Request: too many requests"));
+      mocked.clearPinnedMessageId.mockClear();
+
+      await pinnedMessageManager.restoreExistingSession("ses-1", "Restored session");
+
+      expect(fakeApi.unpinChatMessage).toHaveBeenCalledWith(123, 777);
+      expect(mocked.clearPinnedMessageId).not.toHaveBeenCalled();
+      expect(pinnedMessageManager.getState().messageId).toBeNull();
+
+      fakeApi.unpinChatMessage.mockResolvedValue(undefined);
+      fakeApi.sendMessage.mockClear();
+      await pinnedMessageManager.applyPinnedDashboardEnabled(true);
+
+      expect(fakeApi.unpinChatMessage).toHaveBeenLastCalledWith(123, 777);
+      expect(fakeApi.sendMessage).toHaveBeenCalledTimes(1);
+      expect(fakeApi.pinChatMessage).toHaveBeenCalledWith(123, 999, {
+        disable_notification: true,
+      });
+    });
+
+    it("forgets the leftover id when restore unpin says the message is gone", async () => {
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+      mocked.getPinnedMessageId.mockReturnValue(777);
+      pinnedMessageManager.initialize(fakeApi as never, 123);
+      fakeApi.unpinChatMessage.mockRejectedValueOnce(
+        new Error("Bad Request: message to unpin not found"),
+      );
+
+      await pinnedMessageManager.restoreExistingSession("ses-1", "Restored session");
+
+      expect(pinnedMessageManager.getState().messageId).toBeNull();
+      expect(mocked.clearPinnedMessageId).toHaveBeenCalled();
+    });
+
+    it("does not unpin-all on clear when off", async () => {
+      await pinnedMessageManager.onSessionChange("ses-1", "Test Session");
+      fakeApi.unpinAllChatMessages.mockClear();
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+
+      await pinnedMessageManager.clear();
+
+      expect(fakeApi.unpinAllChatMessages).not.toHaveBeenCalled();
+    });
+
+    it("keeps parked leftover ownership across clear while off", async () => {
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+      mocked.getPinnedMessageId.mockReturnValue(777);
+      pinnedMessageManager.initialize(fakeApi as never, 123);
+      fakeApi.unpinChatMessage.mockRejectedValue(new Error("Bad Request: too many requests"));
+      mocked.clearPinnedMessageId.mockClear();
+
+      await pinnedMessageManager.restoreExistingSession("ses-1", "Restored session");
+      await pinnedMessageManager.clear();
+
+      expect(mocked.clearPinnedMessageId).not.toHaveBeenCalled();
+
+      fakeApi.unpinChatMessage.mockReset();
+      fakeApi.unpinChatMessage.mockResolvedValue(undefined);
+      fakeApi.sendMessage.mockClear();
+      await pinnedMessageManager.applyPinnedDashboardEnabled(true);
+
+      expect(fakeApi.unpinChatMessage).toHaveBeenLastCalledWith(123, 777);
+      expect(fakeApi.sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not edit the leftover dashboard on later updates when off", async () => {
+      await pinnedMessageManager.onSessionChange("ses-1", "Test Session");
+      fakeApi.editMessageText.mockClear();
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+
+      await pinnedMessageManager.onMessageComplete({
+        input: 100,
+        output: 10,
+        reasoning: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+      });
+
+      expect(fakeApi.editMessageText).not.toHaveBeenCalled();
+      expect(fakeApi.sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it("still fires the keyboard callback when off", async () => {
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+      const callback = vi.fn();
+      pinnedMessageManager.setOnKeyboardUpdate(callback);
+
+      await pinnedMessageManager.onSessionChange("ses-1", "Test Session");
+
+      expect(callback).toHaveBeenCalled();
+      expect(fakeApi.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it("unpins only the dashboard message when the setting is turned off", async () => {
+      await pinnedMessageManager.onSessionChange("ses-1", "Test Session");
+      fakeApi.unpinAllChatMessages.mockClear();
+      mocked.clearPinnedMessageId.mockClear();
+
+      await pinnedMessageManager.applyPinnedDashboardEnabled(false);
+
+      expect(fakeApi.unpinChatMessage).toHaveBeenCalledWith(123, 999);
+      expect(fakeApi.unpinAllChatMessages).not.toHaveBeenCalled();
+      expect(mocked.clearPinnedMessageId).toHaveBeenCalled();
+      expect(pinnedMessageManager.getState().messageId).toBeNull();
+    });
+
+    it("sends and pins a dashboard when turned on with a session", async () => {
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+      pinnedMessageManager.__resetForTests();
+      pinnedMessageManager.initialize(fakeApi as never, 123);
+
+      await pinnedMessageManager.applyPinnedDashboardEnabled(true);
+
+      expect(fakeApi.sendMessage).toHaveBeenCalledTimes(1);
+      expect(String(defined(fakeApi.sendMessage.mock.calls[0]?.[1]))).toContain("D:/repo");
+      expect(String(defined(fakeApi.sendMessage.mock.calls[0]?.[1]))).toContain("0/204800");
+      expect(fakeApi.pinChatMessage).toHaveBeenCalledWith(123, 999, {
+        disable_notification: true,
+      });
+      expect(mocked.setPinnedMessageId).toHaveBeenCalledWith(999);
+    });
+
+    it("does nothing when turned on with no session", async () => {
+      mocked.getCurrentSession.mockReturnValue(undefined);
+
+      await pinnedMessageManager.applyPinnedDashboardEnabled(true);
+
+      expect(fakeApi.sendMessage).not.toHaveBeenCalled();
+      expect(fakeApi.pinChatMessage).not.toHaveBeenCalled();
+    });
+
+    it("unpins a parked leftover when turned on with no session", async () => {
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+      mocked.getPinnedMessageId.mockReturnValue(777);
+      mocked.getCurrentSession.mockReturnValue(undefined);
+      pinnedMessageManager.initialize(fakeApi as never, 123);
+      fakeApi.unpinChatMessage.mockRejectedValueOnce(new Error("Bad Request: too many requests"));
+      await pinnedMessageManager.restoreExistingSession("ses-1", "Restored session");
+      fakeApi.unpinChatMessage.mockResolvedValue(undefined);
+      mocked.clearPinnedMessageId.mockClear();
+
+      await pinnedMessageManager.applyPinnedDashboardEnabled(true);
+
+      expect(fakeApi.unpinChatMessage).toHaveBeenLastCalledWith(123, 777);
+      expect(mocked.clearPinnedMessageId).toHaveBeenCalled();
+      expect(fakeApi.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it("retries pinning the same message after send-ok pin-fail", async () => {
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+      fakeApi.pinChatMessage.mockRejectedValueOnce(new Error("Bad Request: too many requests"));
+
+      await expect(pinnedMessageManager.applyPinnedDashboardEnabled(true)).rejects.toThrow(
+        /too many requests/,
+      );
+      expect(pinnedMessageManager.getState().messageId).toBe(999);
+      expect(mocked.setPinnedMessageId).not.toHaveBeenCalled();
+      fakeApi.sendMessage.mockClear();
+
+      fakeApi.pinChatMessage.mockResolvedValue(undefined);
+      await pinnedMessageManager.applyPinnedDashboardEnabled(true);
+
+      expect(fakeApi.sendMessage).not.toHaveBeenCalled();
+      expect(fakeApi.pinChatMessage).toHaveBeenCalledWith(123, 999, {
+        disable_notification: true,
+      });
+    });
+
+    it("does not pin a leftover dashboard after a session change while off", async () => {
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+      mocked.getPinnedMessageId.mockReturnValue(777);
+      pinnedMessageManager.initialize(fakeApi as never, 123);
+      fakeApi.unpinChatMessage.mockRejectedValue(new Error("Bad Request: too many requests"));
+
+      await pinnedMessageManager.onSessionChange("ses-2", "Other");
+      expect(pinnedMessageManager.getState().messageId).toBeNull();
+      expect(pinnedMessageManager.getState().sessionId).toBe("ses-2");
+
+      fakeApi.unpinChatMessage.mockReset();
+      fakeApi.unpinChatMessage.mockResolvedValue(undefined);
+      fakeApi.sendMessage.mockClear();
+      fakeApi.sendMessage.mockResolvedValue({ message_id: 1005 });
+      mocked.getCurrentSession.mockReturnValue({ id: "ses-2", title: "Other" });
+
+      await pinnedMessageManager.applyPinnedDashboardEnabled(true);
+
+      expect(fakeApi.unpinChatMessage).toHaveBeenCalledWith(123, 777);
+      expect(fakeApi.sendMessage).toHaveBeenCalledTimes(1);
+      expect(fakeApi.pinChatMessage).toHaveBeenCalledWith(123, 1005, {
+        disable_notification: true,
+      });
+      expect(fakeApi.pinChatMessage).not.toHaveBeenCalledWith(123, 777, expect.anything());
+    });
+
+    it("creates the current dashboard when the session changes before retry", async () => {
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+      fakeApi.pinChatMessage.mockRejectedValueOnce(new Error("Bad Request: too many requests"));
+      await expect(pinnedMessageManager.applyPinnedDashboardEnabled(true)).rejects.toThrow();
+      mocked.getCurrentSession.mockReturnValue({ id: "ses-2", title: "Other" });
+
+      await pinnedMessageManager.onSessionChange("ses-2", "Other");
+      fakeApi.sendMessage.mockClear();
+      fakeApi.sendMessage.mockResolvedValue({ message_id: 1002 });
+      fakeApi.pinChatMessage.mockResolvedValue(undefined);
+
+      await pinnedMessageManager.applyPinnedDashboardEnabled(true);
+
+      expect(fakeApi.sendMessage).toHaveBeenCalledTimes(1);
+      expect(fakeApi.pinChatMessage).toHaveBeenCalledWith(123, 1002, {
+        disable_notification: true,
+      });
+    });
+
+    it("creates a new dashboard after restart between pin failure and retry", async () => {
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+      fakeApi.pinChatMessage.mockRejectedValueOnce(new Error("Bad Request: too many requests"));
+      await expect(pinnedMessageManager.applyPinnedDashboardEnabled(true)).rejects.toThrow();
+      mocked.getPinnedMessageId.mockReturnValue(999);
+      pinnedMessageManager.__resetForTests();
+      pinnedMessageManager.initialize(fakeApi as never, 123);
+      fakeApi.sendMessage.mockClear();
+      fakeApi.sendMessage.mockResolvedValue({ message_id: 1003 });
+      fakeApi.pinChatMessage.mockResolvedValue(undefined);
+
+      await pinnedMessageManager.applyPinnedDashboardEnabled(true);
+
+      expect(fakeApi.sendMessage).toHaveBeenCalledTimes(1);
+      expect(fakeApi.pinChatMessage).toHaveBeenCalledWith(123, 1003, {
+        disable_notification: true,
+      });
+    });
+
+    it("creates a new dashboard when the retained message is gone", async () => {
+      mocked.getPinnedDashboardEnabled.mockReturnValue(false);
+      fakeApi.pinChatMessage
+        .mockRejectedValueOnce(new Error("Bad Request: too many requests"))
+        .mockRejectedValueOnce(new Error("Bad Request: message to pin not found"));
+      await expect(pinnedMessageManager.applyPinnedDashboardEnabled(true)).rejects.toThrow(
+        /too many requests/,
+      );
+      fakeApi.sendMessage.mockClear();
+      fakeApi.sendMessage.mockResolvedValue({ message_id: 1004 });
+
+      await pinnedMessageManager.applyPinnedDashboardEnabled(true);
+
+      expect(fakeApi.sendMessage).toHaveBeenCalledTimes(1);
+      expect(fakeApi.pinChatMessage).toHaveBeenCalledWith(123, 1004, {
+        disable_notification: true,
+      });
     });
   });
 });

@@ -5,6 +5,7 @@ import { getGitWorktreeContext } from "../../app/services/worktree-service.js";
 import { getCurrentSession } from "../../app/services/session-service.js";
 import {
   getCurrentProject,
+  getPinnedDashboardEnabled,
   getPinnedMessageId,
   setPinnedMessageId,
   clearPinnedMessageId,
@@ -52,6 +53,7 @@ class PinnedMessageManager {
   private pendingUpdate = false;
   private pendingForceUpdate = false;
   private lastRenderedMessageText: string | null = null;
+  private leftoverUnpinMessageId: number | null = null;
 
   /**
    * Initialize manager with bot API and chat ID
@@ -63,8 +65,12 @@ class PinnedMessageManager {
     // Restore pinned message ID from settings
     const savedMessageId = getPinnedMessageId();
     if (savedMessageId) {
-      this.state.messageId = savedMessageId;
       this.state.chatId = chatId;
+      if (getPinnedDashboardEnabled()) {
+        this.state.messageId = savedMessageId;
+      } else {
+        this.leftoverUnpinMessageId = savedMessageId;
+      }
     }
   }
 
@@ -73,6 +79,10 @@ class PinnedMessageManager {
    */
   async onSessionChange(sessionId: string, sessionTitle: string): Promise<void> {
     logger.info(`[PinnedManager] Session changed: ${sessionId}, title: ${sessionTitle}`);
+
+    if (!getPinnedDashboardEnabled()) {
+      await this.dropOwnedDashboardQuietly();
+    }
 
     // Reset tokens for new session
     this.state.tokensUsed = 0;
@@ -100,11 +110,11 @@ class PinnedMessageManager {
     this.pendingUpdate = false;
     this.pendingForceUpdate = false;
 
-    // Unpin old message and create new one
-    await this.unpinOldMessage();
-    await this.createPinnedMessage();
+    if (getPinnedDashboardEnabled()) {
+      await this.unpinOldMessage();
+      await this.createPinnedMessage();
+    }
 
-    // Load existing diffs from API (for session restoration)
     await this.loadDiffsFromApi(sessionId);
   }
 
@@ -113,6 +123,10 @@ class PinnedMessageManager {
    */
   async restoreExistingSession(sessionId: string, sessionTitle: string): Promise<void> {
     logger.info(`[PinnedManager] Restoring existing pinned message for session: ${sessionId}`);
+
+    if (!getPinnedDashboardEnabled()) {
+      await this.dropOwnedDashboardQuietly();
+    }
 
     this.state.sessionId = sessionId;
     this.state.sessionTitle = sessionTitle || t("pinned.default_session_title");
@@ -130,7 +144,9 @@ class PinnedMessageManager {
       this.onKeyboardUpdateCallback(this.state.tokensUsed, this.state.tokensLimit);
     }
 
-    await this.updatePinnedMessage(true);
+    if (getPinnedDashboardEnabled()) {
+      await this.updatePinnedMessage(true);
+    }
     await this.loadDiffsFromApi(sessionId);
   }
 
@@ -760,10 +776,175 @@ class PinnedMessageManager {
 
     return lines.join("\n");
   }
-  /**
-   * Create and pin a new status message
-   */
+
+  async applyPinnedDashboardEnabled(enabled: boolean): Promise<void> {
+    if (!enabled) {
+      await this.unpinOwnedDashboard();
+      return;
+    }
+
+    if (!this.api || !this.chatId) {
+      throw new Error("Pinned manager is not initialized");
+    }
+
+    if (this.leftoverUnpinMessageId) {
+      await this.unpinMessageOrThrow(this.leftoverUnpinMessageId);
+      this.forgetOwnedDashboard();
+    }
+
+    const session = getCurrentSession();
+    if (!session) {
+      return;
+    }
+
+    if (this.state.messageId && this.state.sessionId === session.id) {
+      try {
+        await this.api.pinChatMessage(this.chatId, this.state.messageId, {
+          disable_notification: true,
+        });
+        setPinnedMessageId(this.state.messageId);
+        return;
+      } catch (err) {
+        if (!this.isMessageMissingError(err)) {
+          throw err;
+        }
+        this.forgetOwnedDashboard();
+      }
+    } else if (this.state.messageId) {
+      await this.unpinOwnedDashboard();
+    }
+
+    this.state.sessionId = session.id;
+    this.state.sessionTitle = session.title || t("pinned.default_session_title");
+    this.hydrateDashboardFromLocalState();
+    await this.sendAndPinForEnable();
+  }
+
+  private async sendAndPinForEnable(): Promise<void> {
+    if (!this.api || !this.chatId) {
+      throw new Error("Pinned manager is not initialized");
+    }
+
+    const text = this.formatMessage();
+    const sentMessage = await this.api.sendMessage(this.chatId, text);
+
+    this.state.messageId = sentMessage.message_id;
+    this.state.chatId = this.chatId;
+    this.state.lastUpdated = Date.now();
+    this.lastRenderedMessageText = text;
+
+    try {
+      await this.api.pinChatMessage(this.chatId, sentMessage.message_id, {
+        disable_notification: true,
+      });
+    } catch (err) {
+      if (this.isMessageMissingError(err)) {
+        this.forgetOwnedDashboard();
+      }
+      throw err;
+    }
+
+    setPinnedMessageId(sentMessage.message_id);
+    logger.info(`[PinnedManager] Created and pinned message: ${sentMessage.message_id}`);
+  }
+
+  private async unpinOwnedDashboard(): Promise<void> {
+    const messageId = this.state.messageId ?? this.leftoverUnpinMessageId;
+    if (!messageId) {
+      return;
+    }
+
+    if (!this.api || !this.chatId) {
+      this.forgetOwnedDashboard();
+      return;
+    }
+
+    await this.unpinMessageOrThrow(messageId);
+    this.forgetOwnedDashboard();
+  }
+
+  private async unpinMessageOrThrow(messageId: number): Promise<void> {
+    if (!this.api || !this.chatId) {
+      throw new Error("Pinned manager is not initialized");
+    }
+
+    try {
+      await this.api.unpinChatMessage(this.chatId, messageId);
+    } catch (err) {
+      if (!this.isMessageMissingError(err)) {
+        throw err;
+      }
+    }
+  }
+
+  private forgetOwnedDashboard(): void {
+    this.state.messageId = null;
+    this.leftoverUnpinMessageId = null;
+    this.lastRenderedMessageText = null;
+    this.pendingUpdate = false;
+    this.pendingForceUpdate = false;
+    clearPinnedMessageId();
+  }
+
+  private hydrateDashboardFromLocalState(): void {
+    if (!this.state.projectPath) {
+      const project = getCurrentProject();
+      this.state.projectPath = project?.worktree || t("pinned.unknown");
+    }
+
+    if (!this.state.tokensLimit) {
+      const limit = this.contextLimit || DEFAULT_CONTEXT_LIMIT;
+      this.contextLimit = limit;
+      this.state.tokensLimit = limit;
+    }
+  }
+
+  private async dropOwnedDashboardQuietly(): Promise<void> {
+    const messageId = this.state.messageId ?? this.leftoverUnpinMessageId;
+    if (!messageId) {
+      return;
+    }
+
+    if (!this.api || !this.chatId) {
+      this.parkLeftoverDashboard(messageId);
+      return;
+    }
+
+    try {
+      await this.api.unpinChatMessage(this.chatId, messageId);
+    } catch (err) {
+      if (!this.isMessageMissingError(err)) {
+        logger.warn("[PinnedManager] Could not unpin leftover dashboard:", err);
+        this.parkLeftoverDashboard(messageId);
+        return;
+      }
+    }
+
+    this.forgetOwnedDashboard();
+  }
+
+  private parkLeftoverDashboard(messageId: number): void {
+    this.leftoverUnpinMessageId = messageId;
+    this.state.messageId = null;
+    this.lastRenderedMessageText = null;
+  }
+
+  private isMessageMissingError(err: unknown): boolean {
+    const errorMessage = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+    return (
+      errorMessage.includes("message to edit not found") ||
+      errorMessage.includes("message to pin not found") ||
+      errorMessage.includes("message to unpin not found") ||
+      errorMessage.includes("message not found") ||
+      errorMessage.includes("not pinned")
+    );
+  }
+
   private async createPinnedMessage(): Promise<void> {
+    if (!getPinnedDashboardEnabled()) {
+      return;
+    }
+
     if (!this.api || !this.chatId) {
       logger.warn("[PinnedManager] API or chatId not initialized");
       return;
@@ -798,6 +979,13 @@ class PinnedMessageManager {
    * Update existing pinned message text
    */
   private async updatePinnedMessage(forceUpdate: boolean = false): Promise<void> {
+    if (!getPinnedDashboardEnabled()) {
+      if (this.onKeyboardUpdateCallback && this.state.tokensLimit > 0) {
+        this.onKeyboardUpdateCallback(this.state.tokensUsed, this.state.tokensLimit);
+      }
+      return;
+    }
+
     if (!this.api || !this.chatId || !this.state.messageId) {
       return;
     }
@@ -866,7 +1054,9 @@ class PinnedMessageManager {
           this.lastRenderedMessageText = null;
           this.pendingForceUpdate = false;
           clearPinnedMessageId();
-          await this.createPinnedMessage();
+          if (getPinnedDashboardEnabled()) {
+            await this.createPinnedMessage();
+          }
           continue;
         }
 
@@ -879,6 +1069,11 @@ class PinnedMessageManager {
    * Unpin old message before creating new one
    */
   private async unpinOldMessage(): Promise<void> {
+    if (!getPinnedDashboardEnabled()) {
+      this.forgetOwnedDashboard();
+      return;
+    }
+
     if (!this.api || !this.chatId) {
       return;
     }
@@ -917,51 +1112,53 @@ class PinnedMessageManager {
    * Clear pinned message (when switching projects)
    */
   async clear(): Promise<void> {
+    if (!getPinnedDashboardEnabled()) {
+      await this.dropOwnedDashboardQuietly();
+    }
+
+    const parkedLeftover = this.leftoverUnpinMessageId;
+
     if (!this.api || !this.chatId) {
-      // Just reset state if not initialized
-      this.state.messageId = null;
-      this.state.sessionId = null;
-      this.state.sessionTitle = t("pinned.default_session_title");
-      this.state.attachActive = false;
-      this.state.attachBusy = false;
-      this.state.tokensUsed = 0;
-      this.state.tokensLimit = 0;
-      this.state.projectPath = "";
-      this.state.projectBranch = null;
-      this.state.projectWorktreePath = null;
-      this.state.changedFiles = [];
-      this.lastRenderedMessageText = null;
-      this.pendingUpdate = false;
-      this.pendingForceUpdate = false;
-      clearPinnedMessageId();
+      this.resetClearedSessionState();
+      this.leftoverUnpinMessageId = parkedLeftover;
+      if (!parkedLeftover) {
+        clearPinnedMessageId();
+      }
       return;
     }
 
     try {
-      // Unpin all messages
-      await this.api.unpinAllChatMessages(this.chatId).catch(() => {});
+      if (getPinnedDashboardEnabled()) {
+        await this.api.unpinAllChatMessages(this.chatId).catch(() => {});
+      }
 
-      // Reset state
-      this.state.messageId = null;
-      this.state.sessionId = null;
-      this.state.sessionTitle = t("pinned.default_session_title");
-      this.state.attachActive = false;
-      this.state.attachBusy = false;
-      this.state.projectPath = "";
-      this.state.projectBranch = null;
-      this.state.projectWorktreePath = null;
-      this.state.tokensUsed = 0;
-      this.state.tokensLimit = 0;
-      this.state.changedFiles = [];
-      this.lastRenderedMessageText = null;
-      this.pendingUpdate = false;
-      this.pendingForceUpdate = false;
-      clearPinnedMessageId();
+      this.resetClearedSessionState();
+      this.leftoverUnpinMessageId = parkedLeftover;
+      if (!parkedLeftover) {
+        clearPinnedMessageId();
+      }
 
       logger.info("[PinnedManager] Cleared pinned message state");
     } catch (err) {
       logger.error("[PinnedManager] Error clearing pinned message:", err);
     }
+  }
+
+  private resetClearedSessionState(): void {
+    this.state.messageId = null;
+    this.state.sessionId = null;
+    this.state.sessionTitle = t("pinned.default_session_title");
+    this.state.attachActive = false;
+    this.state.attachBusy = false;
+    this.state.projectPath = "";
+    this.state.projectBranch = null;
+    this.state.projectWorktreePath = null;
+    this.state.tokensUsed = 0;
+    this.state.tokensLimit = 0;
+    this.state.changedFiles = [];
+    this.lastRenderedMessageText = null;
+    this.pendingUpdate = false;
+    this.pendingForceUpdate = false;
   }
 
   __resetForTests(): void {
@@ -978,6 +1175,7 @@ class PinnedMessageManager {
     this.pendingUpdate = false;
     this.pendingForceUpdate = false;
     this.lastRenderedMessageText = null;
+    this.leftoverUnpinMessageId = null;
     this.state = {
       messageId: null,
       chatId: null,

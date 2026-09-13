@@ -146,6 +146,7 @@ export const zh: I18nDictionary = {
   "settings.response_streaming.draft": "draft (experimental)",
   "settings.diff_files.label": "Diff 文件",
   "settings.assistant_footer.label": "回复页脚",
+  "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "语音回复",
   "settings.prompt_queue.label": "消息队列",
   "settings.value.on": "开启",
