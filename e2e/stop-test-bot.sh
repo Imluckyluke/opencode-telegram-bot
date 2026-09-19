@@ -8,6 +8,8 @@
 #   - Bot: node processes whose pid appears in a log file name inside
 #     .tmp/e2e/home/logs. A production bot started from the same dist/ writes to
 #     a different home, so it is not matched.
+#   - Fault proxy: the node process named in .tmp/e2e/fault-proxy/proxy.pid,
+#     only if its command line runs fault-proxy.mjs.
 #
 # Usage:
 #   ./e2e/stop-test-bot.sh
@@ -30,6 +32,7 @@ project_root="$(dirname "$script_dir")"
 test_home="$project_root/.tmp/e2e/home"
 logs_dir="$test_home/logs"
 source_env="$script_dir/.env"
+proxy_pid_file="$project_root/.tmp/e2e/fault-proxy/proxy.pid"
 
 # --- OpenCode -------------------------------------------------------------
 
@@ -92,6 +95,27 @@ if [ -d "$logs_dir" ]; then
 fi
 
 [ "$stopped" -eq 0 ] && echo "  no running test bot found"
+
+# --- Fault proxy ----------------------------------------------------------
+
+proxy_stopped=0
+if [ -f "$proxy_pid_file" ]; then
+  proxy_pid="$(tr -d '[:space:]' < "$proxy_pid_file")"
+  if [ -n "$proxy_pid" ] && kill -0 "$proxy_pid" 2>/dev/null; then
+    args="$(ps -p "$proxy_pid" -o args= 2>/dev/null || true)"
+    case "$args" in
+      *fault-proxy.mjs*)
+        echo "  stopping fault proxy: PID $proxy_pid"
+        kill "$proxy_pid" 2>/dev/null || true
+        proxy_stopped=1
+        echo "  stopped"
+        ;;
+    esac
+  fi
+  rm -f "$proxy_pid_file"
+fi
+
+[ "$proxy_stopped" -eq 0 ] && echo "  no fault proxy running"
 
 # --- Result ---------------------------------------------------------------
 

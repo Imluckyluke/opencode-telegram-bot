@@ -14,10 +14,13 @@ a human does first.
 | `.env` | Test config you edit. Copied into the test home on every launch |
 | `.env.example` | Template |
 | `run-test-bot.ps1` / `.sh` | Starts the bot against an isolated home |
-| `stop-test-bot.ps1` / `.sh` | Stops the test bot and its OpenCode server |
+| `stop-test-bot.ps1` / `.sh` | Stops the test bot, its OpenCode server and the fault proxy |
+| `fault-proxy.mjs` | Fault-injection proxy in front of the Telegram Bot API |
+| `fault-proxy.md` | How to launch and drive the fault proxy |
 | `probes.js` | DOM probes and confirmed Telegram Web selectors |
 | `scenarios/` | Regression scenarios the subagent runs before any feature check |
 | `.tmp/e2e/home/` | Runtime state: `settings.json`, `logs/` |
+| `.tmp/e2e/fault-proxy/` | Fault proxy call logs and pid file |
 | `.tmp/e2e/browser-profile/` | Persistent Telegram Web login |
 | `e2e/output/` | Screenshots and console logs the subagent produces |
 
@@ -77,11 +80,28 @@ When done:
 ```
 
 The subagent runs this itself at the end of every session. It only stops what
-the test setup started: the OpenCode server on the configured test port, and
-bot processes whose pid appears in a `.tmp/e2e/home/logs` file name.
+the test setup started: the OpenCode server on the configured test port, bot
+processes whose pid appears in a `.tmp/e2e/home/logs` file name, and the fault
+proxy named in `.tmp/e2e/fault-proxy/proxy.pid`.
 
 The `.sh` scripts need the executable bit once they are committed:
 `git update-index --chmod=+x e2e/run-test-bot.sh e2e/stop-test-bot.sh`
+
+## Fault-injection proxy
+
+[`fault-proxy.mjs`](./fault-proxy.mjs) is a local proxy in front of the Telegram Bot
+API. It breaks the channel between the bot and Telegram on purpose. Start the stand
+with `-FaultProxy` / `--fault-proxy` and switch faults on and off at runtime:
+
+- dropped connections, hangs, Bot API errors (429, 400, 403, 5xx, …), latency;
+- "Telegram received it, the bot never learned";
+- the named scenarios `drop-send`, `blackout` and `no-duplicate`.
+
+A fault can target specific methods, call numbers or payloads. Every call is logged,
+with per-method counters. Without the flag nothing changes.
+
+Launch, control API, rule shape and log format:
+[`fault-proxy.md`](./fault-proxy.md).
 
 ## Maintenance
 
