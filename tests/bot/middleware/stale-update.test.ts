@@ -18,14 +18,19 @@ vi.mock("../../../src/utils/logger.js", () => ({
 }));
 
 import { staleUpdateMiddleware } from "../../../src/bot/middleware/stale-update.js";
+import { telegramOutageNoticeService } from "../../../src/app/services/telegram-outage-notice-service.js";
 
 const NOW_MS = Date.UTC(2026, 6, 27, 12, 0, 0);
 const NOW_SECONDS = Math.floor(NOW_MS / 1000);
 
-function createMessageContext(ageSeconds: number): Context {
+function createMessageContext(
+  ageSeconds: number,
+  api?: { sendMessage: ReturnType<typeof vi.fn> },
+): Context {
   return {
     update: { update_id: 1000 },
     chat: { id: 1 },
+    api,
     message: {
       message_id: 42,
       date: NOW_SECONDS - ageSeconds,
@@ -59,6 +64,7 @@ describe("staleUpdateMiddleware", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW_MS);
     mocked.loggerWarnMock.mockReset();
+    telegramOutageNoticeService.__resetForTests();
   });
 
   afterEach(() => {
@@ -123,6 +129,52 @@ describe("staleUpdateMiddleware", () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(mocked.loggerWarnMock).not.toHaveBeenCalled();
+  });
+
+  it("sends one skip notice for a stale burst and not for the next stale", async () => {
+    const sendMessage = vi.fn().mockResolvedValue({ message_id: 1 });
+    const next: NextFunction = vi.fn().mockResolvedValue(undefined);
+
+    await staleUpdateMiddleware(createMessageContext(61, { sendMessage }), next);
+    await staleUpdateMiddleware(createMessageContext(90, { sendMessage }), next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a failed skip notice on the next inbound", async () => {
+    const sendMessage = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("drop"))
+      .mockResolvedValue({ message_id: 1 });
+    const next: NextFunction = vi.fn().mockResolvedValue(undefined);
+
+    await staleUpdateMiddleware(createMessageContext(61, { sendMessage }), next);
+    await staleUpdateMiddleware(createMessageContext(62, { sendMessage }), next);
+
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it("sends a skip notice again after a 60-second gap", async () => {
+    const sendMessage = vi.fn().mockResolvedValue({ message_id: 1 });
+    const next: NextFunction = vi.fn().mockResolvedValue(undefined);
+
+    await staleUpdateMiddleware(createMessageContext(61, { sendMessage }), next);
+    vi.setSystemTime(NOW_MS + 61_000);
+    await staleUpdateMiddleware(createMessageContext(61, { sendMessage }), next);
+
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it("flushes a pending undelivered notice on a fresh inbound", async () => {
+    telegramOutageNoticeService.markAssistantReplyUndelivered();
+    const sendMessage = vi.fn().mockResolvedValue({ message_id: 1 });
+    const next: NextFunction = vi.fn().mockResolvedValue(undefined);
+
+    await staleUpdateMiddleware(createMessageContext(0, { sendMessage }), next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
   });
 
   it("passes through a message dated in the future when clocks drift", async () => {

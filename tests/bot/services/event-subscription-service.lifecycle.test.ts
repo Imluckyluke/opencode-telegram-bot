@@ -821,11 +821,15 @@ describe("bot/services/event-subscription-service lifecycle", () => {
 
     it("releases the session when the final answer cannot be delivered", async () => {
       const { api, summaryAggregator } = await setupService({ startAssistantRun: true });
-      const [{ foregroundSessionState }, { assistantRunState }] = await Promise.all([
-        import("../../../src/app/managers/foreground-session-state-manager.js"),
-        import("../../../src/app/managers/assistant-run-state-manager.js"),
-      ]);
+      const [{ foregroundSessionState }, { assistantRunState }, { telegramOutageNoticeService }] =
+        await Promise.all([
+          import("../../../src/app/managers/foreground-session-state-manager.js"),
+          import("../../../src/app/managers/assistant-run-state-manager.js"),
+          import("../../../src/app/services/telegram-outage-notice-service.js"),
+        ]);
       foregroundSessionState.markBusy("session-1", "D:/repo");
+      const clearSpy = vi.spyOn(summaryAggregator as unknown as { clear(): void }, "clear");
+      const markSpy = vi.spyOn(telegramOutageNoticeService, "markAssistantReplyUndelivered");
       api.sendMessage.mockRejectedValue(new Error("telegram unreachable"));
       api.editMessageText.mockRejectedValue(new Error("telegram unreachable"));
 
@@ -839,6 +843,8 @@ describe("bot/services/event-subscription-service lifecycle", () => {
         { timeout: STREAM_WAIT_TIMEOUT_MS },
       );
       expect(assistantRunState.finishRun("session-1", "assertion")).toBeNull();
+      expect(clearSpy).not.toHaveBeenCalled();
+      expect(markSpy).toHaveBeenCalled();
     }, 30_000);
   });
 

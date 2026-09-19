@@ -84,6 +84,10 @@ export const tr: I18nDictionary = {
     "⚠️ Etkin oturum seçili projeyle eşleşmediği için sıfırlandı. Birini seçmek için /sessions veya yeni oturum oluşturmak için /new kullanın.",
   "bot.prompt_send_error": "İstek OpenCode'a gönderilemedi.",
   "bot.session_error": "🔴 OpenCode bir hata döndürdü: {message}",
+  "bot.assistant_reply_undelivered":
+    "⚠️ The last assistant reply could not be delivered. Send your message again if you still need it.",
+  "bot.stale_messages_skipped":
+    "⚠️ Some messages were skipped while Telegram was unreachable. Please send them again.",
   "bot.session_retry":
     "🔁 {message}\n\nSağlayıcı tekrarlanan denemelerde aynı hatayı döndürmeye devam ediyor. Durdurmak için /abort kullanın.",
   "bot.external_user_input": "Harici kullanıcı girdisi",

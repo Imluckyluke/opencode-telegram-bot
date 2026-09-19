@@ -61,6 +61,8 @@ No public inbound ports are required for normal usage.
 ### Result delivery
 
 - Send each completed assistant response after completion signal from SSE
+- If that send fails, the reply is not sent again; when Telegram accepts sends again, the chat gets a notice that the last assistant reply was not delivered
+- After a mid-session Telegram outage, the next new message is answered without restarting the app
 - Compact output mode shows thinking and writing on its single progress message from the start of work; that message is removed or marked finished when the run completes
 - Show elapsed time for tool calls running longer than 20 seconds, updated on a timer so it keeps counting while a tool blocks without producing output; covers subagent cards and compact mode, and the total duration stays on the finished tool line. In compact mode, while several tools of one step are in flight, the progress line shows the still-running one (the most recently started if several), with that tool's timer — not a finished sibling. A finished subagent card keeps the time its whole run took. Durations use the same `· 🕒 1h 2m 3s` format as the assistant run footer
 - A subagent card shows Task, Agent, and Model; when OpenCode sends a variant, the Model line is `provider/id (variant)`
@@ -83,6 +85,7 @@ No public inbound ports are required for normal usage.
 - Whitelist by Telegram user ID (single-user mode)
 - Ignore messages from non-authorized users
 - Ignore updates queued while the bot was offline or unreachable, so they are not executed on startup
+- Mid-session, messages older than 60 seconds after an outage are still not executed; the chat gets one notice that messages were skipped while Telegram was unreachable
 - If Telegram is unreachable at startup (network error, 5xx, 429), keep retrying with a growing delay capped at 60 seconds until it answers, then start polling; a rejected or invalid token (401/404) or any other fatal startup error logs the cause and exits the process with code 1 so a supervisor can restart it
 
 ### Configuration
@@ -196,6 +199,7 @@ Agent picker behavior:
 - [x] Native Telegram rich message formatting for assistant replies (Bot API 10.1)
 - [x] Incoming Telegram rich formatted messages (Bot API 10.1): converted to Markdown, accepted anywhere text is accepted, with photos attached and unsupported message types answered explicitly
 - [x] Startup either reaches Telegram polling or the process exits: transient Telegram failures are retried in-process; a bad token or other fatal startup error exits with code 1
+- [x] After a Telegram outage the bot answers again without restart; an undelivered assistant reply is not resent, and skipped stale messages are reported once
 
 ## Current Task List
 

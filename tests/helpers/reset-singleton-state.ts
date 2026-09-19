@@ -41,6 +41,7 @@ export async function resetSingletonState(): Promise<void> {
     { __resetPromptQueueDispatchForTests },
     { promptAttachment },
     { __resetStreamThrottleForTests },
+    { telegramOutageNoticeService },
     loggerModule,
   ] = await Promise.all([
     import("../../src/app/managers/question-manager.js"),
@@ -57,6 +58,7 @@ export async function resetSingletonState(): Promise<void> {
     import("../../src/bot/handlers/prompt-queue-dispatch.js"),
     import("../../src/app/managers/prompt-attachment-manager.js"),
     import("../../src/bot/streaming/stream-throttle.js"),
+    import("../../src/app/services/telegram-outage-notice-service.js"),
     import("../../src/utils/logger.js"),
   ]);
 
@@ -71,6 +73,7 @@ export async function resetSingletonState(): Promise<void> {
   promptQueue.__resetForTests();
   __resetPromptQueueDispatchForTests();
   promptAttachment.__resetForTests();
+  telegramOutageNoticeService.__resetForTests();
 
   const aggregator = summaryAggregator as unknown as SummaryAggregatorPrivateState;
   aggregator.onCompleteCallback = null;

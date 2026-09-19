@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getTelegramRetryAfterMs,
   isTransientTelegramServerError,
+  isUnsentTelegramNetworkError,
   withTelegramRateLimitRetry,
 } from "../../src/utils/telegram-rate-limit-retry.js";
 
@@ -35,6 +36,38 @@ describe("utils/telegram-rate-limit-retry", () => {
 
     await expect(promise).resolves.toBe("ok");
     expect(operation).toHaveBeenCalledTimes(2);
+  });
+
+  it("detects connection-not-established errors on a wrapped fetch error", () => {
+    expect(isUnsentTelegramNetworkError({ error: { code: "ECONNREFUSED" } })).toBe(true);
+    expect(isUnsentTelegramNetworkError({ error: { code: "ENOTFOUND" } })).toBe(true);
+    expect(isUnsentTelegramNetworkError({ error: { code: "EAI_AGAIN" } })).toBe(true);
+    expect(isUnsentTelegramNetworkError({ error: { type: "request-timeout" } })).toBe(true);
+    expect(isUnsentTelegramNetworkError({ error: { code: "ECONNRESET" } })).toBe(false);
+    expect(isUnsentTelegramNetworkError(new Error("Network request for 'sendMessage' failed!"))).toBe(
+      false,
+    );
+  });
+
+  it("retries connection-not-established errors and does not retry a reset after write", async () => {
+    vi.useFakeTimers();
+
+    const refused = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
+    const operation = vi.fn().mockRejectedValueOnce(refused).mockResolvedValueOnce("ok");
+    const promise = withTelegramRateLimitRetry(operation, {
+      maxRetries: 2,
+      fallbackDelayMs: 500,
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    await expect(promise).resolves.toBe("ok");
+    expect(operation).toHaveBeenCalledTimes(2);
+
+    const reset = Object.assign(new Error("socket hang up"), { code: "ECONNRESET" });
+    const resetOperation = vi.fn().mockRejectedValueOnce(reset);
+    await expect(withTelegramRateLimitRetry(resetOperation, { maxRetries: 2 })).rejects.toThrow(
+      "socket hang up",
+    );
+    expect(resetOperation).toHaveBeenCalledTimes(1);
   });
 
   it("does not retry non-retryable errors", async () => {

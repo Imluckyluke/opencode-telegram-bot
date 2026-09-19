@@ -17,6 +17,8 @@ import {
   createBot,
   shouldRetryTelegramServerError,
 } from "../../src/bot/index.js";
+import { telegramOutageNoticeService } from "../../src/app/services/telegram-outage-notice-service.js";
+import { flushTelegramOutageNotices } from "../../src/bot/telegram-outage-notices.js";
 
 function telegramApiResponse(errorCode: number, result?: unknown): { json(): Promise<unknown> } {
   if (errorCode === 200) {
@@ -37,6 +39,7 @@ function telegramApiResponse(errorCode: number, result?: unknown): { json(): Pro
 describe("bot Telegram 5xx retry policy", () => {
   afterEach(() => {
     cleanupBotRuntime("test");
+    telegramOutageNoticeService.__resetForTests();
     vi.useRealTimers();
     mocked.fetch.mockReset();
   });
@@ -100,6 +103,72 @@ describe("bot Telegram 5xx retry policy", () => {
 
     await expect(result).resolves.toEqual({ message_id: 1 });
     expect(mocked.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a connection-not-established error when creating a message", async () => {
+    vi.useFakeTimers();
+    const refused = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
+    mocked.fetch
+      .mockRejectedValueOnce(refused)
+      .mockResolvedValueOnce(telegramApiResponse(200, { message_id: 1 }));
+    const bot = createBot();
+
+    const result = bot.api.sendMessage(123, "hello");
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(result).resolves.toEqual({ message_id: 1 });
+    expect(mocked.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry a connection reset when creating a message", async () => {
+    const reset = Object.assign(new Error("socket hang up"), { code: "ECONNRESET" });
+    mocked.fetch.mockRejectedValueOnce(reset);
+    const bot = createBot();
+
+    await expect(bot.api.sendMessage(123, "hello")).rejects.toThrow(
+      "Network request for 'sendMessage' failed!",
+    );
+    expect(mocked.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry a rate limit when sending an outage notice", async () => {
+    mocked.fetch.mockResolvedValue(telegramApiResponse(429));
+    const bot = createBot();
+    telegramOutageNoticeService.markAssistantReplyUndelivered();
+
+    await flushTelegramOutageNotices({ api: bot.api, chatId: 123 });
+
+    expect(mocked.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("still retries a concurrent send while an outage notice fetch is pending", async () => {
+    vi.useFakeTimers();
+    let releaseNotice: ((value: { json(): Promise<unknown> }) => void) | undefined;
+    const refused = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
+    mocked.fetch
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseNotice = resolve;
+          }),
+      )
+      .mockRejectedValueOnce(refused)
+      .mockResolvedValue(telegramApiResponse(200, { message_id: 2 }));
+    const bot = createBot();
+    telegramOutageNoticeService.markAssistantReplyUndelivered();
+
+    const notice = flushTelegramOutageNotices({ api: bot.api, chatId: 123 });
+    await vi.waitFor(() => {
+      expect(releaseNotice).toBeDefined();
+    });
+
+    const other = bot.api.sendMessage(123, "hello");
+    await vi.advanceTimersByTimeAsync(1000);
+    await expect(other).resolves.toEqual({ message_id: 2 });
+
+    releaseNotice?.(telegramApiResponse(429));
+    await notice;
+    expect(mocked.fetch).toHaveBeenCalledTimes(3);
   });
 
   it("does not apply the API transformer retry to startup-managed methods", async () => {

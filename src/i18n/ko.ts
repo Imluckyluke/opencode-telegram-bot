@@ -93,6 +93,10 @@ export const ko: I18nDictionary = {
     "⚠️ 활성 세션이 선택한 프로젝트와 일치하지 않아 초기화되었습니다. /sessions에서 세션을 선택하거나 /new로 새 세션을 만들어 주세요.",
   "bot.prompt_send_error": "OpenCode에 요청을 보내지 못했습니다.",
   "bot.session_error": "🔴 OpenCode 오류가 발생했습니다: {message}",
+  "bot.assistant_reply_undelivered":
+    "⚠️ The last assistant reply could not be delivered. Send your message again if you still need it.",
+  "bot.stale_messages_skipped":
+    "⚠️ Some messages were skipped while Telegram was unreachable. Please send them again.",
   "bot.session_retry":
     "🔁 {message}\n\n재시도할 때마다 동일한 오류가 반복됩니다. /abort로 중단하세요.",
   "bot.external_user_input": "외부 사용자 입력",

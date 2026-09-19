@@ -1,4 +1,6 @@
 import type { Context, NextFunction } from "grammy";
+import { telegramOutageNoticeService } from "../../app/services/telegram-outage-notice-service.js";
+import { flushTelegramOutageNotices } from "../telegram-outage-notices.js";
 import { logger } from "../../utils/logger.js";
 
 // Telegram keeps undelivered updates for up to 24 hours, so a message can reach
@@ -18,12 +20,23 @@ export async function staleUpdateMiddleware(ctx: Context, next: NextFunction): P
   }
 
   const ageSeconds = Math.floor(Date.now() / 1000) - message.date;
+  const chatId = ctx.chat?.id;
+  const canNotify = typeof chatId === "number" && ctx.api !== undefined;
+
   if (ageSeconds <= MAX_MESSAGE_AGE_SECONDS) {
+    telegramOutageNoticeService.closeBurst();
+    if (canNotify) {
+      await flushTelegramOutageNotices({ api: ctx.api, chatId });
+    }
     await next();
     return;
   }
 
+  telegramOutageNoticeService.markMessagesSkipped();
   logger.warn(
     `[StaleUpdate] Ignored stale message: ageSeconds=${ageSeconds}, updateId=${ctx.update.update_id}, messageId=${message.message_id}`,
   );
+  if (canNotify) {
+    await flushTelegramOutageNotices({ api: ctx.api, chatId });
+  }
 }

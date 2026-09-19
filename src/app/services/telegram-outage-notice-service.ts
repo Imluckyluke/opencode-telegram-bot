@@ -1,0 +1,88 @@
+const CHAT_INTERVAL_MS = 1000;
+const BURST_GAP_MS = 60_000;
+
+export type TelegramOutageNoticeKind = "undelivered" | "skipped";
+
+export interface TelegramOutageNoticesDue {
+  undelivered: boolean;
+  skipped: boolean;
+}
+
+export class TelegramOutageNoticeService {
+  private undeliveredPending = false;
+  private skippedPending = false;
+  private burstActive = false;
+  private lastStaleAt = 0;
+  private lastChatSendAt = 0;
+  private flushInFlight = false;
+
+  markAssistantReplyUndelivered(): void {
+    this.undeliveredPending = true;
+  }
+
+  markMessagesSkipped(): void {
+    const now = Date.now();
+    if (this.burstActive && now - this.lastStaleAt <= BURST_GAP_MS) {
+      this.lastStaleAt = now;
+      return;
+    }
+    this.burstActive = true;
+    this.skippedPending = true;
+    this.lastStaleAt = now;
+  }
+
+  closeBurst(): void {
+    this.burstActive = false;
+  }
+
+  noteChatSendSucceeded(): void {
+    this.lastChatSendAt = Date.now();
+  }
+
+  msUntilAllowedSend(): number {
+    if (this.lastChatSendAt === 0) {
+      return 0;
+    }
+    return Math.max(0, this.lastChatSendAt + CHAT_INTERVAL_MS - Date.now());
+  }
+
+  takeDueNotices(): TelegramOutageNoticesDue | null {
+    if (this.flushInFlight) {
+      return null;
+    }
+    if (!this.undeliveredPending && !this.skippedPending) {
+      return null;
+    }
+    this.flushInFlight = true;
+    return {
+      undelivered: this.undeliveredPending,
+      skipped: this.skippedPending,
+    };
+  }
+
+  reportNoticeResult(kind: TelegramOutageNoticeKind, delivered: boolean): void {
+    if (!delivered) {
+      return;
+    }
+    if (kind === "undelivered") {
+      this.undeliveredPending = false;
+    } else {
+      this.skippedPending = false;
+    }
+  }
+
+  finishFlush(): void {
+    this.flushInFlight = false;
+  }
+
+  __resetForTests(): void {
+    this.undeliveredPending = false;
+    this.skippedPending = false;
+    this.burstActive = false;
+    this.lastStaleAt = 0;
+    this.lastChatSendAt = 0;
+    this.flushInFlight = false;
+  }
+}
+
+export const telegramOutageNoticeService = new TelegramOutageNoticeService();

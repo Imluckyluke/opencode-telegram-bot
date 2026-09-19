@@ -102,6 +102,47 @@ function isTelegramRateLimitError(error: unknown): boolean {
   return /\b429\b/.test(message) || message.includes("too many requests");
 }
 
+const CONNECT_NOT_ESTABLISHED_CODES = new Set([
+  "ECONNREFUSED",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ENETUNREACH",
+  "EHOSTUNREACH",
+]);
+
+function readStringField(value: unknown, key: string): string | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const field = Reflect.get(value, key);
+  return typeof field === "string" ? field : null;
+}
+
+function getNestedNetworkError(error: unknown): unknown {
+  if (typeof error !== "object" || error === null) {
+    return error;
+  }
+  const wrapped = Reflect.get(error, "error");
+  if (typeof wrapped === "object" && wrapped !== null) {
+    return wrapped;
+  }
+  const cause = Reflect.get(error, "cause");
+  if (typeof cause === "object" && cause !== null) {
+    return cause;
+  }
+  return error;
+}
+
+export function isUnsentTelegramNetworkError(error: unknown): boolean {
+  const networkError = getNestedNetworkError(error);
+  const code = readStringField(networkError, "code") ?? readStringField(error, "code");
+  if (code !== null && CONNECT_NOT_ESTABLISHED_CODES.has(code)) {
+    return true;
+  }
+  const type = readStringField(networkError, "type") ?? readStringField(error, "type");
+  return type === "request-timeout";
+}
+
 export function isTransientTelegramServerError(error: unknown): boolean {
   const status = getStatusCode(error);
   if (status !== null) {
@@ -146,6 +187,10 @@ export function getTelegramRetryAfterMs(
   }
 
   if (isTransientTelegramServerError(error)) {
+    return getServerErrorBackoffMs(attempt, fallbackDelayMs);
+  }
+
+  if (isUnsentTelegramNetworkError(error)) {
     return getServerErrorBackoffMs(attempt, fallbackDelayMs);
   }
 

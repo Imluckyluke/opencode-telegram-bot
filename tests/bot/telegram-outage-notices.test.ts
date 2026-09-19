@@ -1,0 +1,115 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Api } from "grammy";
+import { telegramOutageNoticeService } from "../../src/app/services/telegram-outage-notice-service.js";
+import { flushTelegramOutageNotices } from "../../src/bot/telegram-outage-notices.js";
+
+describe("telegram-outage-notices", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    telegramOutageNoticeService.__resetForTests();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    telegramOutageNoticeService.__resetForTests();
+  });
+
+  it("does not send when nothing is pending", async () => {
+    const sendMessage = vi.fn().mockResolvedValue({ message_id: 1 });
+
+    await flushTelegramOutageNotices({
+      api: { sendMessage } as unknown as Api,
+      chatId: 1,
+    });
+
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("sends the undelivered notice and waits a second after a chat send", async () => {
+    telegramOutageNoticeService.noteChatSendSucceeded();
+    telegramOutageNoticeService.markAssistantReplyUndelivered();
+    const sendMessage = vi.fn().mockResolvedValue({ message_id: 1 });
+
+    const flush = flushTelegramOutageNotices({
+      api: { sendMessage } as unknown as Api,
+      chatId: 1,
+    });
+    expect(sendMessage).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1000);
+    await flush;
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("spaces two notices one second apart", async () => {
+    telegramOutageNoticeService.markAssistantReplyUndelivered();
+    telegramOutageNoticeService.markMessagesSkipped();
+    const sendMessage = vi.fn().mockResolvedValue({ message_id: 1 });
+
+    const flush = flushTelegramOutageNotices({
+      api: { sendMessage } as unknown as Api,
+      chatId: 1,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1000);
+    await flush;
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not duplicate when a nested flush runs in flight", async () => {
+    telegramOutageNoticeService.markAssistantReplyUndelivered();
+    const sendMessage = vi.fn().mockImplementation(async () => {
+      await flushTelegramOutageNotices({
+        api: { sendMessage } as unknown as Api,
+        chatId: 1,
+      });
+      return { message_id: 1 };
+    });
+
+    await flushTelegramOutageNotices({
+      api: { sendMessage } as unknown as Api,
+      chatId: 1,
+    });
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-checks the one-second slot after another chat send during the wait", async () => {
+    telegramOutageNoticeService.noteChatSendSucceeded();
+    telegramOutageNoticeService.markAssistantReplyUndelivered();
+    const sendMessage = vi.fn().mockResolvedValue({ message_id: 1 });
+
+    const flush = flushTelegramOutageNotices({
+      api: { sendMessage } as unknown as Api,
+      chatId: 1,
+    });
+    await vi.advanceTimersByTimeAsync(800);
+    telegramOutageNoticeService.noteChatSendSucceeded();
+    await vi.advanceTimersByTimeAsync(200);
+    expect(sendMessage).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(800);
+    await flush;
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the notice pending when send fails", async () => {
+    telegramOutageNoticeService.markAssistantReplyUndelivered();
+    const sendMessage = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("drop"))
+      .mockResolvedValue({ message_id: 1 });
+
+    await flushTelegramOutageNotices({
+      api: { sendMessage } as unknown as Api,
+      chatId: 1,
+    });
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+
+    await flushTelegramOutageNotices({
+      api: { sendMessage } as unknown as Api,
+      chatId: 1,
+    });
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+  });
+});
