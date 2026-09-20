@@ -5,6 +5,7 @@ const mocked = vi.hoisted(() => ({
   setSessionTopicId: vi.fn(),
   getSessionTopicMap: vi.fn((): Record<string, number> => ({})),
   clearSessionTopicId: vi.fn(),
+  flushSettings: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
@@ -12,6 +13,7 @@ vi.mock("../../../src/app/stores/settings-store.js", () => ({
   setSessionTopicId: mocked.setSessionTopicId,
   getSessionTopicMap: mocked.getSessionTopicMap,
   clearSessionTopicId: mocked.clearSessionTopicId,
+  flushSettings: mocked.flushSettings,
 }));
 
 async function loadService() {
@@ -122,5 +124,24 @@ describe("dm-topic-service", () => {
     mocked.getSessionTopicMap.mockReturnValue({ "session-9": 12 });
     service.adoptInboundThread("session-1", 12);
     expect(mocked.setSessionTopicId).toHaveBeenCalledTimes(1);
+  });
+
+  it("renames the bound topic to follow the session title", async () => {
+    const service = await loadService();
+    mocked.getSessionTopicId.mockReturnValue(7);
+    const api = { editForumTopic: vi.fn().mockResolvedValue(undefined) };
+
+    await service.renameSessionTopic(api as never, 123, "session-1", "Fix login bug");
+
+    expect(api.editForumTopic).toHaveBeenCalledWith(123, 7, { name: "Fix login bug" });
+  });
+
+  it("skips rename without a bound topic", async () => {
+    const service = await loadService();
+    const api = { editForumTopic: vi.fn().mockResolvedValue(undefined) };
+
+    await service.renameSessionTopic(api as never, 123, "session-1", "Fix login bug");
+
+    expect(api.editForumTopic).not.toHaveBeenCalled();
   });
 });

@@ -56,9 +56,17 @@ export const en = {
   "common.unknown_error": "unknown error",
 
   "start.welcome":
-    "👋 Welcome to OpenCode Telegram Bot!\n\nUse commands:\n/projects — select project\n/sessions — session list\n/new — new session\n/commands — custom commands\n/skills — skills catalog\n/task — scheduled task\n/tasklist — scheduled tasks\n/status — status\n/help — help\n\nUse the bottom buttons to select the agent, model, and variant.",
+    "👋 Welcome to OpenCode Telegram Bot!\n\nAnything you write here goes straight to your coding agent — no command needed.\n\nQuick start:\n/projects — select project\n/new — new session\n/model — pick model\n/status — status\n/help — full help\n\nUse /language to change the bot language.",
   "help.keyboard_hint":
-    "💡 Use the bottom keyboard buttons for the agent, model, variant, and context actions.",
+    "💡 Switch agent, model, and variant with /agent, /model, and /variant.",
+  "help.intro":
+    "Send any text as a prompt — no command needed. Voice messages are transcribed, and photos or files are attached to your prompt.",
+  "help.group.sessions": "💬 Sessions & projects",
+  "help.group.models": "🤖 Model & agent",
+  "help.group.automation": "⚙️ Automation",
+  "help.group.system": "🛠 System",
+  "help.footer":
+    "💡 Tip: /status shows server, project, session, and model at a glance.",
   "help.text":
     "📖 **Help**\n\n/status - Check server status\n/sessions - Session list\n/new - Create new session\n/help - Help",
 

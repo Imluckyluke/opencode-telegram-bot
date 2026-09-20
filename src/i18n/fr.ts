@@ -183,6 +183,13 @@ export const fr: I18nDictionary = {
   "settings.value.off": "Désactivé",
   "settings.saved": "✅ Paramètre enregistré.",
 
+  "help.intro": "Send any text as a prompt \u2014 no command needed.",
+  "help.group.sessions": "Sessions & projects",
+  "help.group.models": "Model & agent",
+  "help.group.automation": "Automation",
+  "help.group.system": "System",
+  "help.footer": "Tip: /status shows server, project, session, and model at a glance.",
+
   "language.menu.title": "Select bot language:",
   "language.selected": "Language set to {language}.",
 

@@ -3,6 +3,7 @@ import { config } from "../../config.js";
 import type { SessionInfo } from "../types/session.js";
 import {
   clearSessionTopicId,
+  flushSettings,
   getSessionTopicId,
   getSessionTopicMap,
   setSessionTopicId,
@@ -33,7 +34,12 @@ export function extractInboundThreadId(
 }
 
 function buildTopicName(session: SessionInfo): string {
-  const raw = (session.title || "").split("\n")[0]?.trim() || `Session ${session.id.slice(0, 8)}`;
+  return formatTopicName(session.title || "", session.id);
+}
+
+/** Single-line topic name (max 128 chars) with a session-id fallback. */
+export function formatTopicName(title: string, sessionId: string): string {
+  const raw = title.split("\n")[0]?.trim() || `Session ${sessionId.slice(0, 8)}`;
   return raw.length > MAX_TOPIC_NAME_LENGTH ? raw.slice(0, MAX_TOPIC_NAME_LENGTH) : raw;
 }
 
@@ -82,6 +88,11 @@ export async function ensureSessionTopic(
         return null;
       }
       setSessionTopicId(session.id, threadId);
+      // Make the binding crash-safe: settings writes are queued, and a restart
+      // before the flush would orphan the topic (duplicate on next bind).
+      await flushSettings().catch((error: unknown) => {
+        logger.warn("[DmTopics] Failed to persist topic binding:", error);
+      });
       logger.info(`[DmTopics] Created topic for session: session=${session.id}, thread=${threadId}`);
       return threadId;
     } catch (error) {
@@ -103,6 +114,32 @@ export function forgetSessionTopic(sessionId: string): void {
     return;
   }
   clearSessionTopicId(sessionId);
+}
+
+/**
+ * Renames a bound topic to follow the session title (best effort).
+ * Used when OpenCode generates the real title after the first exchange,
+ * or when the user renames the session.
+ */
+export async function renameSessionTopic(
+  api: Pick<Api, "editForumTopic">,
+  chatId: number,
+  sessionId: string,
+  title: string,
+): Promise<void> {
+  if (!config.bot.dmTopicsEnabled || !sessionId) {
+    return;
+  }
+  const threadId = getSessionTopicId(sessionId);
+  if (!threadId) {
+    return;
+  }
+  try {
+    await api.editForumTopic(chatId, threadId, { name: formatTopicName(title, sessionId) });
+    logger.debug(`[DmTopics] Renamed topic: session=${sessionId}, thread=${threadId}`);
+  } catch (error) {
+    logger.warn("[DmTopics] Topic rename failed:", error);
+  }
 }
 
 /**

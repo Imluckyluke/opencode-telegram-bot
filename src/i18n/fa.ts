@@ -1,25 +1,25 @@
 import type { I18nDictionary } from "./en.js";
 
 export const fa: I18nDictionary = {
-  "cmd.description.status": "وضعیت سرور و نشست",
+  "cmd.description.status": "وضعیت سرور، پروژه و گفتگوی جاری",
   "cmd.description.language": "تغییر زبان بات",
-  "cmd.description.new": "ایجاد نشست جدید",
-  "cmd.description.stop": "توقف اقدام جاری",
-  "cmd.description.detach": "جدا شدن از نشست جاری",
-  "cmd.description.sessions": "فهرست نشست‌ها",
-  "cmd.description.messages": "مرور پیام‌های نشست",
-  "cmd.description.settings": "تغییر تنظیمات بات",
-  "cmd.description.projects": "فهرست پروژه‌ها",
-  "cmd.description.worktree": "جابه‌جایی بین worktreeهای گیت",
-  "cmd.description.task": "ایجاد وظیفه زمان‌بندی‌شده",
-  "cmd.description.tasklist": "فهرست وظایف زمان‌بندی‌شده",
-  "cmd.description.commands": "دستورهای سفارشی",
-  "cmd.description.skills": "کاتالوگ مهارت‌ها",
-  "cmd.description.mcps": "سرورهای MCP",
-  "cmd.description.opencode_start": "اجرای سرور OpenCode",
-  "cmd.description.opencode_stop": "توقف سرور OpenCode",
-  "cmd.description.ls": "فهرست محتوای پوشه",
-  "cmd.description.help": "راهنما",
+  "cmd.description.new": "شروع یک گفتگوی جدید",
+  "cmd.description.stop": "توقف کاری که در حال انجام است",
+  "cmd.description.detach": "رها کردن گفتگوی جاری بدون متوقف کردنش",
+  "cmd.description.sessions": "دیدن گفتگوها و جابه‌جایی بین آن‌ها",
+  "cmd.description.messages": "مرور پیام‌ها، بازگشت یا انشعاب از یک نقطه",
+  "cmd.description.settings": "تنظیمات بات",
+  "cmd.description.projects": "دیدن پروژه‌ها و جابه‌جایی بین آن‌ها",
+  "cmd.description.worktree": "جابه‌جایی بین ورک‌تری‌های گیت",
+  "cmd.description.task": "ساخت کار زمان‌بندی‌شده",
+  "cmd.description.tasklist": "دیدن و حذف کارهای زمان‌بندی‌شده",
+  "cmd.description.commands": "اجرای دستورهای سفارشی و داخلی",
+  "cmd.description.skills": "دیدن و اجرای مهارت‌ها",
+  "cmd.description.mcps": "مدیریت سرورهای MCP",
+  "cmd.description.opencode_start": "روشن کردن سرور OpenCode",
+  "cmd.description.opencode_stop": "خاموش کردن سرور OpenCode",
+  "cmd.description.ls": "گشتن در فایل‌های پروژه و دانلود آن‌ها",
+  "cmd.description.help": "راهنمای کامل بات",
 
   "callback.unknown_command": "دستور ناشناخته",
   "callback.processing_error": "خطای پردازش",
@@ -54,9 +54,16 @@ export const fa: I18nDictionary = {
   "common.unknown_error": "خطای ناشناخته",
 
   "start.welcome":
-    "👋 به بات تلگرام OpenCode خوش آمدید!\n\nدستورها:\n/projects — انتخاب پروژه\n/sessions — فهرست نشست‌ها\n/new — نشست جدید\n/commands — دستورهای سفارشی\n/skills — کاتالوگ مهارت‌ها\n/task — وظیفه زمان‌بندی‌شده\n/tasklist — وظایف زمان‌بندی‌شده\n/status — وضعیت\n/help — راهنما\n\nبا دکمه‌های پایین ایجنت، مدل و واریانت را انتخاب کنید.",
+    "👋 به بات تلگرام OpenCode خوش آمدی!\n\nهر چیزی که اینجا بنویسی مستقیم به ایجنت کدنویسی‌ات می‌رسد؛ لازم نیست دستور خاصی بزنی.\n\nشروع سریع:\n/projects — انتخاب پروژه\n/new — گفتگوی جدید\n/model — انتخاب مدل\n/status — وضعیت\n/help — راهنمای کامل\n\nبا /language هم می‌توانی زبان بات را عوض کنی.",
   "help.keyboard_hint":
-    "💡 با دکمه‌های پایین برای ایجنت، مدل، واریانت و اقدام‌های کانتکست استفاده کنید.",
+    "💡 مدل، ایجنت و واریانت را با دستورهای /model و /agent و /variant عوض کن.",
+  "help.intro":
+    "هر متن ساده‌ای که بفرستی مستقیم به‌عنوان دستور به ایجنت می‌رسد؛ لازم نیست دستور خاصی بزنی. پیام صوتی رونویسی می‌شود و عکس و فایل هم به پیامت الصاق می‌شود.",
+  "help.group.sessions": "💬 گفتگوها و پروژه‌ها",
+  "help.group.models": "🤖 مدل و ایجنت",
+  "help.group.automation": "⚙️ خودکارسازی",
+  "help.group.system": "🛠 سیستم",
+  "help.footer": "💡 نکته: با /status وضعیت سرور، پروژه، گفتگو و مدل را یک‌جا ببین.",
   "help.text":
     "📖 **راهنما**\n\n/status - بررسی وضعیت سرور\n/sessions - فهرست نشست‌ها\n/new - ایجاد نشست جدید\n/help - راهنما",
 
@@ -595,10 +602,10 @@ export const fa: I18nDictionary = {
   "mcps.button.back": "⬅️ بازگشت",
   "mcps.auth_required": "این سرور نیاز به احراز هویت دارد و از بات فعال نمی‌شود.",
 
-  "cmd.description.rename": "تغییر نام نشست جاری",
-  "cmd.description.model": "انتخاب مدل",
-  "cmd.description.agent": "انتخاب ایجنت",
-  "cmd.description.variant": "انتخاب واریانت",
+  "cmd.description.rename": "تغییر نام گفتگوی جاری",
+  "cmd.description.model": "انتخاب مدل از همه مدل‌های در دسترس",
+  "cmd.description.agent": "انتخاب ایجنت (ساخت یا برنامه‌ریزی)",
+  "cmd.description.variant": "انتخاب واریانت مدل",
 
   "legacy.models.fetch_error":
     "🔴 دریافت فهرست مدل‌ها ناموفق بود. با /status وضعیت سرور را بررسی کنید.",
