@@ -92,6 +92,11 @@ import {
 import { buildBackgroundSessionOpenKeyboard } from "../menus/session-selection-menu.js";
 import { questionManager } from "../../app/managers/question-manager.js";
 import { permissionManager } from "../../app/managers/permission-manager.js";
+import { promptQueue } from "../../app/managers/prompt-queue-manager.js";
+import {
+  compactCurrentSession,
+  shouldAutoCompact,
+} from "../../app/services/session-compact-service.js";
 import { showCurrentQuestion } from "../menus/question-menu.js";
 import { showPermissionRequest, syncPermissionInteractionState } from "../menus/permission-menu.js";
 import {
@@ -440,6 +445,40 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       appendDuration(message, formatDuration(durationMs)),
       streamKey,
     );
+  }
+
+  /**
+   * Edge-triggered automatic compaction after a completed run crosses
+   * AUTO_COMPACT_THRESHOLD_PERCENT. Skipped while an interaction is pending
+   * or prompts are queued, so compaction never eats needed context mid-flow.
+   */
+  private async maybeAutoCompact(tokensUsed: number, tokensLimit: number): Promise<void> {
+    const threshold = config.bot.autoCompactThresholdPercent;
+    if (!(threshold >= 1 && threshold <= 100)) {
+      return;
+    }
+    if (!this.botInstance || !this.chatIdInstance) {
+      return;
+    }
+    const currentSession = getCurrentSession();
+    if (!currentSession) {
+      return;
+    }
+    if (!shouldAutoCompact(currentSession.id, tokensUsed, tokensLimit, threshold)) {
+      return;
+    }
+    if (questionManager.isActive() || permissionManager.isActive()) {
+      logger.info(`[Bot] Skipping auto-compact: interaction pending, session=${currentSession.id}`);
+      return;
+    }
+    if (promptQueue.size() > 0) {
+      logger.info(`[Bot] Skipping auto-compact: prompts queued, session=${currentSession.id}`);
+      return;
+    }
+    logger.info(
+      `[Bot] Auto-compacting at ${Math.round((tokensUsed / tokensLimit) * 100)}% context: session=${currentSession.id}`,
+    );
+    await compactCurrentSession(this.botInstance.api, this.chatIdInstance);
   }
 
   private async refreshSubagentCards(sessionId: string): Promise<void> {
@@ -1130,6 +1169,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
 
         if (isCompleted) {
           await pinnedMessageManager.onMessageComplete(tokens);
+          await this.maybeAutoCompact(tokens.input + tokens.cacheRead, contextLimit);
         }
       } catch (err) {
         logger.error("[Bot] Error updating pinned message with tokens:", err);

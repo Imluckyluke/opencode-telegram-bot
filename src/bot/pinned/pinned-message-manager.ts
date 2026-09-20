@@ -15,6 +15,7 @@ import {
   getModelContextLimit,
 } from "../../app/services/model-context-limit-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
+import { resetAutoCompactState } from "../../app/services/session-compact-service.js";
 import { isExpectedOpencodeUnavailableError } from "../../utils/opencode-error.js";
 import type { FileChange, PinnedMessageState, TokensInfo } from "./pinned-message-types.js";
 import { t } from "../../i18n/index.js";
@@ -87,6 +88,7 @@ class PinnedMessageManager {
     // Reset tokens for new session
     this.state.tokensUsed = 0;
     this.state.cost = 0;
+    resetAutoCompactState(sessionId);
 
     // Update state
     this.state.sessionId = sessionId;

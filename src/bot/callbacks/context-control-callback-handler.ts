@@ -1,7 +1,6 @@
 import { Context } from "grammy";
-import { getStoredModel } from "../../app/services/model-selection-service.js";
-import { opencodeClient } from "../../opencode/client.js";
 import { getCurrentSession } from "../../app/services/session-service.js";
+import { compactCurrentSession } from "../../app/services/session-compact-service.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { alert, failure } from "./feedback.js";
@@ -10,7 +9,6 @@ import { clearActiveInlineMenu, ensureActiveInlineMenu } from "../menus/inline-m
 /**
  * Handle compact confirmation callback
  * Calls OpenCode API to compact the session
- * @param ctx grammY context
  */
 export async function handleCompactConfirm(ctx: Context): Promise<boolean> {
   const callbackQuery = ctx.callbackQuery;
@@ -41,40 +39,15 @@ export async function handleCompactConfirm(ctx: Context): Promise<boolean> {
     clearActiveInlineMenu("context_compact_confirmed");
     await ctx.deleteMessage().catch(() => {});
 
-    // Send progress message
-    const progressMessage = await ctx.reply(t("context.progress"));
-
-    // Show typing indicator
-    await ctx.api.sendChatAction(ctx.chat!.id, "typing");
-
-    const storedModel = getStoredModel();
-
-    logger.debug(
-      `[ContextHandler] Calling summarize with sessionID=${session.id}, directory=${session.directory}, model=${storedModel.providerID}/${storedModel.modelID}`,
-    );
-
-    // Call summarize API (AI compaction)
-    const { error } = await opencodeClient.session.summarize({
-      sessionID: session.id,
-      directory: session.directory,
-      providerID: storedModel.providerID,
-      modelID: storedModel.modelID,
-    });
-
-    if (error) {
-      logger.error("[ContextHandler] Compact failed:", error);
-      // Update progress message to show error
-      await ctx.api
-        .editMessageText(ctx.chat!.id, progressMessage.message_id, t("context.error"))
-        .catch(() => {});
+    if (!ctx.chat) {
+      await failure(ctx, "context.error");
       return true;
     }
 
-    logger.info(`[ContextHandler] Session compacted: ${session.id}`);
-    // Update progress message to show success
-    await ctx.api
-      .editMessageText(ctx.chat!.id, progressMessage.message_id, t("context.success"))
-      .catch(() => {});
+    const outcome = await compactCurrentSession(ctx.api, ctx.chat.id);
+    if (outcome !== "ok") {
+      await failure(ctx, "context.error");
+    }
 
     return true;
   } catch (err) {

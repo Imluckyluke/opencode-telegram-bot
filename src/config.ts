@@ -255,6 +255,10 @@ export const config = {
       false,
     ),
     bashToolDisplayMaxLength: getOptionalPositiveIntEnvVar("BASH_TOOL_DISPLAY_MAX_LENGTH", 128),
+    autoCompactThresholdPercent: getOptionalNonNegativeIntEnvVar(
+      "AUTO_COMPACT_THRESHOLD_PERCENT",
+      0,
+    ),
     locale: getOptionalLocaleEnvVar("BOT_LOCALE", "en"),
     trackBackgroundSessions: getOptionalBooleanEnvVar("TRACK_BACKGROUND_SESSIONS", true),
     messageFormatMode: getOptionalMessageFormatModeEnvVar("MESSAGE_FORMAT_MODE", "markdown"),

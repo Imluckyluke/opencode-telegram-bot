@@ -208,3 +208,5 @@ Open tasks for upcoming iterations:
 - [x] Model search in model switcher
 - [x] Docker runtime support and deployment guide
 - [x] Add a bot settings command with in-chat UI
+- [x] Inline mode: status card and ask-current-session from any chat (`@bot query`)
+- [x] Automatic session compaction at a configurable context threshold (`AUTO_COMPACT_THRESHOLD_PERCENT`)
