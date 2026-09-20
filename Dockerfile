@@ -3,18 +3,15 @@ FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
-# Install only native build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    make \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
+# better-sqlite3 is optional and lazy-loaded (falls back to JSON storage),
+# so no native toolchain is required: use prebuilt binaries when available
+# and skip the native build otherwise.
 
 # Copy package files first for better layer caching
 COPY package.json package-lock.json ./
 
 # Install ALL dependencies (including dev for build)
-RUN npm ci
+RUN npm ci --no-audit --no-fund
 
 # Copy TypeScript config and source code
 COPY tsconfig.json ./

@@ -125,8 +125,7 @@ export const fr: I18nDictionary = {
     "🔴 Impossible de télécharger l'un des fichiers. Rien n'a été envoyé à OpenCode.",
   "bot.model_no_pdf":
     "⚠️ Le modèle actuel ne prend pas en charge les PDF. Envoi du texte uniquement.",
-  "bot.document_extraction_error":
-    "🔴 Échec de l'extraction du texte du document.",
+  "bot.document_extraction_error": "🔴 Échec de l'extraction du texte du document.",
   "bot.text_file_too_large": "⚠️ Le fichier texte est trop volumineux (max {maxSizeKb}KB)",
 
   "status.header_running": "🟢 Le serveur OpenCode est en cours d'exécution",
@@ -383,7 +382,8 @@ export const fr: I18nDictionary = {
   "permission.blocked.command_not_allowed":
     "⚠️ Cette commande n'est pas disponible tant que vous n'avez pas répondu à la demande d'autorisation.",
   "permission.header": "{emoji} Demande d'autorisation : {name}\n\n",
-  "permission.grouped_count": "\n⚠️ {count} demandes identiques en attente — votre réponse s'applique à toutes.\n",
+  "permission.grouped_count":
+    "\n⚠️ {count} demandes identiques en attente — votre réponse s'applique à toutes.\n",
   "permission.button.allow": "✅ Autoriser une fois",
   "permission.button.always": "🔓 Toujours autoriser",
   "permission.button.reject": "❌ Refuser",
@@ -428,7 +428,8 @@ export const fr: I18nDictionary = {
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added":
     "📥 Ajouté à la file d'attente ({count}/{max}). Le message sera envoyé à la fin de la tâche en cours.",
-  "queue.media_limit": "⚠️ Les médias en file sont limités à {maxSizeMb} MiB. Attendez l'envoi d'un élément.",
+  "queue.media_limit":
+    "⚠️ Les médias en file sont limités à {maxSizeMb} MiB. Attendez l'envoi d'un élément.",
   "queue.full":
     "⚠️ La file d'attente est pleine ({max}). Supprimez un message ou attendez la fin de la tâche en cours.",
   "queue.removed": "🗑 Message retiré de la file d'attente.",
@@ -688,4 +689,7 @@ export const fr: I18nDictionary = {
   "local_command.empty_output": "The command produced no output.",
   "local_command.failed": "Command failed with exit code {exitCode}: {stderr}",
   "local_command.timeout": "The command timed out.",
+  "output.file.sending": "📄 Envoi de la sortie comme fichier...",
+  "output.file.caption": "📄 Sortie complète de l'assistant",
+  "output.file.sent": "✅ Sortie complète envoyée comme fichier.",
 };

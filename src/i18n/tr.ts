@@ -664,4 +664,7 @@ export const tr: I18nDictionary = {
   "local_command.empty_output": "Komut herhangi bir çıktı üretmedi.",
   "local_command.failed": "Komut {exitCode} çıkış koduyla başarısız oldu: {stderr}",
   "local_command.timeout": "Komut zaman aşımına uğradı.",
+  "output.file.sending": "📄 Çıktı dosya olarak gönderiliyor...",
+  "output.file.caption": "📄 Asistan çıktısının tamamı",
+  "output.file.sent": "✅ Tam çıktı dosya olarak gönderildi.",
 };

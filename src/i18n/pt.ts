@@ -115,8 +115,7 @@ export const pt: I18nDictionary = {
   "bot.file_download_error": "🔴 Não foi possível baixar o arquivo",
   "bot.file_type_unsupported":
     "⚠️ Este tipo de arquivo não é compatível. Envie uma imagem, documento (PDF, DOCX, PPTX) ou arquivo de texto/código.",
-  "bot.rich_message_media_skipped":
-    "⚠️ {count} partes de mídia não compatíveis foram ignoradas.",
+  "bot.rich_message_media_skipped": "⚠️ {count} partes de mídia não compatíveis foram ignoradas.",
   "bot.message_type_unsupported": "⚠️ Este tipo de mensagem não é compatível.",
   "bot.media_group_not_processed":
     "⚠️ Um ou mais arquivos deste álbum não podem ser processados. Nada foi enviado ao OpenCode.",
@@ -425,7 +424,8 @@ export const pt: I18nDictionary = {
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added":
     "📥 Adicionado à fila ({count}/{max}). Será enviado quando a tarefa atual terminar.",
-  "queue.media_limit": "⚠️ A mídia na fila está limitada a {maxSizeMb} MiB. Aguarde o envio de um item.",
+  "queue.media_limit":
+    "⚠️ A mídia na fila está limitada a {maxSizeMb} MiB. Aguarde o envio de um item.",
   "queue.full":
     "⚠️ A fila está cheia ({max}). Remova uma mensagem ou aguarde o término da tarefa atual.",
   "queue.removed": "🗑 Mensagem removida da fila.",
@@ -491,8 +491,7 @@ export const pt: I18nDictionary = {
     "O aplicativo ainda não foi configurado. Iniciando o assistente...\n",
   "runtime.wizard.tty_required":
     "O assistente interativo requer um terminal TTY. Execute `opencode-telegram config` em um shell interativo.",
-  "runtime.container.command_unavailable":
-    "⚠️ Este comando não está disponível na imagem Docker.",
+  "runtime.container.command_unavailable": "⚠️ Este comando não está disponível na imagem Docker.",
 
   "rename.no_session": "⚠️ Nenhuma sessão ativa. Crie ou selecione uma sessão primeiro.",
   "rename.prompt": "📝 Digite o novo título da sessão:\n\nAtual: {title}",
@@ -685,4 +684,7 @@ export const pt: I18nDictionary = {
   "local_command.empty_output": "The command produced no output.",
   "local_command.failed": "Command failed with exit code {exitCode}: {stderr}",
   "local_command.timeout": "The command timed out.",
+  "output.file.sending": "📄 Enviando saída como arquivo...",
+  "output.file.caption": "📄 Saída completa do assistente",
+  "output.file.sent": "✅ Saída completa enviada como arquivo.",
 };

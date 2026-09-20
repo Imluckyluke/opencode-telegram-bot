@@ -434,8 +434,7 @@ export const zh: I18nDictionary = {
   "runtime.wizard.not_configured_starting": "应用尚未配置。正在启动向导...\n",
   "runtime.wizard.tty_required":
     "交互式向导需要 TTY 终端。请在交互式 shell 中运行 `opencode-telegram config`。",
-  "runtime.container.command_unavailable":
-    "⚠️ Docker 镜像中无法使用此命令。",
+  "runtime.container.command_unavailable": "⚠️ Docker 镜像中无法使用此命令。",
 
   "rename.no_session": "⚠️ 没有活动会话。请先创建或选择一个会话。",
   "rename.prompt": "📝 请输入会话的新标题：\n\n当前：{title}",
@@ -611,4 +610,7 @@ export const zh: I18nDictionary = {
   "local_command.empty_output": "The command produced no output.",
   "local_command.failed": "Command failed with exit code {exitCode}: {stderr}",
   "local_command.timeout": "The command timed out.",
+  "output.file.sending": "📄 正在以文件形式发送输出...",
+  "output.file.caption": "📄 助手完整输出",
+  "output.file.sent": "✅ 完整输出已作为文件发送。",
 };

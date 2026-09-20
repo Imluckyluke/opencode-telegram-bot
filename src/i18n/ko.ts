@@ -41,8 +41,7 @@ export const ko: I18nDictionary = {
     "⚠️ 이 단계에서는 인라인 버튼을 사용하거나 취소를 눌러 주세요.",
   "interaction.blocked.expected_text": "⚠️ 이 단계에서는 텍스트 메시지를 보내 주세요.",
   "interaction.blocked.expected_command": "⚠️ 이 단계에서는 명령어를 보내 주세요.",
-  "interaction.blocked.command_not_allowed":
-    "⚠️ 현재 단계에서는 이 명령어를 사용할 수 없습니다.",
+  "interaction.blocked.command_not_allowed": "⚠️ 현재 단계에서는 이 명령어를 사용할 수 없습니다.",
   "interaction.blocked.finish_current":
     "⚠️ 먼저 현재 상호작용을 마친(답변 또는 취소) 뒤에 다른 메뉴를 열어 주세요.",
 
@@ -50,8 +49,7 @@ export const ko: I18nDictionary = {
   "inline.blocked.command_not_allowed":
     "⚠️ 인라인 메뉴가 활성화된 동안에는 이 명령어를 사용할 수 없습니다.",
 
-  "question.blocked.expected_answer":
-    "⚠️ 버튼, 직접 입력, 또는 취소로 현재 질문에 답해 주세요.",
+  "question.blocked.expected_answer": "⚠️ 버튼, 직접 입력, 또는 취소로 현재 질문에 답해 주세요.",
   "question.blocked.command_not_allowed":
     "⚠️ 현재 질문 흐름이 끝날 때까지는 이 명령어를 사용할 수 없습니다.",
 
@@ -105,10 +103,12 @@ export const ko: I18nDictionary = {
   "background.question_asked": "❓ 백그라운드 세션에서 답변이 필요합니다: {session}",
   "background.permission_asked": "🔐 백그라운드 세션에서 권한을 요청했습니다: {session}",
   "background.open_session_button": "세션 열기",
-  "bot.unknown_command": "⚠️ 알 수 없는 명령어입니다: {command}. /help로 사용 가능한 명령어를 확인하세요.",
+  "bot.unknown_command":
+    "⚠️ 알 수 없는 명령어입니다: {command}. /help로 사용 가능한 명령어를 확인하세요.",
   "bot.photo_downloading": "⏳ 사진을 다운로드하는 중...",
   "bot.photo_too_large": "⚠️ 사진이 너무 큽니다 (최대 {maxSizeMb}MB)",
-  "bot.photo_model_no_image": "⚠️ 현재 모델은 이미지 입력을 지원하지 않습니다. 텍스트만 전송합니다.",
+  "bot.photo_model_no_image":
+    "⚠️ 현재 모델은 이미지 입력을 지원하지 않습니다. 텍스트만 전송합니다.",
   "bot.photo_download_error": "🔴 사진 다운로드에 실패했습니다",
   "bot.photo_no_caption": "💡 팁: 이 사진으로 무엇을 할지 설명하는 캡션을 추가해 보세요.",
   "bot.file_downloading": "⏳ 파일을 다운로드하는 중...",
@@ -260,8 +260,7 @@ export const ko: I18nDictionary = {
   "new.project_not_selected":
     "🏗 프로젝트가 선택되지 않았습니다.\n\n먼저 /projects로 프로젝트를 선택해 주세요.",
   "new.created": "✅ 새 세션이 생성되었습니다: {title}",
-  "new.create_error":
-    "🔴 OpenCode 서버에 연결할 수 없거나 세션을 만드는 중 오류가 발생했습니다.",
+  "new.create_error": "🔴 OpenCode 서버에 연결할 수 없거나 세션을 만드는 중 오류가 발생했습니다.",
 
   "stop.no_active_session":
     "🛑 에이전트가 시작되지 않았습니다\n\n/new로 세션을 만들거나 /sessions에서 선택해 주세요.",
@@ -269,14 +268,18 @@ export const ko: I18nDictionary = {
     "🛑 이벤트 스트림이 중지되었으며 중단 신호를 보내는 중...\n\n에이전트가 멈출 때까지 기다려 주세요.",
   "stop.warn_unconfirmed":
     "⚠️ 이벤트 스트림은 중지되었지만 서버가 중단을 확인하지 않았습니다.\n\n/status를 확인하고 몇 초 후 /abort를 다시 시도해 주세요.",
-  "stop.warn_maybe_finished": "⚠️ 이벤트 스트림이 중지되었지만 에이전트가 이미 작업을 마쳤을 수도 있습니다.",
-  "stop.success": "✅ 에이전트 작업이 중단되었습니다. 이 실행의 추가 메시지는 더 이상 전송되지 않습니다.",
+  "stop.warn_maybe_finished":
+    "⚠️ 이벤트 스트림이 중지되었지만 에이전트가 이미 작업을 마쳤을 수도 있습니다.",
+  "stop.success":
+    "✅ 에이전트 작업이 중단되었습니다. 이 실행의 추가 메시지는 더 이상 전송되지 않습니다.",
   "stop.warn_still_busy":
     "⚠️ 신호를 보냈지만 에이전트가 아직 작업 중입니다.\n\n이벤트 스트림이 이미 비활성화되어 중간 메시지는 전송되지 않습니다.",
   "stop.warn_timeout":
     "⚠️ 중단 요청 시간이 초과되었습니다.\n\n이벤트 스트림은 이미 비활성화되어 있습니다. 몇 초 후 /abort를 다시 시도해 주세요.",
-  "stop.warn_local_only": "⚠️ 로컬에서는 이벤트 스트림이 중지되었지만 서버 측 중단에는 실패했습니다.",
-  "stop.error": "🔴 작업 중지에 실패했습니다.\n\n이벤트 스트림은 중지되었습니다. /abort를 다시 시도해 주세요.",
+  "stop.warn_local_only":
+    "⚠️ 로컬에서는 이벤트 스트림이 중지되었지만 서버 측 중단에는 실패했습니다.",
+  "stop.error":
+    "🔴 작업 중지에 실패했습니다.\n\n이벤트 스트림은 중지되었습니다. /abort를 다시 시도해 주세요.",
 
   "opencode_start.already_running_managed":
     "⚠️ OpenCode 서버가 이미 실행 중입니다\n\nPID: {pid}\n가동 시간: {seconds}초",
@@ -367,12 +370,12 @@ export const ko: I18nDictionary = {
   "permission.reply.always": "항상 허용됨",
   "permission.reply.reject": "거부됨",
   "permission.send_reply_error": "❌ 권한 응답 전송에 실패했습니다",
-  "permission.blocked.expected_reply":
-    "⚠️ 먼저 위의 버튼으로 권한 요청에 답해 주세요.",
+  "permission.blocked.expected_reply": "⚠️ 먼저 위의 버튼으로 권한 요청에 답해 주세요.",
   "permission.blocked.command_not_allowed":
     "⚠️ 권한 요청에 답하기 전까지는 이 명령어를 사용할 수 없습니다.",
   "permission.header": "{emoji} 권한 요청: {name}\n\n",
-  "permission.grouped_count": "\n⚠️ 동일한 요청 {count}건이 대기 중입니다 — 답변은 모든 요청에 적용됩니다.\n",
+  "permission.grouped_count":
+    "\n⚠️ 동일한 요청 {count}건이 대기 중입니다 — 답변은 모든 요청에 적용됩니다.\n",
   "permission.button.allow": "✅ 한 번 허용",
   "permission.button.always": "🔓 항상 허용",
   "permission.button.reject": "❌ 거부",
@@ -416,8 +419,10 @@ export const ko: I18nDictionary = {
   "keyboard.variant_default": "💡 기본값",
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added": "📥 대기열에 추가되었습니다 ({count}/{max}). 현재 작업이 끝나면 전송됩니다.",
-  "queue.full": "⚠️ 대기열이 가득 찼습니다 ({max}). 메시지를 삭제하거나 현재 작업이 끝날 때까지 기다려 주세요.",
-  "queue.media_limit": "⚠️ 대기열 미디어는 총 {maxSizeMb} MiB로 제한됩니다. 항목이 전송된 후 다시 시도하세요.",
+  "queue.full":
+    "⚠️ 대기열이 가득 찼습니다 ({max}). 메시지를 삭제하거나 현재 작업이 끝날 때까지 기다려 주세요.",
+  "queue.media_limit":
+    "⚠️ 대기열 미디어는 총 {maxSizeMb} MiB로 제한됩니다. 항목이 전송된 후 다시 시도하세요.",
   "queue.removed": "🗑 대기열에서 메시지를 삭제했습니다.",
   "queue.not_found": "이 메시지는 더 이상 대기열에 없습니다.",
   "queue.disabled_hint": "메시지 대기열은 /settings에서 활성화할 수 있습니다.",
@@ -458,8 +463,7 @@ export const ko: I18nDictionary = {
   "runtime.wizard.ask_token": "텔레그램 봇 토큰을 입력하세요 (@BotFather에서 발급).\n> ",
   "runtime.wizard.ask_language":
     "인터페이스 언어를 선택하세요.\n목록의 번호 또는 로케일 코드를 입력하세요.\nEnter를 누르면 기본 언어({defaultLocale})가 유지됩니다.\n{options}\n> ",
-  "runtime.wizard.language_invalid":
-    "목록의 언어 번호 또는 지원되는 로케일 코드를 입력하세요.\n",
+  "runtime.wizard.language_invalid": "목록의 언어 번호 또는 지원되는 로케일 코드를 입력하세요.\n",
   "runtime.wizard.language_selected": "선택한 언어: {language}\n",
   "runtime.wizard.token_required": "토큰은 필수입니다. 다시 시도해 주세요.\n",
   "runtime.wizard.token_invalid":
@@ -481,8 +485,7 @@ export const ko: I18nDictionary = {
     "아직 구성되지 않았습니다. 설정 마법사를 시작합니다...\n",
   "runtime.wizard.tty_required":
     "대화형 마법사에는 TTY 터미널이 필요합니다. 대화형 셸에서 `opencode-telegram config`를 실행해 주세요.",
-  "runtime.container.command_unavailable":
-    "⚠️ 이 명령은 Docker 이미지에서 사용할 수 없습니다.",
+  "runtime.container.command_unavailable": "⚠️ 이 명령은 Docker 이미지에서 사용할 수 없습니다.",
 
   "rename.no_session": "⚠️ 활성 세션이 없습니다. 먼저 세션을 만들거나 선택해 주세요.",
   "rename.prompt": "📝 세션의 새 제목을 입력하세요:\n\n현재: {title}",
@@ -521,7 +524,8 @@ export const ko: I18nDictionary = {
     "⚠️ 텍스트를 보내거나 일정 메시지의 버튼을 사용하여 현재 예약 작업 설정을 먼저 마쳐 주세요.",
   "task.blocked.command_not_allowed":
     "⚠️ 예약 작업 생성이 진행 중인 동안에는 이 명령어를 사용할 수 없습니다.",
-  "task.limit_reached": "⚠️ 작업 개수 한도에 도달했습니다 ({limit}). 먼저 기존 예약 작업을 삭제해 주세요.",
+  "task.limit_reached":
+    "⚠️ 작업 개수 한도에 도달했습니다 ({limit}). 먼저 기존 예약 작업을 삭제해 주세요.",
   "task.schedule_too_frequent":
     "반복 일정이 너무 잦습니다. 허용되는 최소 간격은 5분마다 한 번입니다.",
   "task.kind.cron": "반복",
@@ -555,7 +559,8 @@ export const ko: I18nDictionary = {
   "commands.inactive_callback": "이 명령어 메뉴는 비활성 상태입니다",
   "commands.execute_callback": "명령어를 실행하는 중...",
   "commands.executing_prefix": "⚡ 명령어 실행 중:",
-  "commands.arguments_empty": "⚠️ 인자는 비워 둘 수 없습니다. 텍스트를 보내거나 실행을 탭해 주세요.",
+  "commands.arguments_empty":
+    "⚠️ 인자는 비워 둘 수 없습니다. 텍스트를 보내거나 실행을 탭해 주세요.",
   "commands.execute_error": "🔴 OpenCode 명령어 실행에 실패했습니다.",
   "commands.select_page": "OpenCode 명령어를 선택하세요 ({page} 페이지):",
   "commands.button.prev_page": "⬅️ 이전",
@@ -610,7 +615,8 @@ export const ko: I18nDictionary = {
 
   "cmd.description.rename": "현재 세션 이름 변경",
 
-  "legacy.models.fetch_error": "🔴 모델 목록을 가져오지 못했습니다. /status로 서버 상태를 확인해 주세요.",
+  "legacy.models.fetch_error":
+    "🔴 모델 목록을 가져오지 못했습니다. /status로 서버 상태를 확인해 주세요.",
   "legacy.models.empty": "📋 사용 가능한 모델이 없습니다. OpenCode에서 프로바이더를 설정해 주세요.",
   "legacy.models.header": "📋 사용 가능한 모델:\n\n",
   "legacy.models.no_provider_models": "  ⚠️ 사용 가능한 모델이 없습니다\n",
@@ -649,7 +655,8 @@ export const ko: I18nDictionary = {
   "open.access_denied": "⛔ 접근이 거부되었습니다: 허용된 루트 밖의 경로입니다",
   "open.scan_error": "🔴 디렉터리를 탐색할 수 없습니다: {error}",
   "open.open_error": "🔴 디렉터리 탐색기를 열지 못했습니다.",
-  "open.selected": "✅ 프로젝트가 추가되었습니다: {project}\n\n📋 /sessions 또는 /new로 작업을 시작하세요.",
+  "open.selected":
+    "✅ 프로젝트가 추가되었습니다: {project}\n\n📋 /sessions 또는 /new로 작업을 시작하세요.",
   "open.select_error": "🔴 프로젝트 추가에 실패했습니다.",
   "open.no_subfolders": "📭 하위 폴더 없음",
   "open.subfolder_count": "하위 폴더 {count}개",
@@ -669,4 +676,7 @@ export const ko: I18nDictionary = {
   "local_command.empty_output": "The command produced no output.",
   "local_command.failed": "Command failed with exit code {exitCode}: {stderr}",
   "local_command.timeout": "The command timed out.",
+  "output.file.sending": "📄 출력을 파일로 전송 중...",
+  "output.file.caption": "📄 전체 어시스턴트 출력",
+  "output.file.sent": "✅ 전체 출력이 파일로 전송되었습니다.",
 };

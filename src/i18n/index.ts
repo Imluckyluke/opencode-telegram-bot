@@ -2,6 +2,7 @@ import { en, type I18nKey } from "./en.js";
 import { ar } from "./ar.js";
 import { de } from "./de.js";
 import { es } from "./es.js";
+import { fa } from "./fa.js";
 import { fr } from "./fr.js";
 import { id } from "./id.js";
 import { it } from "./it.js";
@@ -42,6 +43,12 @@ const LOCALE_DEFINITIONS = [
     label: "Español",
     dateLocale: "es-ES",
     dictionary: es,
+  },
+  {
+    code: "fa",
+    label: "فارسی",
+    dateLocale: "fa-IR",
+    dictionary: fa,
   },
   {
     code: "fr",

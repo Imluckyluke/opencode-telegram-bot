@@ -661,4 +661,7 @@ export const id: I18nDictionary = {
   "local_command.empty_output": "Perintah tidak menghasilkan output.",
   "local_command.failed": "Perintah gagal dengan exit code {exitCode}: {stderr}",
   "local_command.timeout": "Perintah kehabisan waktu.",
+  "output.file.sending": "📄 Mengirim output sebagai file...",
+  "output.file.caption": "📄 Output lengkap asisten",
+  "output.file.sent": "✅ Output lengkap dikirim sebagai file.",
 };

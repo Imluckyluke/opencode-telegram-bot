@@ -116,8 +116,7 @@ export const es: I18nDictionary = {
   "bot.file_download_error": "🔴 No se pudo descargar el archivo",
   "bot.file_type_unsupported":
     "⚠️ Este tipo de archivo no es compatible. Envía una imagen, documento (PDF, DOCX, PPTX) o archivo de texto/código.",
-  "bot.rich_message_media_skipped":
-    "⚠️ Se omitieron {count} elementos multimedia no compatibles.",
+  "bot.rich_message_media_skipped": "⚠️ Se omitieron {count} elementos multimedia no compatibles.",
   "bot.message_type_unsupported": "⚠️ Este tipo de mensaje no es compatible.",
   "bot.media_group_not_processed":
     "⚠️ Uno o más archivos de este álbum no se pueden procesar. No se envió nada a OpenCode.",
@@ -379,7 +378,8 @@ export const es: I18nDictionary = {
   "permission.blocked.command_not_allowed":
     "⚠️ Este comando no está disponible hasta que respondas a la solicitud de permisos.",
   "permission.header": "{emoji} Solicitud de permisos: {name}\n\n",
-  "permission.grouped_count": "\n⚠️ {count} solicitudes idénticas pendientes: tu respuesta se aplica a todas.\n",
+  "permission.grouped_count":
+    "\n⚠️ {count} solicitudes idénticas pendientes: tu respuesta se aplica a todas.\n",
   "permission.button.allow": "✅ Permitir una vez",
   "permission.button.always": "🔓 Permitir siempre",
   "permission.button.reject": "❌ Rechazar",
@@ -422,9 +422,9 @@ export const es: I18nDictionary = {
   "keyboard.variant": "💭 {name}",
   "keyboard.variant_default": "💡 Predeterminado",
   "keyboard.queued_prompt": "❌ {index}. {text}",
-  "queue.added":
-    "📥 Añadido a la cola ({count}/{max}). Se enviará cuando termine la tarea actual.",
-  "queue.media_limit": "⚠️ Los archivos multimedia en cola están limitados a {maxSizeMb} MiB. Espera a que se envíe un elemento.",
+  "queue.added": "📥 Añadido a la cola ({count}/{max}). Se enviará cuando termine la tarea actual.",
+  "queue.media_limit":
+    "⚠️ Los archivos multimedia en cola están limitados a {maxSizeMb} MiB. Espera a que se envíe un elemento.",
   "queue.full":
     "⚠️ La cola está llena ({max}). Elimina un mensaje o espera a que termine la tarea actual.",
   "queue.removed": "🗑 Mensaje eliminado de la cola.",
@@ -682,9 +682,11 @@ export const es: I18nDictionary = {
   "attachment.added": "📎 Adjuntado: {path}\n\nEnvía tu mensaje y el archivo irá con él.",
   "attachment.cancel": "❌ Cancelar adjunto",
   "attachment.cancelled": "❌ Adjunto cancelado",
-  "attachment.invalid":
-    "⚠️ El archivo adjunto ya no está disponible. Enviando el mensaje sin él.",
+  "attachment.invalid": "⚠️ El archivo adjunto ya no está disponible. Enviando el mensaje sin él.",
   "local_command.empty_output": "The command produced no output.",
   "local_command.failed": "Command failed with exit code {exitCode}: {stderr}",
   "local_command.timeout": "The command timed out.",
+  "output.file.sending": "📄 Enviando la salida como archivo...",
+  "output.file.caption": "📄 Salida completa del asistente",
+  "output.file.sent": "✅ Salida completa enviada como archivo.",
 };

@@ -113,14 +113,10 @@ export function parseInitialSettingsPreset(): Record<string, unknown> {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error(
-      "INITIAL_SETTINGS_PRESET contains invalid JSON. Fix or unset the variable.",
-    );
+    throw new Error("INITIAL_SETTINGS_PRESET contains invalid JSON. Fix or unset the variable.");
   }
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    throw new Error(
-      "INITIAL_SETTINGS_PRESET must be a JSON object.",
-    );
+    throw new Error("INITIAL_SETTINGS_PRESET must be a JSON object.");
   }
   return parsed as Record<string, unknown>;
 }
@@ -244,6 +240,8 @@ export const config = {
   },
   files: {
     maxFileSizeKb: parseInt(getEnvVar("CODE_FILE_MAX_SIZE_KB", false) || "100", 10),
+    outputFileEnabled: getOptionalBooleanEnvVar("OUTPUT_FILE_ENABLED", true),
+    outputFileThresholdChars: getOptionalPositiveIntEnvVar("OUTPUT_FILE_THRESHOLD_CHARS", 20000),
   },
   open: {
     browserRoots: getEnvVar("OPEN_BROWSER_ROOTS", false),
@@ -272,8 +270,7 @@ export const config = {
           : provider === "edge"
             ? "en-US-EmmaMultilingualNeural"
             : "alloy";
-    const defaultModel =
-      provider === "elevenlabs" ? "eleven_flash_v2_5" : "gpt-4o-mini-tts";
+    const defaultModel = provider === "elevenlabs" ? "eleven_flash_v2_5" : "gpt-4o-mini-tts";
     return {
       apiUrl: getEnvVar("TTS_API_URL", false),
       apiKey: getEnvVar("TTS_API_KEY", false),

@@ -363,7 +363,8 @@ export const en = {
   "permission.blocked.command_not_allowed":
     "⚠️ This command is not available until you answer the permission request.",
   "permission.header": "{emoji} Permission request: {name}\n\n",
-  "permission.grouped_count": "\n⚠️ {count} identical requests pending — your answer applies to all of them.\n",
+  "permission.grouped_count":
+    "\n⚠️ {count} identical requests pending — your answer applies to all of them.\n",
   "permission.button.allow": "✅ Allow once",
   "permission.button.always": "🔓 Allow always",
   "permission.button.reject": "❌ Reject",
@@ -406,9 +407,12 @@ export const en = {
   "keyboard.variant": "💭 {name}",
   "keyboard.variant_default": "💡 Default",
   "keyboard.queued_prompt": "❌ {index}. {text}",
-  "queue.added": "📥 Added to queue ({count}/{max}). It will be sent when the current task finishes.",
-  "queue.full": "⚠️ Queue is full ({max}). Remove a message or wait for the current task to finish.",
-  "queue.media_limit": "⚠️ Queued media is limited to {maxSizeMb} MiB. Wait for an item to send, then try again.",
+  "queue.added":
+    "📥 Added to queue ({count}/{max}). It will be sent when the current task finishes.",
+  "queue.full":
+    "⚠️ Queue is full ({max}). Remove a message or wait for the current task to finish.",
+  "queue.media_limit":
+    "⚠️ Queued media is limited to {maxSizeMb} MiB. Wait for an item to send, then try again.",
   "queue.removed": "🗑 Message removed from the queue.",
   "queue.not_found": "This message is no longer in the queue.",
   "queue.disabled_hint": "The message queue can be enabled in /settings.",
@@ -471,8 +475,7 @@ export const en = {
     "Application is not configured yet. Starting wizard...\n",
   "runtime.wizard.tty_required":
     "Interactive wizard requires a TTY terminal. Run `opencode-telegram config` in an interactive shell.",
-  "runtime.container.command_unavailable":
-    "⚠️ This command is not available in the Docker image.",
+  "runtime.container.command_unavailable": "⚠️ This command is not available in the Docker image.",
 
   "rename.no_session": "⚠️ No active session. Create or select a session first.",
   "rename.prompt": "📝 Enter new title for session:\n\nCurrent: {title}",
@@ -655,10 +658,14 @@ export const en = {
   "attachment.added": "📎 Attached: {path}\n\nSend your message and the file will go with it.",
   "attachment.cancel": "❌ Cancel attachment",
   "attachment.cancelled": "❌ Attachment cancelled",
-  "attachment.invalid": "⚠️ The attached file is no longer available. Sending the message without it.",
+  "attachment.invalid":
+    "⚠️ The attached file is no longer available. Sending the message without it.",
   "local_command.empty_output": "The command produced no output.",
   "local_command.failed": "Command failed with exit code {exitCode}: {stderr}",
   "local_command.timeout": "The command timed out.",
+  "output.file.sending": "📄 Sending output as a file...",
+  "output.file.caption": "📄 Full assistant output",
+  "output.file.sent": "✅ Full output sent as a file.",
 } as const;
 
 export type I18nKey = keyof typeof en;

@@ -84,7 +84,12 @@ function splitCodeBlock(
   limits: BlockSplitLimits,
 ): TelegramBlock[] {
   const lines = text.split("\n");
-  const groups = groupItems(lines, limits.maxChars, Number.MAX_SAFE_INTEGER, (line) => line.length + 1);
+  const groups = groupItems(
+    lines,
+    limits.maxChars,
+    Number.MAX_SAFE_INTEGER,
+    (line) => line.length + 1,
+  );
 
   return groups.flatMap((group) => {
     const groupText = group.join("\n");
@@ -103,14 +108,14 @@ function splitTableBlock(
   limits: BlockSplitLimits,
 ): TelegramBlock[] {
   const [header, ...bodyRows] = rows;
-  if (!header) {
-    return [];
+  if (!header || header.length === 0) {
+    return splitToPlainBlocks({ type: "table", rows }, limits);
   }
   const measureRow = (row: string[]): number => row.reduce((total, cell) => total + cell.length, 0);
   const groups = groupItems(
     bodyRows,
     Math.max(1, limits.maxChars - measureRow(header)),
-    limits.maxBlocks - 2,
+    Math.max(1, limits.maxBlocks - 2),
     measureRow,
   );
 
@@ -127,10 +132,7 @@ function splitTableBlock(
 }
 
 /** Rich quote units: the quote block itself plus whatever its content costs. */
-function splitBlockquoteBlock(
-  blocks: TelegramBlock[],
-  limits: BlockSplitLimits,
-): TelegramBlock[] {
+function splitBlockquoteBlock(blocks: TelegramBlock[], limits: BlockSplitLimits): TelegramBlock[] {
   const innerLimits = { maxChars: limits.maxChars, maxBlocks: Math.max(1, limits.maxBlocks - 1) };
   const innerBlocks = blocks.flatMap((inner) => splitOversizeTelegramBlock(inner, innerLimits));
 
@@ -165,26 +167,35 @@ function splitByType(block: TelegramBlock, limits: BlockSplitLimits): TelegramBl
         }));
 
         let pieceStart = start;
-        return groupItems(measured, limits.maxChars, block.items.length, (entry) => entry.chars).map(
-          (group) => {
-            const piece = {
-              type: "list" as const,
-              ordered: block.ordered,
-              items: group.map((entry) => entry.item),
-              start: pieceStart,
-            };
-            pieceStart += group.length;
-            return piece;
-          },
-        );
+        return groupItems(
+          measured,
+          limits.maxChars,
+          block.items.length,
+          (entry) => entry.chars,
+        ).map((group) => {
+          const piece = {
+            type: "list" as const,
+            ordered: block.ordered,
+            items: group.map((entry) => entry.item),
+            start: pieceStart,
+          };
+          pieceStart += group.length;
+          return piece;
+        });
       }
 
       // Rich list units: the list block plus whatever each item costs. Items can
       // hold nested lists, so the cap comes from the most expensive one.
+      // Guard against empty lists (Math.max() === -Infinity) and single-unit items.
+      if (block.items.length === 0) {
+        return [];
+      }
+
+      const maxItemUnits = Math.max(1, ...block.items.map(measureItemUnits));
       return groupItems(
         block.items,
         limits.maxChars,
-        Math.floor((limits.maxBlocks - 1) / Math.max(...block.items.map(measureItemUnits))),
+        Math.max(1, Math.floor((limits.maxBlocks - 1) / maxItemUnits)),
         measureItem,
       ).map((items) => ({ type: "list" as const, ordered: false, items }));
     case "blockquote":

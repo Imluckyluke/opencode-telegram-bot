@@ -6,9 +6,10 @@ import type {
 import type { ScheduledTaskDeliverySender } from "../../app/services/scheduled-task-runtime-service.js";
 import { formatSummaryWithMode } from "./summary-message-formatter.js";
 import { escapePlainTextForTelegramMarkdownV2 } from "../../utils/telegram-markdown.js";
+import { sendLongOutputAsFile, shouldSendLongOutputAsFile } from "./send-output-file.js";
 import { sendBotText } from "./telegram-text.js";
 
-type SendMessageApi = Pick<Api<RawApi>, "sendMessage">;
+type SendMessageApi = Pick<Api<RawApi>, "sendMessage" | "sendDocument">;
 
 const TELEGRAM_MESSAGE_LIMIT = 4096;
 
@@ -83,6 +84,10 @@ export function createScheduledTaskDeliverySender(
           format: "raw",
           ...getSilentDeliveryOptions(),
         });
+      }
+
+      if (delivery.status === "success" && shouldSendLongOutputAsFile(delivery.resultText)) {
+        await sendLongOutputAsFile({ api, chatId, text: delivery.resultText });
       }
 
       return true;

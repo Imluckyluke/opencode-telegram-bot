@@ -84,6 +84,7 @@ import {
   type ThinkingSection,
 } from "../messages/thinking-rendering.js";
 import { deliverExternalUserInputNotification } from "../messages/external-user-input-notification.js";
+import { sendLongOutputAsFile, shouldSendLongOutputAsFile } from "../messages/send-output-file.js";
 import { dispatchNextQueuedPrompt } from "../handlers/prompt-queue-dispatch.js";
 import { telegramOutageNoticeService } from "../../app/services/telegram-outage-notice-service.js";
 import { flushTelegramOutageNotices } from "../telegram-outage-notices.js";
@@ -664,6 +665,10 @@ class EventSubscriptionService implements BotEventSubscriptionService {
               });
             },
           });
+
+          if (shouldSendLongOutputAsFile(messageText)) {
+            await sendLongOutputAsFile({ api: botApi, chatId, text: messageText });
+          }
 
           await sendTtsResponseForSession({
             api: botApi,

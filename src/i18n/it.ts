@@ -29,8 +29,7 @@ export const it: I18nDictionary = {
   "error.context_button": "❌ Impossibile elaborare il pulsante del contesto",
   "error.generic": "🔴 Qualcosa è andato storto.",
 
-  "interaction.blocked.expired":
-    "⚠️ Questa interazione è scaduta. Avviala di nuovo.",
+  "interaction.blocked.expired": "⚠️ Questa interazione è scaduta. Avviala di nuovo.",
   "interaction.blocked.expected_callback":
     "⚠️ Usa i pulsanti in linea per questo passaggio oppure premi Annulla.",
   "interaction.blocked.expected_text": "⚠️ Invia un messaggio di testo per questo passaggio.",
@@ -75,8 +74,7 @@ export const it: I18nDictionary = {
   "progress.compact.waiting_permission": "🔐 In attesa del permesso...",
   "progress.compact.retrying": "🔁 Nuovo tentativo...",
   "progress.compact.task": "🤖 Attività in esecuzione",
-  "progress.compact.done":
-    "{header}\nchiamate strumenti: {tools} · file modificati: {files}",
+  "progress.compact.done": "{header}\nchiamate strumenti: {tools} · file modificati: {files}",
   "bot.project_not_selected":
     "🏗 Nessun progetto selezionato.\n\nSeleziona prima un progetto con /projects.",
   "bot.creating_session": "🔄 Creo una nuova sessione...",
@@ -99,17 +97,14 @@ export const it: I18nDictionary = {
   "background.session_fallback": "sessione {id}",
   "background.assistant_response":
     "🔔 L'assistente ha risposto nella sessione in background: {session}",
-  "background.question_asked":
-    "❓ La sessione in background richiede una risposta: {session}",
-  "background.permission_asked":
-    "🔐 La sessione in background richiede permessi: {session}",
+  "background.question_asked": "❓ La sessione in background richiede una risposta: {session}",
+  "background.permission_asked": "🔐 La sessione in background richiede permessi: {session}",
   "background.open_session_button": "Apri la sessione",
   "bot.unknown_command":
     "⚠️ Comando sconosciuto: {command}. Usa /help per vedere i comandi disponibili.",
   "bot.photo_downloading": "⏳ Scarico la foto...",
   "bot.photo_too_large": "⚠️ La foto è troppo grande (max {maxSizeMb}MB)",
-  "bot.photo_model_no_image":
-    "⚠️ Il modello corrente non supporta le immagini. Invio solo testo.",
+  "bot.photo_model_no_image": "⚠️ Il modello corrente non supporta le immagini. Invio solo testo.",
   "bot.photo_download_error": "🔴 Download della foto non riuscito",
   "bot.photo_no_caption":
     "💡 Suggerimento: aggiungi una didascalia per descrivere cosa vuoi fare con questa foto.",
@@ -126,8 +121,7 @@ export const it: I18nDictionary = {
     "⚠️ Uno o più file di questo album non possono essere elaborati. Nulla è stato inviato a OpenCode.",
   "bot.media_group_download_error":
     "🔴 Download di uno dei file non riuscito. Nulla è stato inviato a OpenCode.",
-  "bot.model_no_pdf":
-    "⚠️ Il modello corrente non supporta l'input PDF. Invio solo testo.",
+  "bot.model_no_pdf": "⚠️ Il modello corrente non supporta l'input PDF. Invio solo testo.",
   "bot.document_extraction_error": "🔴 Estrazione del testo del documento non riuscita.",
   "bot.text_file_too_large": "⚠️ Il file di testo è troppo grande (max {maxSizeKb}KB)",
 
@@ -165,7 +159,8 @@ export const it: I18nDictionary = {
     "⚠️ Le risposte audio non sono disponibili. Imposta prima `TTS_API_URL` e `TTS_API_KEY`.",
   "tts.failed": "⚠️ Generazione della risposta audio non riuscita.",
 
-  "settings.menu.title": "⚙️ Impostazioni del bot\nPremi su un'impostazione per cambiarne il valore:",
+  "settings.menu.title":
+    "⚙️ Impostazioni del bot\nPremi su un'impostazione per cambiarne il valore:",
   "settings.compact_output.label": "Modalità output compatta",
   "settings.delete_progress_on_finish.label": "Elimina progresso al termine",
   "settings.thinking_content.label": "Contenuto del pensiero",
@@ -275,20 +270,25 @@ export const it: I18nDictionary = {
     "⚠️ Flusso di eventi interrotto, ma il server non ha confermato l'annullamento.\n\nControlla /status e riprova /abort tra qualche secondo.",
   "stop.warn_maybe_finished":
     "⚠️ Flusso di eventi interrotto, ma l'agente potrebbe aver già terminato.",
-  "stop.success": "✅ Azione dell'agente interrotta. Non verranno più inviati messaggi da questa esecuzione.",
+  "stop.success":
+    "✅ Azione dell'agente interrotta. Non verranno più inviati messaggi da questa esecuzione.",
   "stop.warn_still_busy":
     "⚠️ Segnale inviato, ma l'agente è ancora occupato.\n\nIl flusso di eventi è già disattivato, quindi non verranno inviati messaggi intermedi.",
   "stop.warn_timeout":
     "⚠️ Timeout della richiesta di annullamento.\n\nIl flusso di eventi è già disattivato, riprova /abort tra qualche secondo.",
-  "stop.warn_local_only": "⚠️ Flusso di eventi interrotto localmente, ma l'annullamento lato server non è riuscito.",
-  "stop.error": "🔴 Interruzione dell'azione non riuscita.\n\nIl flusso di eventi è fermo, riprova /abort.",
+  "stop.warn_local_only":
+    "⚠️ Flusso di eventi interrotto localmente, ma l'annullamento lato server non è riuscito.",
+  "stop.error":
+    "🔴 Interruzione dell'azione non riuscita.\n\nIl flusso di eventi è fermo, riprova /abort.",
 
   "opencode_start.already_running_managed":
     "⚠️ Il server OpenCode è già in esecuzione\n\nPID: {pid}\nTempo di attività: {seconds} secondi",
   "opencode_start.already_running_external":
     "✅ Il server OpenCode è già in esecuzione come processo esterno\n\nVersione: {version}\n\nQuesto server non è stato avviato dal bot, quindi /opencode-stop non può fermarlo.",
-  "opencode_start.already_running": "✅ Il server OpenCode è già in esecuzione\n\nVersione: {version}",
-  "opencode_start.remote_configured": "⚠️ /opencode_start funziona solo con un server OpenCode locale.",
+  "opencode_start.already_running":
+    "✅ Il server OpenCode è già in esecuzione\n\nVersione: {version}",
+  "opencode_start.remote_configured":
+    "⚠️ /opencode_start funziona solo con un server OpenCode locale.",
   "opencode_start.starting": "🔄 Avvio del server OpenCode...",
   "opencode_start.start_error":
     "🔴 Avvio del server OpenCode non riuscito\n\nErrore: {error}\n\nControlla che la CLI OpenCode sia installata e disponibile nel PATH:\nopencode --version\nnpm install -g @opencode-ai/cli",
@@ -300,7 +300,8 @@ export const it: I18nDictionary = {
     "🔴 Si è verificato un errore durante l'avvio del server.\n\nControlla i log dell'applicazione per i dettagli.",
   "opencode_stop.external_running":
     "⚠️ Il server OpenCode è in esecuzione come processo esterno\n\nQuesto server non è stato avviato tramite /opencode-start.\nFermalo manualmente o usa /status per controllarne lo stato.",
-  "opencode_stop.remote_configured": "⚠️ /opencode_stop funziona solo con un server OpenCode locale.",
+  "opencode_stop.remote_configured":
+    "⚠️ /opencode_stop funziona solo con un server OpenCode locale.",
   "opencode_stop.not_running": "⚠️ Il server OpenCode non è in esecuzione",
   "opencode_stop.pid_not_found":
     "⚠️ Il server OpenCode risponde sulla porta {port}, ma non è stato trovato alcun processo locale da fermare.",
@@ -359,7 +360,7 @@ export const it: I18nDictionary = {
   "context.button.confirm": "✅ Sì, compatta il contesto",
   "context.no_active_session": "⚠️ Nessuna sessione attiva. Crea una sessione con /new",
   "context.confirm_text":
-    '📊 Compattazione del contesto per la sessione "{title}"\n\nQuesto ridurrà l\'uso del contesto rimuovendo i vecchi messaggi dalla cronologia. L\'attività corrente non verrà interrotta.\n\nContinuare?',
+    "📊 Compattazione del contesto per la sessione \"{title}\"\n\nQuesto ridurrà l'uso del contesto rimuovendo i vecchi messaggi dalla cronologia. L'attività corrente non verrà interrotta.\n\nContinuare?",
   "context.callback_compacting": "Compattazione del contesto...",
   "context.progress": "⏳ Compattazione del contesto...",
   "context.error": "❌ Compattazione del contesto non riuscita",
@@ -421,9 +422,12 @@ export const it: I18nDictionary = {
   "keyboard.variant": "💭 {name}",
   "keyboard.variant_default": "💡 Predefinito",
   "keyboard.queued_prompt": "❌ {index}. {text}",
-  "queue.added": "📥 Aggiunto alla coda ({count}/{max}). Verrà inviato quando l'attività corrente termina.",
-  "queue.full": "⚠️ La coda è piena ({max}). Rimuovi un messaggio o attendi che l'attività corrente termini.",
-  "queue.media_limit": "⚠️ I media in coda sono limitati a {maxSizeMb} MiB. Attendi l'invio di un elemento e riprova.",
+  "queue.added":
+    "📥 Aggiunto alla coda ({count}/{max}). Verrà inviato quando l'attività corrente termina.",
+  "queue.full":
+    "⚠️ La coda è piena ({max}). Rimuovi un messaggio o attendi che l'attività corrente termini.",
+  "queue.media_limit":
+    "⚠️ I media in coda sono limitati a {maxSizeMb} MiB. Attendi l'invio di un elemento e riprova.",
   "queue.removed": "🗑 Messaggio rimosso dalla coda.",
   "queue.not_found": "Questo messaggio non è più in coda.",
   "queue.disabled_hint": "La coda dei messaggi può essere attivata in /settings.",
@@ -479,7 +483,8 @@ export const it: I18nDictionary = {
     "Inserisci il nome utente del server OpenCode (facoltativo).\nPremi Invio per usare l'impostazione predefinita: {defaultUsername}\n> ",
   "runtime.wizard.ask_server_password":
     "Inserisci la password del server OpenCode (facoltativa).\nPremi Invio per lasciarla vuota.\n> ",
-  "runtime.wizard.api_url_invalid": "Inserisci un URL valido (http/https) o premi Invio per l'impostazione predefinita.\n",
+  "runtime.wizard.api_url_invalid":
+    "Inserisci un URL valido (http/https) o premi Invio per l'impostazione predefinita.\n",
   "runtime.wizard.start": "Configurazione di OpenCode Telegram Bot.\n",
   "runtime.wizard.saved": "Configurazione salvata:\n- {envPath}\n",
   "runtime.wizard.not_configured_starting":
@@ -526,7 +531,8 @@ export const it: I18nDictionary = {
     "⚠️ Termina prima la configurazione dell'attività pianificata corrente inviando del testo o usando il pulsante nel messaggio della pianificazione.",
   "task.blocked.command_not_allowed":
     "⚠️ Questo comando non è disponibile mentre la creazione dell'attività pianificata è attiva.",
-  "task.limit_reached": "⚠️ Limite di attività raggiunto ({limit}). Elimina prima un'attività pianificata esistente.",
+  "task.limit_reached":
+    "⚠️ Limite di attività raggiunto ({limit}). Elimina prima un'attività pianificata esistente.",
   "task.schedule_too_frequent":
     "La pianificazione ricorrente è troppo frequente. L'intervallo minimo consentito è una volta ogni 5 minuti.",
   "task.kind.cron": "ricorrente",
@@ -560,7 +566,8 @@ export const it: I18nDictionary = {
   "commands.inactive_callback": "Questo menu dei comandi non è attivo",
   "commands.execute_callback": "Esecuzione del comando...",
   "commands.executing_prefix": "⚡ Esecuzione del comando:",
-  "commands.arguments_empty": "⚠️ Gli argomenti non possono essere vuoti. Invia del testo o premi Esegui.",
+  "commands.arguments_empty":
+    "⚠️ Gli argomenti non possono essere vuoti. Invia del testo o premi Esegui.",
   "commands.execute_error": "🔴 Esecuzione del comando OpenCode non riuscita.",
   "commands.select_page": "Scegli un comando OpenCode (pagina {page}):",
   "commands.button.prev_page": "⬅️ Prec",
@@ -587,7 +594,8 @@ export const it: I18nDictionary = {
   "skills.inactive_callback": "Questo menu delle skill non è attivo",
   "skills.execute_callback": "Uso della skill...",
   "skills.executing_prefix": "⚡ Uso della skill:",
-  "skills.arguments_empty": "⚠️ Gli argomenti non possono essere vuoti. Invia del testo o premi Esegui.",
+  "skills.arguments_empty":
+    "⚠️ Gli argomenti non possono essere vuoti. Invia del testo o premi Esegui.",
   "skills.select_page": "Scegli una skill OpenCode (pagina {page}):",
   "skills.button.prev_page": "⬅️ Prec",
   "skills.button.next_page": "Succ ➡️",
@@ -615,12 +623,14 @@ export const it: I18nDictionary = {
 
   "cmd.description.rename": "Rinomina la sessione corrente",
 
-  "legacy.models.fetch_error": "🔴 Recupero dell'elenco dei modelli non riuscito. Controlla lo stato del server con /status.",
+  "legacy.models.fetch_error":
+    "🔴 Recupero dell'elenco dei modelli non riuscito. Controlla lo stato del server con /status.",
   "legacy.models.empty": "📋 Nessun modello disponibile. Configura i provider in OpenCode.",
   "legacy.models.header": "📋 Modelli disponibili:\n\n",
   "legacy.models.no_provider_models": "  ⚠️ Nessun modello disponibile\n",
   "legacy.models.env_hint": "💡 Per usare il modello in .env:\n",
-  "legacy.models.error": "🔴 Si è verificato un errore durante il caricamento dell'elenco dei modelli.",
+  "legacy.models.error":
+    "🔴 Si è verificato un errore durante il caricamento dell'elenco dei modelli.",
 
   "stt.recognizing": "🎤 Riconoscimento audio...",
   "stt.recognized": "🎤 Riconosciuto:",
@@ -654,7 +664,8 @@ export const it: I18nDictionary = {
   "open.access_denied": "⛔ Accesso negato: il percorso è fuori dalle root consentite",
   "open.scan_error": "🔴 Impossibile esplorare la directory: {error}",
   "open.open_error": "🔴 Apertura dell'esploratore di directory non riuscita.",
-  "open.selected": "✅ Progetto aggiunto: {project}\n\n📋 Usa /sessions o /new per iniziare a lavorare.",
+  "open.selected":
+    "✅ Progetto aggiunto: {project}\n\n📋 Usa /sessions o /new per iniziare a lavorare.",
   "open.select_error": "🔴 Aggiunta del progetto non riuscita.",
   "open.no_subfolders": "📭 Nessuna sottocartella",
   "open.subfolder_count": "{count} sottocartella",
@@ -675,4 +686,7 @@ export const it: I18nDictionary = {
   "local_command.empty_output": "The command produced no output.",
   "local_command.failed": "Command failed with exit code {exitCode}: {stderr}",
   "local_command.timeout": "The command timed out.",
+  "output.file.sending": "📄 Invio output come file...",
+  "output.file.caption": "📄 Output completo dell'assistente",
+  "output.file.sent": "✅ Output completo inviato come file.",
 };

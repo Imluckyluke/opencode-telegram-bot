@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
-import Database from "better-sqlite3";
+import { createRequire } from "node:module";
 import { opencodeClient } from "../../opencode/client.js";
 import { getSessionDirectoryCache, setSessionDirectoryCache } from "../stores/settings-store.js";
 import { isServerUnavailableError } from "../../utils/opencode-error.js";
@@ -169,9 +169,7 @@ function upsertDirectory(worktree: string, lastUpdated: number): boolean {
   return true;
 }
 
-function buildListParams(options?: {
-  force?: boolean;
-}): { limit: number; start?: number } {
+function buildListParams(options?: { force?: boolean }): { limit: number; start?: number } {
   if (options?.force || cacheData.lastSyncedUpdatedAt === 0) {
     return { limit: INITIAL_WARMUP_LIMIT };
   }
@@ -303,8 +301,27 @@ async function getStorageRootsFromApi(): Promise<string[]> {
 async function querySessionDirectoriesFromSqlite(
   dbPath: string,
 ): Promise<CachedSessionDirectory[] | null> {
+  let DatabaseConstructor: new (
+    path: string,
+    options?: { readonly?: boolean; fileMustExist?: boolean },
+  ) => {
+    prepare: (sql: string) => {
+      all: (limit: number) => Array<{ directory?: string; updated?: number | null }>;
+    };
+    close: () => void;
+  };
   try {
-    const db = new Database(dbPath, {
+    const require = createRequire(import.meta.url);
+    // better-sqlite3 is optional: Docker/Windows skip the native build and
+    // fall back to JSON storage. Load lazily so a missing binary never crashes.
+    DatabaseConstructor = require("better-sqlite3");
+  } catch (error) {
+    logger.debug(`[SessionCache] better-sqlite3 unavailable, skipping sqlite fallback`, error);
+    return null;
+  }
+
+  try {
+    const db = new DatabaseConstructor(dbPath, {
       readonly: true,
       fileMustExist: true,
     });

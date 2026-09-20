@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger.js";
 import type { InlineNode, TelegramBlock, TelegramListItem } from "./types.js";
 
 export function extractInlinePlainText(nodes: InlineNode[]): string {
@@ -25,8 +26,19 @@ export function extractInlinePlainText(nodes: InlineNode[]): string {
         result += extractInlinePlainText(node.text);
         break;
       default: {
-        const exhaustiveCheck: never = node;
-        throw new Error(`Unsupported inline node: ${JSON.stringify(exhaustiveCheck)}`);
+        const unknownType = (node as { type?: unknown }).type;
+        logger.warn("[TelegramRender] Unsupported inline node in plain text, skipping", {
+          nodeType: typeof unknownType === "string" ? unknownType : typeof node,
+        });
+        const record = node as unknown as Record<string, unknown>;
+        const text = record["text"];
+        const value = record["value"];
+        if (typeof text === "string") {
+          result += text;
+        } else if (typeof value === "string") {
+          result += value;
+        }
+        break;
       }
     }
   }
@@ -35,12 +47,20 @@ export function extractInlinePlainText(nodes: InlineNode[]): string {
 }
 
 export function buildAlignedTableText(rows: string[][]): string {
-  const columnCount = Math.max(...rows.map((row) => row.length));
+  if (rows.length === 0) {
+    return "";
+  }
+
+  const columnCount = Math.max(0, ...rows.map((row) => row.length));
+  if (columnCount <= 0) {
+    return rows.map((row) => row.join(" | ")).join("\n");
+  }
+
   const normalizedRows = rows.map((row) =>
     Array.from({ length: columnCount }, (_, index) => row[index] ?? ""),
   );
   const columnWidths = Array.from({ length: columnCount }, (_, index) =>
-    Math.max(...normalizedRows.map((row) => row[index]?.length ?? 0)),
+    Math.max(0, ...normalizedRows.map((row) => row[index]?.length ?? 0)),
   );
 
   const formatRow = (row: string[]): string =>
@@ -103,8 +123,11 @@ export function toBlockPlainText(block: TelegramBlock): string {
     case "plain":
       return block.text;
     default: {
-      const exhaustiveCheck: never = block;
-      throw new Error(`Unsupported Telegram block: ${JSON.stringify(exhaustiveCheck)}`);
+      const unknownType = (block as { type?: unknown }).type;
+      logger.warn("[TelegramRender] Unsupported block in plain text, skipping", {
+        blockType: typeof unknownType === "string" ? unknownType : typeof block,
+      });
+      return "";
     }
   }
 }

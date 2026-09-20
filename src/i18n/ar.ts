@@ -225,8 +225,7 @@ export const ar: I18nDictionary = {
   "messages.fork_success": "🔀 تم إنشاء جلسة متفرعة بدءًا من الرسالة التالية:\n\n{text}",
   "messages.fork_error": "❌ تعذر إنشاء جلسة متفرعة. حاول مرة أخرى.",
 
-  "attach.project_not_selected":
-    "🏗 لم تحدد مشروعًا بعد.\n\nاختر مشروعًا أولًا باستخدام /projects.",
+  "attach.project_not_selected": "🏗 لم تحدد مشروعًا بعد.\n\nاختر مشروعًا أولًا باستخدام /projects.",
   "attach.session_not_selected": "💬 لم تحدد جلسة بعد.\n\nاختر جلسة أولًا باستخدام /sessions.",
   "attach.session_project_mismatch":
     "⚠️ الجلسة المحددة لا تطابق المشروع الحالي. اختر الجلسة مجددًا باستخدام /sessions.",
@@ -239,8 +238,7 @@ export const ar: I18nDictionary = {
   "attach.disconnect_hint": "لقطع الاتصال، انتقل إلى جلسة أو مشروع آخر.",
   "attach.error": "🔴 تعذر الاتصال بالجلسة الحالية.",
 
-  "detach.project_not_selected":
-    "🏗 لم تحدد مشروعًا بعد.\n\nاختر مشروعًا أولًا باستخدام /projects.",
+  "detach.project_not_selected": "🏗 لم تحدد مشروعًا بعد.\n\nاختر مشروعًا أولًا باستخدام /projects.",
   "detach.no_active_session": "ℹ️ البوت غير متصل بأي جلسة بالفعل.",
   "detach.success":
     "✅ تم قطع الاتصال بالجلسة: {title}\n\nلم يتم إيقاف جلسة OpenCode. إذا كانت لا تزال تعمل، فستستمر بشكل منفصل. للتحقق منها لاحقًا، اخترها مجددًا باستخدام /sessions.",
@@ -353,7 +351,8 @@ export const ar: I18nDictionary = {
   "permission.blocked.command_not_allowed":
     "⚠️ لا يمكن استخدام هذا الأمر قبل الرد على طلب الصلاحية.",
   "permission.header": "{emoji} طلب صلاحية: {name}\n\n",
-  "permission.grouped_count": "\n⚠️ يوجد {count} طلبات متطابقة قيد الانتظار — سيُطبَّق ردك عليها جميعًا.\n",
+  "permission.grouped_count":
+    "\n⚠️ يوجد {count} طلبات متطابقة قيد الانتظار — سيُطبَّق ردك عليها جميعًا.\n",
   "permission.button.allow": "✅ سماح لمرة واحدة",
   "permission.button.always": "🔓 سماح دائم",
   "permission.button.reject": "❌ رفض",
@@ -398,7 +397,8 @@ export const ar: I18nDictionary = {
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added": "📥 أُضيفت إلى قائمة الانتظار ({count}/{max}). ستُرسل بعد انتهاء المهمة الحالية.",
   "queue.full": "⚠️ قائمة الانتظار ممتلئة ({max}). احذف رسالة أو انتظر انتهاء المهمة الحالية.",
-  "queue.media_limit": "⚠️ الوسائط في قائمة الانتظار محدودة بـ {maxSizeMb} MiB. انتظر إرسال عنصر ثم أعد المحاولة.",
+  "queue.media_limit":
+    "⚠️ الوسائط في قائمة الانتظار محدودة بـ {maxSizeMb} MiB. انتظر إرسال عنصر ثم أعد المحاولة.",
   "queue.removed": "🗑 تمت إزالة الرسالة من قائمة الانتظار.",
   "queue.not_found": "لم تعد هذه الرسالة في قائمة الانتظار.",
   "queue.disabled_hint": "يمكن تفعيل قائمة انتظار الرسائل من /settings.",
@@ -461,8 +461,7 @@ export const ar: I18nDictionary = {
     "لم يتم إعداد التطبيق بعد. جارٍ تشغيل معالج الإعداد...\n",
   "runtime.wizard.tty_required":
     "يتطلب معالج الإعداد التفاعلي طرفية TTY. شغّل `opencode-telegram config` في shell تفاعلية.",
-  "runtime.container.command_unavailable":
-    "⚠️ هذا الأمر غير متاح في صورة Docker.",
+  "runtime.container.command_unavailable": "⚠️ هذا الأمر غير متاح في صورة Docker.",
 
   "rename.no_session": "⚠️ لا توجد جلسة نشطة. أنشئ جلسة أو اختر واحدة أولًا.",
   "rename.prompt": "📝 أدخل عنوانًا جديدًا للجلسة:\n\nالحالي: {title}",
@@ -642,4 +641,7 @@ export const ar: I18nDictionary = {
   "local_command.empty_output": "The command produced no output.",
   "local_command.failed": "Command failed with exit code {exitCode}: {stderr}",
   "local_command.timeout": "The command timed out.",
+  "output.file.sending": "📄 جارٍ إرسال المخرجات كملف...",
+  "output.file.caption": "📄 مخرجات المساعد الكاملة",
+  "output.file.sent": "✅ تم إرسال المخرجات الكاملة كملف.",
 };

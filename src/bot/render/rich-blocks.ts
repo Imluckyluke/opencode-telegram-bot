@@ -1,4 +1,5 @@
 import type { RichBlockTableCell, RichText } from "grammy/types";
+import { logger } from "../../utils/logger.js";
 import { buildAlignedTableText, toBlockPlainText } from "./block-plain-text.js";
 import type {
   InlineNode,
@@ -10,6 +11,41 @@ import type {
 
 /** Telegram rejects rich tables wider than this; such tables fall back to preformatted text. */
 const RICH_TABLE_MAX_COLUMNS = 20;
+
+function getTableColumnCount(rows: string[][]): number {
+  if (rows.length === 0) {
+    return 0;
+  }
+
+  return Math.max(0, ...rows.map((row) => row.length));
+}
+
+function fallbackInlineText(node: { [key: string]: unknown }): string | null {
+  const text = node["text"];
+  if (typeof text === "string" && text) {
+    return text;
+  }
+
+  const value = node["value"];
+  if (typeof value === "string" && value) {
+    return value;
+  }
+
+  const children = node["children"];
+  if (Array.isArray(children)) {
+    try {
+      return toBlockPlainText({ type: "plain", text: JSON.stringify(children) }).slice(0, 4000);
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    return JSON.stringify(node).slice(0, 1000);
+  } catch {
+    return null;
+  }
+}
 
 function toRichTextNodes(nodes: InlineNode[]): RichText[] {
   const result: RichText[] = [];
@@ -52,8 +88,14 @@ function toRichTextNodes(nodes: InlineNode[]): RichText[] {
         result.push({ type: "url", text: toRichText(node.text), url: node.url });
         break;
       default: {
-        const exhaustiveCheck: never = node;
-        throw new Error(`Unsupported inline node: ${JSON.stringify(exhaustiveCheck)}`);
+        const unknownType = (node as { type?: unknown }).type;
+        logger.warn("[TelegramRender] Unsupported inline node, falling back to plain text", {
+          nodeType: typeof unknownType === "string" ? unknownType : typeof node,
+        });
+        const fallback = fallbackInlineText(node as unknown as { [key: string]: unknown });
+        if (fallback) {
+          result.push(fallback);
+        }
       }
     }
   }
@@ -220,7 +262,7 @@ export function liftTextListContent(blocks: TelegramBlock[]): TelegramBlock[] {
 }
 
 function toTableCells(rows: string[][], align?: TableColumnAlign[]): RichBlockTableCell[][] {
-  const columnCount = Math.max(...rows.map((row) => row.length));
+  const columnCount = getTableColumnCount(rows);
 
   return rows.map((row, rowIndex) =>
     Array.from({ length: columnCount }, (_, columnIndex) => ({
@@ -233,7 +275,12 @@ function toTableCells(rows: string[][], align?: TableColumnAlign[]): RichBlockTa
 }
 
 function toTableBlock(rows: string[][], align?: TableColumnAlign[]): TelegramRichBlock {
-  const columnCount = Math.max(...rows.map((row) => row.length));
+  const columnCount = getTableColumnCount(rows);
+  if (columnCount <= 0) {
+    const fallback = buildAlignedTableText(rows);
+    return { type: "paragraph", text: fallback };
+  }
+
   if (columnCount > RICH_TABLE_MAX_COLUMNS) {
     return { type: "pre", text: buildAlignedTableText(rows) };
   }
@@ -261,7 +308,11 @@ export function toRichBlock(block: TelegramBlock): TelegramRichBlock {
             items: block.items.map((item) => ({ blocks: item.blocks.map(toRichBlock) })),
           };
     case "code":
-      return { type: "pre", text: block.text, ...(block.language ? { language: block.language } : {}) };
+      return {
+        type: "pre",
+        text: block.text,
+        ...(block.language ? { language: block.language } : {}),
+      };
     case "table":
       return block.rows.length > 0
         ? toTableBlock(block.rows, block.align)
@@ -271,8 +322,15 @@ export function toRichBlock(block: TelegramBlock): TelegramRichBlock {
     case "plain":
       return { type: "paragraph", text: block.text };
     default: {
-      const exhaustiveCheck: never = block;
-      throw new Error(`Unsupported Telegram block: ${JSON.stringify(exhaustiveCheck)}`);
+      const unknownType = (block as { type?: unknown }).type;
+      logger.warn("[TelegramRender] Unsupported block, falling back to plain paragraph", {
+        blockType: typeof unknownType === "string" ? unknownType : typeof block,
+      });
+      try {
+        return { type: "paragraph", text: toBlockPlainText(block as TelegramBlock) };
+      } catch {
+        return { type: "paragraph", text: "[unsupported block]" };
+      }
     }
   }
 }
@@ -320,8 +378,15 @@ function countRichTextChars(text: RichText): number {
       return text.expression.length;
     case "anchor":
       return text.name.length;
-    default:
-      return 0;
+    default: {
+      // Conservative upper bound: unknown rich text must not undercount,
+      // otherwise Telegram can reject the message for exceeding 32768 chars.
+      try {
+        return JSON.stringify(text).length;
+      } catch {
+        return 1024;
+      }
+    }
   }
 }
 
@@ -367,7 +432,8 @@ export function countRichChars(block: TelegramRichBlock): number {
     case "table":
       return block.cells.reduce(
         (total, row) =>
-          total + row.reduce((sum, cell) => sum + (cell.text ? countRichTextChars(cell.text) : 0), 0),
+          total +
+          row.reduce((sum, cell) => sum + (cell.text ? countRichTextChars(cell.text) : 0), 0),
         0,
       );
     case "blockquote":
@@ -379,7 +445,16 @@ export function countRichChars(block: TelegramRichBlock): number {
       );
     case "mathematical_expression":
       return block.expression.length;
-    default:
+    case "divider":
       return 0;
+    default: {
+      // Unknown block types must not undercount: use a conservative upper bound
+      // so chunking never packs more than 32768 chars into one message.
+      try {
+        return JSON.stringify(block).length;
+      } catch {
+        return 4096;
+      }
+    }
   }
 }

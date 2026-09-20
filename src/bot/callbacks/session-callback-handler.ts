@@ -18,6 +18,7 @@ import { t } from "../../i18n/index.js";
 import { alert, failure } from "./feedback.js";
 import { attachToSession } from "../../app/services/attach-service.js";
 import { renderAssistantFinalPartsSafe } from "../messages/assistant-rendering.js";
+import { sendLongOutputAsFile, shouldSendLongOutputAsFile } from "../messages/send-output-file.js";
 import { sendRenderedBotPart } from "../messages/telegram-text.js";
 import {
   buildSessionSelectionMenuView,
@@ -504,5 +505,9 @@ async function sendLatestAssistantResponse(
       chatId,
       part,
     });
+  }
+
+  if (shouldSendLongOutputAsFile(responseText)) {
+    await sendLongOutputAsFile({ api, chatId, text: responseText });
   }
 }

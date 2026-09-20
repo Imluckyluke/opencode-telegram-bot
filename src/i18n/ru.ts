@@ -108,8 +108,7 @@ export const ru: I18nDictionary = {
   "bot.file_download_error": "🔴 Не удалось скачать файл",
   "bot.file_type_unsupported":
     "⚠️ Этот тип файла не поддерживается. Отправьте изображение, документ (PDF, DOCX, PPTX) или текстовый/кодовый файл.",
-  "bot.rich_message_media_skipped":
-    "⚠️ Пропущено неподдерживаемых медиафрагментов: {count}.",
+  "bot.rich_message_media_skipped": "⚠️ Пропущено неподдерживаемых медиафрагментов: {count}.",
   "bot.message_type_unsupported": "⚠️ Этот тип сообщения не поддерживается.",
   "bot.media_group_not_processed":
     "⚠️ Один или несколько файлов в альбоме нельзя обработать. В OpenCode ничего не отправлено.",
@@ -366,7 +365,8 @@ export const ru: I18nDictionary = {
   "permission.blocked.command_not_allowed":
     "⚠️ Эта команда недоступна, пока вы не ответите на запрос разрешения.",
   "permission.header": "{emoji} Запрос разрешения: {name}\n\n",
-  "permission.grouped_count": "\n⚠️ Ожидают {count} одинаковых запроса — ваш ответ применится ко всем.\n",
+  "permission.grouped_count":
+    "\n⚠️ Ожидают {count} одинаковых запроса — ваш ответ применится ко всем.\n",
   "permission.button.allow": "✅ Разрешить один раз",
   "permission.button.always": "🔓 Разрешить всегда",
   "permission.button.reject": "❌ Отклонить",
@@ -409,9 +409,12 @@ export const ru: I18nDictionary = {
   "keyboard.variant": "💭 {name}",
   "keyboard.variant_default": "💡 Default",
   "keyboard.queued_prompt": "❌ {index}. {text}",
-  "queue.added": "📥 Добавлено в очередь ({count}/{max}). Сообщение уйдёт после завершения текущей задачи.",
-  "queue.full": "⚠️ Очередь заполнена ({max}). Удалите сообщение или дождитесь завершения текущей задачи.",
-  "queue.media_limit": "⚠️ Медиа в очереди ограничены {maxSizeMb} MiB. Дождитесь отправки элемента и повторите попытку.",
+  "queue.added":
+    "📥 Добавлено в очередь ({count}/{max}). Сообщение уйдёт после завершения текущей задачи.",
+  "queue.full":
+    "⚠️ Очередь заполнена ({max}). Удалите сообщение или дождитесь завершения текущей задачи.",
+  "queue.media_limit":
+    "⚠️ Медиа в очереди ограничены {maxSizeMb} MiB. Дождитесь отправки элемента и повторите попытку.",
   "queue.removed": "🗑 Сообщение удалено из очереди.",
   "queue.not_found": "Этого сообщения больше нет в очереди.",
   "queue.disabled_hint": "Очередь сообщений включается в /settings.",
@@ -474,8 +477,7 @@ export const ru: I18nDictionary = {
     "Приложение еще не сконфигурировано. Запускаю wizard...\n",
   "runtime.wizard.tty_required":
     "Интерактивный wizard требует TTY-терминал. Запустите `opencode-telegram config` в интерактивной оболочке.",
-  "runtime.container.command_unavailable":
-    "⚠️ Эта команда недоступна в Docker-образе.",
+  "runtime.container.command_unavailable": "⚠️ Эта команда недоступна в Docker-образе.",
 
   "rename.no_session": "⚠️ Нет активной сессии. Сначала создайте или выберите сессию.",
   "rename.prompt": "📝 Введите новое название сессии:\n\nТекущее: {title}",
@@ -669,4 +671,7 @@ export const ru: I18nDictionary = {
   "local_command.empty_output": "Команда не вернула вывод.",
   "local_command.failed": "Команда завершилась с кодом {exitCode}: {stderr}",
   "local_command.timeout": "Время выполнения команды истекло.",
+  "output.file.sending": "📄 Отправляю вывод файлом...",
+  "output.file.caption": "📄 Полный вывод ассистента",
+  "output.file.sent": "✅ Полный вывод отправлен файлом.",
 };

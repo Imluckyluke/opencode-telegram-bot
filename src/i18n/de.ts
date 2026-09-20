@@ -382,7 +382,8 @@ export const de: I18nDictionary = {
   "permission.blocked.command_not_allowed":
     "⚠️ Dieser Befehl ist erst verfügbar, wenn du die Berechtigungsanfrage beantwortet hast.",
   "permission.header": "{emoji} Berechtigungsanfrage: {name}\n\n",
-  "permission.grouped_count": "\n⚠️ {count} identische Anfragen ausstehend – deine Antwort gilt für alle.\n",
+  "permission.grouped_count":
+    "\n⚠️ {count} identische Anfragen ausstehend – deine Antwort gilt für alle.\n",
   "permission.button.allow": "✅ Einmal erlauben",
   "permission.button.always": "🔓 Immer erlauben",
   "permission.button.reject": "❌ Ablehnen",
@@ -427,7 +428,8 @@ export const de: I18nDictionary = {
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added":
     "📥 Zur Warteschlange hinzugefügt ({count}/{max}). Die Nachricht wird gesendet, sobald die aktuelle Aufgabe abgeschlossen ist.",
-  "queue.media_limit": "⚠️ Medien in der Warteschlange sind auf {maxSizeMb} MiB begrenzt. Warte, bis ein Eintrag gesendet wurde.",
+  "queue.media_limit":
+    "⚠️ Medien in der Warteschlange sind auf {maxSizeMb} MiB begrenzt. Warte, bis ein Eintrag gesendet wurde.",
   "queue.full":
     "⚠️ Die Warteschlange ist voll ({max}). Entferne eine Nachricht oder warte, bis die aktuelle Aufgabe abgeschlossen ist.",
   "queue.removed": "🗑 Nachricht aus der Warteschlange entfernt.",
@@ -493,8 +495,7 @@ export const de: I18nDictionary = {
     "Anwendung ist noch nicht konfiguriert. Starte Assistent...\n",
   "runtime.wizard.tty_required":
     "Der interaktive Assistent erfordert ein TTY-Terminal. Führe `opencode-telegram config` in einer interaktiven Shell aus.",
-  "runtime.container.command_unavailable":
-    "⚠️ Dieser Befehl ist im Docker-Image nicht verfügbar.",
+  "runtime.container.command_unavailable": "⚠️ Dieser Befehl ist im Docker-Image nicht verfügbar.",
 
   "rename.no_session": "⚠️ Keine aktive Sitzung. Erstelle oder wähle zuerst eine Sitzung.",
   "rename.prompt": "📝 Neuen Titel für die Sitzung eingeben:\n\nAktuell: {title}",
@@ -689,4 +690,7 @@ export const de: I18nDictionary = {
   "local_command.empty_output": "The command produced no output.",
   "local_command.failed": "Command failed with exit code {exitCode}: {stderr}",
   "local_command.timeout": "The command timed out.",
+  "output.file.sending": "📄 Sende Ausgabe als Datei...",
+  "output.file.caption": "📄 Vollständige Assistentenausgabe",
+  "output.file.sent": "✅ Vollständige Ausgabe als Datei gesendet.",
 };
