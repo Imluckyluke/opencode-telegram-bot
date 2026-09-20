@@ -22,6 +22,11 @@ import {
   VARIANT_BUTTON_TEXT_PATTERN,
 } from "../message-patterns.js";
 import { promptQueue } from "../../app/managers/prompt-queue-manager.js";
+import { getCurrentSession } from "../../app/services/session-service.js";
+import {
+  adoptInboundThread,
+  extractInboundThreadId,
+} from "../../app/services/dm-topic-service.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { findQueuedPromptByButtonLabel } from "../keyboards/queued-prompt-button.js";
 import { handleDocumentMessage } from "../handlers/document-handler.js";
@@ -192,6 +197,12 @@ export function registerMessageRouter(bot: Bot<Context>, deps: MessageRouterDeps
     const { text } = input;
 
     deps.setTelegramContext(bot, ctx.chat.id);
+
+    // Bind an unowned DM topic to the current session so later replies land there.
+    const inboundSession = getCurrentSession();
+    if (inboundSession) {
+      adoptInboundThread(inboundSession.id, extractInboundThreadId(ctx.message));
+    }
 
     if (text.startsWith("/")) {
       return;

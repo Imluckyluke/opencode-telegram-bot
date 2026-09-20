@@ -208,3 +208,4 @@ Open tasks for upcoming iterations:
 - [x] Model search in model switcher
 - [x] Docker runtime support and deployment guide
 - [x] Add a bot settings command with in-chat UI
+- [x] Per-session DM forum topics in Threaded Mode (one private-chat topic per OpenCode session, `DM_TOPICS_ENABLED`)

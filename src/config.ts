@@ -263,6 +263,7 @@ export const config = {
     messageMergeWindowMs: getOptionalNonNegativeIntEnvVar("MESSAGE_MERGE_WINDOW_MS", 1500),
     initialSettingsPreset: parseInitialSettingsPreset(),
     excludedProjectPaths: getOptionalPathListEnvVar("PROJECTS_EXCLUDED_PATHS"),
+    dmTopicsEnabled: getOptionalBooleanEnvVar("DM_TOPICS_ENABLED", true),
   },
   files: {
     maxFileSizeKb: getOptionalPositiveIntEnvVar("CODE_FILE_MAX_SIZE_KB", 100),

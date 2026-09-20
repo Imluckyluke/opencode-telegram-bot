@@ -1,6 +1,11 @@
 import { Bot, Context } from "grammy";
 import { config } from "../config.js";
 import { getCurrentProject } from "../app/stores/settings-store.js";
+import { getCurrentSession } from "../app/services/session-service.js";
+import {
+  forgetSessionTopic,
+  getBoundTopicId,
+} from "../app/services/dm-topic-service.js";
 import { attachManager } from "../app/managers/attach-manager.js";
 import { clearAllInteractionState } from "../app/managers/interaction-manager.js";
 import {
@@ -55,6 +60,61 @@ const CHAT_DELIVERY_TELEGRAM_METHODS = new Set([
   "sendAudio",
   "sendPhoto",
 ]);
+
+// send* methods that accept message_thread_id for DM topics (Threaded Mode).
+const DM_THREAD_SEND_METHODS = new Set([
+  "sendMessage",
+  "sendPhoto",
+  "sendAudio",
+  "sendDocument",
+  "sendVideo",
+  "sendVoice",
+  "sendAnimation",
+  "sendVideoNote",
+  "sendSticker",
+  "sendPoll",
+]);
+
+interface OutboundThreadRoute {
+  threadId: number;
+  sessionId: string;
+}
+
+/**
+ * Thread route for the current session's DM topic, if any.
+ * Only the single-user DM chat is routed; explicit thread ids always win.
+ */
+function resolveOutboundThread(method: string, payload: unknown): OutboundThreadRoute | null {
+  if (!DM_THREAD_SEND_METHODS.has(method)) {
+    return null;
+  }
+  const data = payload as { chat_id?: unknown; message_thread_id?: unknown } | null;
+  if (typeof data?.chat_id !== "number" || data.chat_id !== config.telegram.allowedUserId) {
+    return null;
+  }
+  if (typeof data.message_thread_id === "number") {
+    return null;
+  }
+  const session = getCurrentSession();
+  if (!session) {
+    return null;
+  }
+  const threadId = getBoundTopicId(session.id);
+  if (!threadId) {
+    return null;
+  }
+  return { threadId, sessionId: session.id };
+}
+
+function isThreadNotFoundError(error: unknown): boolean {
+  const description =
+    error instanceof TelegramApiResponseError
+      ? error.response.description
+      : error instanceof Error
+        ? error.message
+        : String(error);
+  return /message thread not found/i.test(description);
+}
 
 interface TelegramApiErrorResponse {
   ok: false;
@@ -163,18 +223,43 @@ export function createBot(localCommandRegistry = LocalCommandRegistry.empty()): 
         }
         return response;
       };
-      const response = isUnretriedTelegramSend()
-        ? await runCall()
-        : await withTelegramRateLimitRetry(runCall, {
-            maxRetries: 5,
-            retryTransientServerErrors: shouldRetryTelegramServerError(method),
-            onRetry: ({ attempt, retryAfterMs, error }) => {
-              logger.warn(
-                `[Bot API] Retryable Telegram error on ${method}, retrying in ${retryAfterMs}ms (attempt=${attempt})`,
-                error,
-              );
-            },
-          });
+      const runWithRetry = () =>
+        isUnretriedTelegramSend()
+          ? runCall()
+          : withTelegramRateLimitRetry(runCall, {
+              maxRetries: 5,
+              retryTransientServerErrors: shouldRetryTelegramServerError(method),
+              onRetry: ({ attempt, retryAfterMs, error }) => {
+                logger.warn(
+                  `[Bot API] Retryable Telegram error on ${method}, retrying in ${retryAfterMs}ms (attempt=${attempt})`,
+                  error,
+                );
+              },
+            });
+
+      // Route session traffic into its DM topic when one is bound.
+      const threadRoute = resolveOutboundThread(method, payload);
+      if (threadRoute) {
+        (payload as Record<string, unknown>).message_thread_id = threadRoute.threadId;
+      }
+
+      let response: Awaited<ReturnType<typeof runCall>>;
+      try {
+        response = await runWithRetry();
+      } catch (error) {
+        if (threadRoute && isThreadNotFoundError(error)) {
+          // Topic was deleted (or never existed server-side): drop the stale
+          // binding so it is recreated on demand, and deliver to the main chat.
+          logger.warn(
+            `[Bot API] Thread ${threadRoute.threadId} gone, retrying in main chat: session=${threadRoute.sessionId}`,
+          );
+          forgetSessionTopic(threadRoute.sessionId);
+          delete (payload as Record<string, unknown>).message_thread_id;
+          response = await runWithRetry();
+        } else {
+          throw error;
+        }
+      }
 
       if (CHAT_DELIVERY_TELEGRAM_METHODS.has(method)) {
         const chatId = (payload as { chat_id?: number }).chat_id;
