@@ -59,6 +59,7 @@ vi.mock("../../../src/app/services/session-cache-service.js", () => ({
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
   getTtsMode: mocked.getTtsModeMock,
+  getShowBottomKeyboard: vi.fn(() => true),
 }));
 
 vi.mock("../../../src/app/services/agent-selection-service.js", () => ({

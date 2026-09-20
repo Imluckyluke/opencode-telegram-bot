@@ -26,6 +26,8 @@ const mocked = vi.hoisted(() => ({
   keyboardUpdateModelMock: vi.fn(),
   keyboardUpdateContextMock: vi.fn(),
   keyboardClearContextMock: vi.fn(),
+  getShowBottomKeyboardMock: vi.fn(() => true),
+  removeKeyboardMock: vi.fn(() => ({ remove_keyboard: true })),
 }));
 
 vi.mock("../../../src/bot/commands/abort-command.js", () => ({
@@ -38,10 +40,12 @@ vi.mock("../../../src/app/services/session-service.js", () => ({
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
   clearProject: mocked.clearProjectMock,
+  getShowBottomKeyboard: mocked.getShowBottomKeyboardMock,
 }));
 
 vi.mock("../../../src/bot/keyboards/main-reply-keyboard.js", () => ({
   createMainKeyboard: mocked.createMainKeyboardMock,
+  removeKeyboard: mocked.removeKeyboardMock,
 }));
 
 vi.mock("../../../src/app/services/agent-selection-service.js", () => ({

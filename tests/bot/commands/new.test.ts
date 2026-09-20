@@ -21,6 +21,7 @@ vi.mock("../../../src/opencode/client.js", () => ({
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
   getCurrentProject: mocked.getCurrentProjectMock,
+  getShowBottomKeyboard: vi.fn(() => true),
 }));
 
 vi.mock("../../../src/app/services/session-service.js", () => ({
@@ -72,6 +73,7 @@ vi.mock("../../../src/app/services/variant-selection-service.js", () => ({
 
 vi.mock("../../../src/bot/keyboards/main-reply-keyboard.js", () => ({
   createMainKeyboard: vi.fn(() => ({ keyboard: true })),
+  removeKeyboard: vi.fn(() => ({ remove_keyboard: true })),
 }));
 
 vi.mock("../../../src/app/services/attach-service.js", () => ({

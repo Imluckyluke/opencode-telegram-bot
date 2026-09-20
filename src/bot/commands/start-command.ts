@@ -1,5 +1,5 @@
 import { Context } from "grammy";
-import { createMainKeyboard } from "../keyboards/main-reply-keyboard.js";
+import { createMainKeyboard, removeKeyboard } from "../keyboards/main-reply-keyboard.js";
 import { getStoredAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { formatVariantForButton } from "../../app/services/variant-selection-service.js";
@@ -51,14 +51,11 @@ export async function startCommand(ctx: Context): Promise<void> {
     keyboardManager.updateContext(contextInfo.tokensUsed, contextInfo.tokensLimit);
   }
 
-  const keyboard = createMainKeyboard(
-    currentAgent,
-    currentModel,
-    contextInfo ?? undefined,
-    variantName,
-  );
+  const replyMarkup = getShowBottomKeyboard()
+    ? createMainKeyboard(currentAgent, currentModel, contextInfo ?? undefined, variantName)
+    : removeKeyboard();
 
   await ctx.reply(t("start.welcome"), {
-    ...(getShowBottomKeyboard() ? { reply_markup: keyboard } : {}),
+    reply_markup: replyMarkup,
   });
 }

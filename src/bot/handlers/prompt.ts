@@ -12,7 +12,7 @@ import { getCurrentProject, getShowBottomKeyboard, getTtsMode } from "../../app/
 import { getStoredAgent, resolveProjectAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { formatVariantForButton } from "../../app/services/variant-selection-service.js";
-import { createMainKeyboard } from "../keyboards/main-reply-keyboard.js";
+import { createMainKeyboard, removeKeyboard } from "../keyboards/main-reply-keyboard.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { summaryAggregator } from "../../app/managers/summary-aggregation-manager.js";
@@ -247,15 +247,15 @@ export async function processUserPrompt(
     keyboardManager.updateAgent(currentAgent);
     const contextInfo = keyboardManager.getContextInfo();
     const variantName = formatVariantForButton(currentModel.variant || "default");
-    const keyboard = createMainKeyboard(
-      currentAgent,
-      currentModel,
-      contextInfo ?? undefined,
-      variantName,
-    );
+
+    // When the bottom keyboard is disabled, send remove_keyboard so a stale
+    // persistent keyboard from earlier versions disappears for good.
+    const replyMarkup = getShowBottomKeyboard()
+      ? createMainKeyboard(currentAgent, currentModel, contextInfo ?? undefined, variantName)
+      : removeKeyboard();
 
     await ctx.reply(t("bot.session_created", { title: currentSession.title }), {
-      ...(getShowBottomKeyboard() ? { reply_markup: keyboard } : {}),
+      reply_markup: replyMarkup,
     });
   }
 

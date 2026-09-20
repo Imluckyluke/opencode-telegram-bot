@@ -10,7 +10,7 @@ import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { getStoredAgent, resolveProjectAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { formatVariantForButton } from "../../app/services/variant-selection-service.js";
-import { createMainKeyboard } from "../keyboards/main-reply-keyboard.js";
+import { createMainKeyboard, removeKeyboard } from "../keyboards/main-reply-keyboard.js";
 import { isForegroundBusy } from "../../app/services/run-control-service.js";
 import { replyBusyBlocked } from "../messages/busy-blocked-renderer.js";
 import { logger } from "../../utils/logger.js";
@@ -72,15 +72,12 @@ export async function newCommand(ctx: CommandContext<Context>, deps: NewCommandD
     keyboardManager.updateAgent(currentAgent);
     const contextInfo = keyboardManager.getContextInfo();
     const variantName = formatVariantForButton(currentModel.variant || "default");
-    const keyboard = createMainKeyboard(
-      currentAgent,
-      currentModel,
-      contextInfo ?? undefined,
-      variantName,
-    );
+    const replyMarkup = getShowBottomKeyboard()
+      ? createMainKeyboard(currentAgent, currentModel, contextInfo ?? undefined, variantName)
+      : removeKeyboard();
 
     await ctx.reply(t("new.created", { title: session.title }), {
-      ...(getShowBottomKeyboard() ? { reply_markup: keyboard } : {}),
+      reply_markup: replyMarkup,
     });
   } catch (error) {
     logger.error("[Bot] Error creating session:", error);

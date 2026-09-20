@@ -259,7 +259,7 @@ export function setPromptQueueEnabled(enabled: boolean): void {
 }
 
 export function getShowBottomKeyboard(): boolean {
-  return currentSettings.showBottomKeyboard ?? true;
+  return currentSettings.showBottomKeyboard ?? false;
 }
 
 export function setShowBottomKeyboard(enabled: boolean): void {
