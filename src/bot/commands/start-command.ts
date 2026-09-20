@@ -6,7 +6,7 @@ import { formatVariantForButton } from "../../app/services/variant-selection-ser
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { clearSession } from "../../app/services/session-service.js";
-import { clearProject } from "../../app/stores/settings-store.js";
+import { clearProject, getShowBottomKeyboard } from "../../app/stores/settings-store.js";
 import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
 import { abortCurrentOperation } from "./abort-command.js";
 import { t } from "../../i18n/index.js";
@@ -58,5 +58,7 @@ export async function startCommand(ctx: Context): Promise<void> {
     variantName,
   );
 
-  await ctx.reply(t("start.welcome"), { reply_markup: keyboard });
+  await ctx.reply(t("start.welcome"), {
+    ...(getShowBottomKeyboard() ? { reply_markup: keyboard } : {}),
+  });
 }

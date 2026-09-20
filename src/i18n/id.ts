@@ -175,6 +175,8 @@ export const id: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Sematkan dasbor sesi",
   "settings.tts.label": "Balasan audio",
   "settings.prompt_queue.label": "Antrean pesan",
+  "settings.bottom_keyboard.label": "Bottom keyboard",
+  "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "Aktif",
   "settings.value.off": "Nonaktif",
   "settings.saved": "✅ Pengaturan disimpan.",

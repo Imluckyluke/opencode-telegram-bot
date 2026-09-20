@@ -257,6 +257,15 @@ export function setPromptQueueEnabled(enabled: boolean): void {
   void writeSettingsFile(currentSettings);
 }
 
+export function getShowBottomKeyboard(): boolean {
+  return currentSettings.showBottomKeyboard ?? true;
+}
+
+export function setShowBottomKeyboard(enabled: boolean): void {
+  currentSettings.showBottomKeyboard = enabled;
+  void writeSettingsFile(currentSettings);
+}
+
 export function getCurrentAgent(): string | undefined {
   return currentSettings.currentAgent;
 }
@@ -353,6 +362,7 @@ function applyInitialSettingsPreset(preset: Record<string, unknown>): void {
     "responseStreamingMode",
     "sendDiffFileAttachments",
     "promptQueueEnabled",
+    "showBottomKeyboard",
   ]);
 
   for (const [key, value] of Object.entries(preset)) {
@@ -383,7 +393,7 @@ function applyInitialSettingsPreset(preset: Record<string, unknown>): void {
         currentSettings.responseStreamingMode = value as ResponseStreamingMode;
       }
     } else {
-      // Boolean settings: compactOutputMode, deleteCompactProgressOnFinish, showThinkingContent, showAssistantRunFooter, pinnedDashboardEnabled, sendDiffFileAttachments, promptQueueEnabled
+      // Boolean settings: compactOutputMode, deleteCompactProgressOnFinish, showThinkingContent, showAssistantRunFooter, pinnedDashboardEnabled, sendDiffFileAttachments, promptQueueEnabled, showBottomKeyboard
       if (typeof value !== "boolean") {
         throw new Error(
           `INITIAL_SETTINGS_PRESET: "${key}" must be a boolean.`,
@@ -417,6 +427,10 @@ function applyInitialSettingsPreset(preset: Record<string, unknown>): void {
         case "promptQueueEnabled":
           if (currentSettings.promptQueueEnabled === undefined)
             currentSettings.promptQueueEnabled = value;
+          break;
+        case "showBottomKeyboard":
+          if (currentSettings.showBottomKeyboard === undefined)
+            currentSettings.showBottomKeyboard = value;
           break;
       }
     }

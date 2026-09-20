@@ -8,7 +8,7 @@ import {
   setCurrentSession,
 } from "../../app/services/session-service.js";
 import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
-import { getCurrentProject, getTtsMode } from "../../app/stores/settings-store.js";
+import { getCurrentProject, getShowBottomKeyboard, getTtsMode } from "../../app/stores/settings-store.js";
 import { getStoredAgent, resolveProjectAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { formatVariantForButton } from "../../app/services/variant-selection-service.js";
@@ -255,7 +255,7 @@ export async function processUserPrompt(
     );
 
     await ctx.reply(t("bot.session_created", { title: currentSession.title }), {
-      reply_markup: keyboard,
+      ...(getShowBottomKeyboard() ? { reply_markup: keyboard } : {}),
     });
   }
 

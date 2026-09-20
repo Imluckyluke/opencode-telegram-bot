@@ -3,6 +3,7 @@ import { createMainKeyboard } from "./main-reply-keyboard.js";
 import { getQueuedPromptButtonLabels } from "./queued-prompt-button.js";
 import { getStoredAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
+import { getShowBottomKeyboard } from "../../app/stores/settings-store.js";
 import { formatVariantForButton } from "../../app/services/variant-selection-service.js";
 import type { ModelInfo } from "../../app/types/model.js";
 import { logger } from "../../utils/logger.js";
@@ -139,6 +140,10 @@ class KeyboardManager {
    * Implements debouncing to avoid rate limits
    */
   public async sendKeyboardUpdate(chatId?: number): Promise<void> {
+    if (!getShowBottomKeyboard()) {
+      return;
+    }
+
     if (!this.api) {
       logger.warn("[KeyboardManager] API not initialized");
       return;
@@ -179,6 +184,10 @@ class KeyboardManager {
    * Returns undefined if not initialized (caller should handle this)
    */
   public getKeyboard() {
+    if (!getShowBottomKeyboard()) {
+      return undefined;
+    }
+
     if (!this.state) {
       logger.warn("[KeyboardManager] Cannot get keyboard: not initialized");
       return undefined;

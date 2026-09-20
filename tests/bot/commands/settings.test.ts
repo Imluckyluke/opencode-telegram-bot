@@ -17,6 +17,7 @@ import { zh } from "../../../src/i18n/zh.js";
 import { defined } from "../../helpers/defined.js";
 import {
   SETTINGS_ASSISTANT_FOOTER_CALLBACK,
+  SETTINGS_BOTTOM_KEYBOARD_CALLBACK,
   SETTINGS_CALLBACK_PREFIX,
   SETTINGS_COMPACT_OUTPUT_CALLBACK,
   SETTINGS_DELETE_PROGRESS_ON_FINISH_CALLBACK,
@@ -48,6 +49,8 @@ const mocked = vi.hoisted(() => ({
   setTtsModeMock: vi.fn(),
   getPromptQueueEnabledMock: vi.fn(),
   setPromptQueueEnabledMock: vi.fn(),
+  getShowBottomKeyboardMock: vi.fn(),
+  setShowBottomKeyboardMock: vi.fn(),
   isTtsConfiguredMock: vi.fn(),
 }));
 
@@ -69,7 +72,9 @@ vi.mock("../../../src/app/stores/settings-store.js", () => ({
   getTtsMode: mocked.getTtsModeMock,
   setTtsMode: mocked.setTtsModeMock,
   getPromptQueueEnabled: mocked.getPromptQueueEnabledMock,
+  getShowBottomKeyboard: mocked.getShowBottomKeyboardMock,
   setPromptQueueEnabled: mocked.setPromptQueueEnabledMock,
+  setShowBottomKeyboard: mocked.setShowBottomKeyboardMock,
 }));
 
 vi.mock("../../../src/app/services/tts-service.js", () => ({
@@ -104,6 +109,8 @@ describe("bot/commands/settings-command", () => {
     mocked.setTtsModeMock.mockReset();
     mocked.getPromptQueueEnabledMock.mockReset();
     mocked.setPromptQueueEnabledMock.mockReset();
+    mocked.getShowBottomKeyboardMock.mockReset();
+    mocked.setShowBottomKeyboardMock.mockReset();
     mocked.isTtsConfiguredMock.mockReset();
     mocked.getResponseStreamingModeMock.mockReturnValue("edit");
     mocked.getSendDiffFileAttachmentsMock.mockReturnValue(true);
@@ -111,6 +118,7 @@ describe("bot/commands/settings-command", () => {
     mocked.getPinnedDashboardEnabledMock.mockReturnValue(true);
     mocked.applyPinnedDashboardEnabledMock.mockResolvedValue(undefined);
     mocked.getPromptQueueEnabledMock.mockReturnValue(false);
+    mocked.getShowBottomKeyboardMock.mockReturnValue(true);
     interactionManager.clear("settings_test_reset");
   });
 
@@ -153,7 +161,10 @@ describe("bot/commands/settings-command", () => {
     expect(opts.reply_markup.inline_keyboard[6][0].text).toBe(
       `${t("settings.prompt_queue.label")}: ${t("settings.value.off")}`,
     );
-    expect(opts.reply_markup.inline_keyboard[7][0].text).toBe(t("inline.button.close"));
+    expect(opts.reply_markup.inline_keyboard[7][0].text).toBe(
+      `${t("settings.bottom_keyboard.label")}: ${t("settings.value.on")}`,
+    );
+    expect(opts.reply_markup.inline_keyboard[8][0].text).toBe(t("inline.button.close"));
   });
 
   it("shows thinking content setting when compact output is disabled", async () => {
@@ -192,6 +203,9 @@ describe("bot/commands/settings-command", () => {
     );
     expect(opts.reply_markup.inline_keyboard[7][0].text).toBe(
       `${t("settings.prompt_queue.label")}: ${t("settings.value.off")}`,
+    );
+    expect(opts.reply_markup.inline_keyboard[8][0].text).toBe(
+      `${t("settings.bottom_keyboard.label")}: ${t("settings.value.on")}`,
     );
   });
 
@@ -239,6 +253,8 @@ describe("bot/callbacks/settings-callback-handler", () => {
     mocked.setTtsModeMock.mockReset();
     mocked.getPromptQueueEnabledMock.mockReset();
     mocked.setPromptQueueEnabledMock.mockReset();
+    mocked.getShowBottomKeyboardMock.mockReset();
+    mocked.setShowBottomKeyboardMock.mockReset();
     mocked.isTtsConfiguredMock.mockReset();
     mocked.getResponseStreamingModeMock.mockReturnValue("edit");
     mocked.getSendDiffFileAttachmentsMock.mockReturnValue(true);
@@ -246,6 +262,7 @@ describe("bot/callbacks/settings-callback-handler", () => {
     mocked.getPinnedDashboardEnabledMock.mockReturnValue(true);
     mocked.applyPinnedDashboardEnabledMock.mockResolvedValue(undefined);
     mocked.getPromptQueueEnabledMock.mockReturnValue(false);
+    mocked.getShowBottomKeyboardMock.mockReturnValue(true);
     interactionManager.clear("settings_test_reset");
   });
 
@@ -427,6 +444,27 @@ describe("bot/callbacks/settings-callback-handler", () => {
     expect(text).toBe(t("settings.menu.title"));
     expect(defined(opts?.reply_markup?.inline_keyboard[7]?.[0]).text).toBe(
       `${t("settings.prompt_queue.label")}: ${t("settings.value.on")}`,
+    );
+  });
+
+  it("toggles the bottom keyboard setting and returns to settings menu", async () => {
+    mocked.getCompactOutputModeMock.mockReturnValue(false);
+    mocked.getShowThinkingContentMock.mockReturnValue(true);
+    mocked.getTtsModeMock.mockReturnValue("off");
+    mocked.getShowBottomKeyboardMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
+    activateSettingsMenu();
+    const ctx = createCallbackContext(SETTINGS_BOTTOM_KEYBOARD_CALLBACK);
+
+    const result = await handleSettingsCallback(ctx);
+
+    expect(result).toBe(true);
+    expect(mocked.setShowBottomKeyboardMock).toHaveBeenCalledWith(true);
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("settings.saved") });
+    const call = defined(vi.mocked(ctx.editMessageText).mock.calls[0]);
+    const [text, opts] = call;
+    expect(text).toBe(t("settings.menu.title"));
+    expect(defined(opts?.reply_markup?.inline_keyboard[8]?.[0]).text).toBe(
+      `${t("settings.bottom_keyboard.label")}: ${t("settings.value.on")}`,
     );
   });
 

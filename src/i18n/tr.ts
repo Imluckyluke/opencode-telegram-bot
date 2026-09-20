@@ -169,6 +169,8 @@ export const tr: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Oturum panosunu sabitle",
   "settings.tts.label": "Sesli yanıtlar",
   "settings.prompt_queue.label": "Mesaj kuyruğu",
+  "settings.bottom_keyboard.label": "Bottom keyboard",
+  "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "Açık",
   "settings.value.off": "Kapalı",
   "settings.saved": "✅ Ayar kaydedildi.",

@@ -167,6 +167,8 @@ export const fa: I18nDictionary = {
   "settings.pin_session_dashboard.label": "سنجاق داشبورد نشست",
   "settings.tts.label": "پاسخ صوتی",
   "settings.prompt_queue.label": "صف پیام",
+  "settings.bottom_keyboard.label": "کیبورد پایین",
+  "settings.bottom_keyboard.removed": "⌨️ کیبورد پایین حذف شد.",
   "settings.value.on": "روشن",
   "settings.value.off": "خاموش",
   "settings.saved": "✅ تنظیم ذخیره شد.",

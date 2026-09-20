@@ -168,6 +168,8 @@ export const en = {
   "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "Audio replies",
   "settings.prompt_queue.label": "Message queue",
+  "settings.bottom_keyboard.label": "Bottom keyboard",
+  "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "On",
   "settings.value.off": "Off",
   "settings.saved": "✅ Setting saved.",

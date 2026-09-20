@@ -8,6 +8,7 @@ import {
   getSendDiffFileAttachments,
   getPinnedDashboardEnabled,
   getShowAssistantRunFooter,
+  getShowBottomKeyboard,
   getShowThinkingContent,
   getTtsMode,
   setCompactOutputMode,
@@ -17,6 +18,7 @@ import {
   setResponseStreamingMode,
   setSendDiffFileAttachments,
   setShowAssistantRunFooter,
+  setShowBottomKeyboard,
   setShowThinkingContent,
   setTtsMode,
   type ResponseStreamingMode,
@@ -26,9 +28,11 @@ import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 import { appendInlineMenuCancelButton, ensureActiveInlineMenu } from "../menus/inline-menu.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
+import { removeKeyboard } from "../keyboards/main-reply-keyboard.js";
 import {
   buildSettingsMenuView,
   SETTINGS_ASSISTANT_FOOTER_CALLBACK,
+  SETTINGS_BOTTOM_KEYBOARD_CALLBACK,
   SETTINGS_CALLBACK_PREFIX,
   SETTINGS_COMPACT_OUTPUT_CALLBACK,
   SETTINGS_DELETE_PROGRESS_ON_FINISH_CALLBACK,
@@ -159,6 +163,26 @@ export async function handleSettingsCallback(ctx: Context): Promise<boolean> {
       }
       await pinnedMessageManager.applyPinnedDashboardEnabled(nextEnabled);
       setPinnedDashboardEnabled(nextEnabled);
+      const { text, keyboard } = buildSettingsMenuView();
+      await ctx.answerCallbackQuery({ text: t("settings.saved") });
+      await ctx.editMessageText(text, {
+        reply_markup: appendInlineMenuCancelButton(keyboard, "settings"),
+      });
+      return true;
+    }
+
+    if (callbackData === SETTINGS_BOTTOM_KEYBOARD_CALLBACK) {
+      const nextEnabled = !getShowBottomKeyboard();
+      setShowBottomKeyboard(nextEnabled);
+      if (!nextEnabled) {
+        // Telegram only removes a persistent reply keyboard when a message
+        // carries remove_keyboard, so drop it right away.
+        await ctx.reply(t("settings.bottom_keyboard.removed"), {
+          reply_markup: removeKeyboard(),
+        }).catch((error) => {
+          logger.warn("[Settings] Failed to remove bottom keyboard:", error);
+        });
+      }
       const { text, keyboard } = buildSettingsMenuView();
       await ctx.answerCallbackQuery({ text: t("settings.saved") });
       await ctx.editMessageText(text, {

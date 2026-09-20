@@ -7,6 +7,7 @@ import {
   getSendDiffFileAttachments,
   getPinnedDashboardEnabled,
   getShowAssistantRunFooter,
+  getShowBottomKeyboard,
   getShowThinkingContent,
   getTtsMode,
   type ResponseStreamingMode,
@@ -24,6 +25,7 @@ export const SETTINGS_ASSISTANT_FOOTER_CALLBACK = `${SETTINGS_CALLBACK_PREFIX}as
 export const SETTINGS_PIN_SESSION_DASHBOARD_CALLBACK = `${SETTINGS_CALLBACK_PREFIX}pin_session_dashboard`;
 export const SETTINGS_TTS_CALLBACK = `${SETTINGS_CALLBACK_PREFIX}tts`;
 export const SETTINGS_PROMPT_QUEUE_CALLBACK = `${SETTINGS_CALLBACK_PREFIX}prompt_queue`;
+export const SETTINGS_BOTTOM_KEYBOARD_CALLBACK = `${SETTINGS_CALLBACK_PREFIX}bottom_keyboard`;
 
 export function formatBooleanSettingValue(enabled: boolean): string {
   return enabled ? t("settings.value.on") : t("settings.value.off");
@@ -57,6 +59,7 @@ export function buildSettingsMenuView(): { text: string; keyboard: InlineKeyboar
   const pinnedDashboardEnabled = getPinnedDashboardEnabled();
   const ttsMode = getTtsMode();
   const promptQueueEnabled = getPromptQueueEnabled();
+  const showBottomKeyboard = getShowBottomKeyboard();
   const keyboard = new InlineKeyboard()
     .text(
       `${t("settings.compact_output.label")}: ${formatBooleanSettingValue(compactOutputMode)}`,
@@ -102,6 +105,11 @@ export function buildSettingsMenuView(): { text: string; keyboard: InlineKeyboar
     .text(
       `${t("settings.prompt_queue.label")}: ${formatBooleanSettingValue(promptQueueEnabled)}`,
       SETTINGS_PROMPT_QUEUE_CALLBACK,
+    )
+    .row()
+    .text(
+      `${t("settings.bottom_keyboard.label")}: ${formatBooleanSettingValue(showBottomKeyboard)}`,
+      SETTINGS_BOTTOM_KEYBOARD_CALLBACK,
     );
 
   return {

@@ -168,6 +168,8 @@ export const ar: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "الردود الصوتية",
   "settings.prompt_queue.label": "قائمة انتظار الرسائل",
+  "settings.bottom_keyboard.label": "Bottom keyboard",
+  "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "مفعّل",
   "settings.value.off": "معطّل",
   "settings.saved": "✅ تم حفظ الإعداد.",

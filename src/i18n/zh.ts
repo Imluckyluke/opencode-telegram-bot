@@ -155,6 +155,8 @@ export const zh: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "语音回复",
   "settings.prompt_queue.label": "消息队列",
+  "settings.bottom_keyboard.label": "Bottom keyboard",
+  "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "开启",
   "settings.value.off": "关闭",
   "settings.saved": "✅ 设置已保存。",

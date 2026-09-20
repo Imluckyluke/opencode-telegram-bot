@@ -165,6 +165,8 @@ export const ru: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Закреплять дашборд сессии",
   "settings.tts.label": "Аудиоответы",
   "settings.prompt_queue.label": "Очередь сообщений",
+  "settings.bottom_keyboard.label": "Bottom keyboard",
+  "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "Вкл",
   "settings.value.off": "Выкл",
   "settings.saved": "✅ Настройка сохранена.",

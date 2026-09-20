@@ -175,6 +175,8 @@ export const ko: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "음성 답변",
   "settings.prompt_queue.label": "메시지 대기열",
+  "settings.bottom_keyboard.label": "Bottom keyboard",
+  "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "켜기",
   "settings.value.off": "끄기",
   "settings.saved": "✅ 설정이 저장되었습니다.",

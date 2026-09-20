@@ -174,6 +174,8 @@ export const pt: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "Respostas em áudio",
   "settings.prompt_queue.label": "Fila de mensagens",
+  "settings.bottom_keyboard.label": "Bottom keyboard",
+  "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "Ligado",
   "settings.value.off": "Desligado",
   "settings.saved": "✅ Configuração salva.",

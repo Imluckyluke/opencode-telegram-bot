@@ -277,8 +277,9 @@ class PinnedMessageManager {
     }
 
     // Context = input + cache.read (cache.read contains previously cached context)
-    // This represents the actual context window usage
-    this.state.tokensUsed = tokens.input + tokens.cacheRead;
+    // This represents the actual context window usage.
+    // Never regress: intermediate events can carry partial counts.
+    this.state.tokensUsed = Math.max(this.state.tokensUsed, tokens.input + tokens.cacheRead);
 
     logger.debug(
       `[PinnedManager] Tokens updated: ${this.state.tokensUsed}/${this.state.tokensLimit}`,
@@ -296,7 +297,7 @@ class PinnedMessageManager {
    * to keep pinned state in sync with keyboardManager.
    */
   updateTokensSilent(tokens: TokensInfo): void {
-    this.state.tokensUsed = tokens.input + tokens.cacheRead;
+    this.state.tokensUsed = Math.max(this.state.tokensUsed, tokens.input + tokens.cacheRead);
     logger.debug(
       `[PinnedManager] Tokens updated (silent): ${this.state.tokensUsed}/${this.state.tokensLimit}`,
     );
