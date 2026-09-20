@@ -1,0 +1,29 @@
+# Build bot from source
+FROM node:22-bookworm-slim AS builder
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY tsconfig.json ./
+COPY src/ ./src/
+RUN npm run build
+RUN npm prune --omit=dev
+
+# Runtime: bot + opencode server in one container (Railway single service)
+FROM node:22-bookworm-slim AS runtime
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends dumb-init ca-certificates curl git gh && rm -rf /var/lib/apt/lists/* \
+ && npm install -g opencode-ai@1.18.31
+ENV NODE_ENV=production \
+    OPENCODE_TELEGRAM_HOME=/app/data \
+    PORT=4096
+RUN mkdir -p /app/data/logs /app/data/run /workspace /home/node/.config/opencode && chown -R node:node /app /workspace /home/node/.config
+COPY --from=builder --chown=node:node /app/dist ./dist
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/package.json ./package.json
+COPY --chown=node:node opencode.json /app/opencode.json
+COPY --chown=node:node entrypoint.railway.sh /app/entrypoint.railway.sh
+RUN chmod +x /app/entrypoint.railway.sh
+USER node
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["/app/entrypoint.railway.sh"]
