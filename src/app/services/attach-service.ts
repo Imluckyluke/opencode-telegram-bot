@@ -178,9 +178,11 @@ export async function attachToSession(deps: AttachSessionDeps): Promise<AttachSe
 
   await syncPinnedAttachState();
 
-  // Fire-and-forget: every bound session gets its own DM topic (Threaded Mode).
-  // ensureSessionTopic never throws; without a topic the bot just uses the main chat.
-  void ensureSessionTopic(bot.api, chatId, session);
+  // Every bound session gets its own DM topic (Threaded Mode).
+  // Awaited (not fire-and-forget) so the very first reply already lands in
+  // the topic instead of General. ensureSessionTopic never throws and is a
+  // synchronous map hit once the session is bound.
+  await ensureSessionTopic(bot.api, chatId, session);
 
   let restoredQuestion = false;
   let restoredPermissions = 0;

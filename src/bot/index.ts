@@ -73,6 +73,9 @@ const DM_THREAD_SEND_METHODS = new Set([
   "sendVideoNote",
   "sendSticker",
   "sendPoll",
+  "sendRichMessage",
+  "sendRichMessageDraft",
+  "sendMessageDraft",
 ]);
 
 interface OutboundThreadRoute {
@@ -241,6 +244,9 @@ export function createBot(localCommandRegistry = LocalCommandRegistry.empty()): 
       const threadRoute = resolveOutboundThread(method, payload);
       if (threadRoute) {
         (payload as Record<string, unknown>).message_thread_id = threadRoute.threadId;
+        logger.debug(
+          `[Bot API] Routing ${method} to thread ${threadRoute.threadId}: session=${threadRoute.sessionId}`,
+        );
       }
 
       let response: Awaited<ReturnType<typeof runCall>>;
