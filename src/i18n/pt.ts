@@ -625,6 +625,9 @@ export const pt: I18nDictionary = {
   "mcps.auth_required": "Este servidor requer autorização e não pode ser ativado pelo bot.",
 
   "cmd.description.rename": "Renomear a sessão atual",
+  "cmd.description.model": "Select model",
+  "cmd.description.agent": "Select agent",
+  "cmd.description.variant": "Select variant",
 
   "legacy.models.fetch_error":
     "🔴 Não foi possível obter a lista de modelos. Verifique o status do servidor com /status.",

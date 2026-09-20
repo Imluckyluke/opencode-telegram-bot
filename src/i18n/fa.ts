@@ -592,6 +592,9 @@ export const fa: I18nDictionary = {
   "mcps.auth_required": "این سرور نیاز به احراز هویت دارد و از بات فعال نمی‌شود.",
 
   "cmd.description.rename": "تغییر نام نشست جاری",
+  "cmd.description.model": "انتخاب مدل",
+  "cmd.description.agent": "انتخاب ایجنت",
+  "cmd.description.variant": "انتخاب واریانت",
 
   "legacy.models.fetch_error":
     "🔴 دریافت فهرست مدل‌ها ناموفق بود. با /status وضعیت سرور را بررسی کنید.",

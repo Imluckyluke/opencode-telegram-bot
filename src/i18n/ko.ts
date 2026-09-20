@@ -618,6 +618,9 @@ export const ko: I18nDictionary = {
   "mcps.auth_required": "이 서버는 인증이 필요하여 봇에서 활성화할 수 없습니다.",
 
   "cmd.description.rename": "현재 세션 이름 변경",
+  "cmd.description.model": "Select model",
+  "cmd.description.agent": "Select agent",
+  "cmd.description.variant": "Select variant",
 
   "legacy.models.fetch_error":
     "🔴 모델 목록을 가져오지 못했습니다. /status로 서버 상태를 확인해 주세요.",

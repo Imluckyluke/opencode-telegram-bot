@@ -27,6 +27,9 @@ export const ar: I18nDictionary = {
   "cmd.description.ls": "استعراض ملفات المجلد",
   "cmd.description.help": "المساعدة",
   "cmd.description.rename": "تغيير اسم الجلسة الحالية",
+  "cmd.description.model": "Select model",
+  "cmd.description.agent": "Select agent",
+  "cmd.description.variant": "Select variant",
   "cmd.description.open": "إضافة مشروع عبر استعراض المجلدات",
 
   "callback.unknown_command": "الأمر غير معروف",

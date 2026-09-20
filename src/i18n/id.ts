@@ -603,6 +603,9 @@ export const id: I18nDictionary = {
   "mcps.auth_required": "Server ini butuh otorisasi dan tidak bisa diaktifkan dari bot.",
 
   "cmd.description.rename": "Ganti nama sesi saat ini",
+  "cmd.description.model": "Select model",
+  "cmd.description.agent": "Select agent",
+  "cmd.description.variant": "Select variant",
 
   "legacy.models.fetch_error":
     "🔴 Gagal memuat daftar model. Periksa status server dengan /status.",

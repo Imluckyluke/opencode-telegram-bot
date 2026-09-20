@@ -613,6 +613,9 @@ export const ru: I18nDictionary = {
   "mcps.auth_required": "Этот сервер требует авторизации и не может быть включен из бота.",
 
   "cmd.description.rename": "Переименовать текущую сессию",
+  "cmd.description.model": "Select model",
+  "cmd.description.agent": "Select agent",
+  "cmd.description.variant": "Select variant",
 
   "legacy.models.fetch_error":
     "🔴 Не удалось получить список моделей. Проверьте статус сервера /status.",

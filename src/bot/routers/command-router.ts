@@ -18,6 +18,9 @@ import { renameCommand } from "../commands/rename-command.js";
 import { commandsCommand } from "../commands/command-catalog-command.js";
 import { skillsCommand } from "../commands/skills-catalog-command.js";
 import { mcpsCommand } from "../commands/mcp-catalog-command.js";
+import { showModelSelectionMenu } from "../menus/model-selection-menu.js";
+import { showAgentSelectionMenu } from "../menus/agent-selection-menu.js";
+import { showVariantSelectionMenu } from "../menus/variant-selection-menu.js";
 import { startCommand } from "../commands/start-command.js";
 import { helpCommand } from "../commands/help-command.js";
 import { statusCommand } from "../commands/status-command.js";
@@ -103,6 +106,30 @@ export function registerCommandRouter(bot: Bot<Context>, deps: CommandRouterDeps
   bot.command("commands", commandsCommand);
   bot.command("skills", skillsCommand);
   bot.command("mcps", mcpsCommand);
+  bot.command("model", async (ctx) => {
+    try {
+      await showModelSelectionMenu(ctx);
+    } catch (err) {
+      logger.error("[Bot] Error showing model menu:", err);
+      await ctx.reply(t("error.load_models"));
+    }
+  });
+  bot.command("agent", async (ctx) => {
+    try {
+      await showAgentSelectionMenu(ctx);
+    } catch (err) {
+      logger.error("[Bot] Error showing agent menu:", err);
+      await ctx.reply(t("error.load_agents"));
+    }
+  });
+  bot.command("variant", async (ctx) => {
+    try {
+      await showVariantSelectionMenu(ctx);
+    } catch (err) {
+      logger.error("[Bot] Error showing variant menu:", err);
+      await ctx.reply(t("error.load_variants"));
+    }
+  });
   for (const definition of registry.definitions()) {
     bot.command(definition.command, async (ctx) => {
       const result = await registry.execute(definition.command);

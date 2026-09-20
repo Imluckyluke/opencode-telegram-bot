@@ -607,6 +607,9 @@ export const tr: I18nDictionary = {
   "mcps.auth_required": "Bu sunucu yetkilendirme gerektiriyor ve bottan etkinleştirilemez.",
 
   "cmd.description.rename": "Geçerli oturumu yeniden adlandır",
+  "cmd.description.model": "Select model",
+  "cmd.description.agent": "Select agent",
+  "cmd.description.variant": "Select variant",
 
   "legacy.models.fetch_error":
     "🔴 Model listesi alınamadı. Sunucu durumunu /status ile kontrol edin.",
