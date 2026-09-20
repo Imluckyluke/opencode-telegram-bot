@@ -1,4 +1,5 @@
 import { t } from "../../i18n/index.js";
+import { stripAgentContext } from "./agent-context-service.js";
 import { buildQuotedNotification } from "./quoted-notification.js";
 
 const EXTERNAL_USER_INPUT_MAX_DISPLAY_LENGTH = 2000;
@@ -21,7 +22,7 @@ function truncateExternalUserInputText(text: string): string {
 }
 
 export function buildExternalUserInputNotification(text: string): ExternalUserInputNotification | null {
-  const normalizedText = normalizeExternalUserInputText(text);
+  const normalizedText = normalizeExternalUserInputText(stripAgentContext(text));
   if (!normalizedText) {
     return null;
   }

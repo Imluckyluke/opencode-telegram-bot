@@ -276,10 +276,14 @@ export async function processUserPrompt(
 
     // Build parts array with text and files
     const parts: Array<TextPartInput | FilePartInput> = [];
+    // The exact text sent to OpenCode (including the agent context note) is what
+    // echoes back over SSE, so suppression must be registered with it, not the raw input.
+    let sentText: string | null = null;
 
     // Add text part if present
     if (preparedInput.text.trim().length > 0) {
-      parts.push({ type: "text", text: withAgentContext(preparedInput.text) });
+      sentText = withAgentContext(preparedInput.text);
+      parts.push({ type: "text", text: sentText });
     }
 
     // Add file parts
@@ -312,7 +316,8 @@ export async function processUserPrompt(
         // Files without text - add a minimal system prompt
         const attachmentText =
           preparedInput.fileParts.length === 1 ? "See attached file" : "See attached files";
-        parts.unshift({ type: "text", text: withAgentContext(attachmentText) });
+        sentText = withAgentContext(attachmentText);
+        parts.unshift({ type: "text", text: sentText });
       }
     }
 
@@ -372,8 +377,8 @@ export async function processUserPrompt(
     });
     setPromptResponseMode(currentSession.id, responseMode);
 
-    if (preparedInput.text.trim().length > 0) {
-      externalUserInputSuppressionManager.register(currentSession.id, preparedInput.text);
+    if (sentText) {
+      externalUserInputSuppressionManager.register(currentSession.id, sentText);
     }
 
     // CRITICAL: Use the async prompt start endpoint here.

@@ -75,6 +75,12 @@ describe("bot/messages/external-user-input-notification", () => {
     expect(mocked.sendBotTextMock).not.toHaveBeenCalled();
   });
 
+  it("strips the injected agent context note from notifications", () => {
+    const notification = buildExternalUserInputNotification("[Note: You are a bot]\nReview the parser");
+
+    expect(notification?.rawFallbackText).toBe("👤 External user input\n\n> Review the parser");
+  });
+
   it("does not send notification when the current session differs", async () => {
     const delivered = await deliverExternalUserInputNotification({
       api: { sendMessage: vi.fn() } as never,

@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import { getRuntimePaths } from "./runtime/paths.js";
 import { normalizeLocale, type Locale } from "./i18n/index.js";
-import { DEFAULT_AGENT_CONTEXT_NOTE } from "./app/services/agent-context-service.js";
+import { buildDefaultContextNote, DEFAULT_AGENT_CONTEXT_NOTE } from "./app/services/agent-context-service.js";
 
 const runtimePaths = getRuntimePaths();
 dotenv.config({ path: runtimePaths.envFilePath, quiet: true });
@@ -146,7 +146,7 @@ export { DEFAULT_AGENT_CONTEXT_NOTE };
 function getAgentContextNote(): string {
   const value = getEnvVar("AGENT_CONTEXT_NOTE", false);
   if (!value) {
-    return DEFAULT_AGENT_CONTEXT_NOTE;
+    return buildDefaultContextNote();
   }
   const normalized = value.trim().toLowerCase();
   if (["0", "false", "no", "off", "disabled"].includes(normalized)) {

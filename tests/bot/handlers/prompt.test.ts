@@ -252,7 +252,10 @@ describe("bot/handlers/prompt", () => {
       },
       ensureEventSubscription: expect.any(Function),
     });
-    expect(mocked.suppressionRegisterMock).toHaveBeenCalledWith("session-1", "Review README");
+    expect(mocked.suppressionRegisterMock).toHaveBeenCalledWith(
+      "session-1",
+      expect.stringContaining("Review README"),
+    );
   });
 
   it("starts prompts through promptAsync instead of the streaming prompt endpoint", async () => {
