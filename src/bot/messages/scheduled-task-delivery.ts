@@ -86,7 +86,11 @@ export function createScheduledTaskDeliverySender(
         });
       }
 
-      if (delivery.status === "success" && shouldSendLongOutputAsFile(delivery.resultText)) {
+      if (
+        delivery.status === "success" &&
+        delivery.resultText &&
+        shouldSendLongOutputAsFile(delivery.resultText)
+      ) {
         await sendLongOutputAsFile({ api, chatId, text: delivery.resultText });
       }
 
