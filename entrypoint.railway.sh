@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -eu
 : "${PORT:=4096}"
 export OPENCODE_API_URL="http://127.0.0.1:${PORT}"
