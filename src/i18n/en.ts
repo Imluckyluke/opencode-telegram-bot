@@ -1,5 +1,6 @@
 export const en = {
   "cmd.description.status": "Server and session status",
+  "cmd.description.language": "Change bot language",
   "cmd.description.new": "Create a new session",
   "cmd.description.stop": "Stop current action",
   "cmd.description.detach": "Detach from current session",
@@ -173,6 +174,9 @@ export const en = {
   "settings.value.on": "On",
   "settings.value.off": "Off",
   "settings.saved": "✅ Setting saved.",
+
+  "language.menu.title": "🌐 Select bot language:",
+  "language.selected": "✅ Language set to {language}.",
 
   "projects.empty":
     "📭 No projects found.\n\nOpen a directory in OpenCode and create at least one session, then it will appear here.",

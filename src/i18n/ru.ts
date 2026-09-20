@@ -2,6 +2,7 @@ import type { I18nDictionary } from "./en.js";
 
 export const ru: I18nDictionary = {
   "cmd.description.status": "Статус сервера и сессии",
+  "cmd.description.language": "Change bot language",
   "cmd.description.new": "Создать новую сессию",
   "cmd.description.stop": "Прервать текущее действие",
   "cmd.description.detach": "Отсоединиться от текущей сессии",
@@ -170,6 +171,9 @@ export const ru: I18nDictionary = {
   "settings.value.on": "Вкл",
   "settings.value.off": "Выкл",
   "settings.saved": "✅ Настройка сохранена.",
+
+  "language.menu.title": "Select bot language:",
+  "language.selected": "Language set to {language}.",
 
   "projects.empty":
     "📭 Проектов нет.\n\nОткройте директорию в OpenCode и создайте хотя бы одну сессию, после этого она появится здесь.",

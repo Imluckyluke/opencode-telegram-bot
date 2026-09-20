@@ -9,6 +9,7 @@ import type { I18nDictionary } from "./en.js";
  */
 export const ko: I18nDictionary = {
   "cmd.description.status": "서버 및 세션 상태",
+  "cmd.description.language": "Change bot language",
   "cmd.description.new": "새 세션 만들기",
   "cmd.description.stop": "현재 작업 중지",
   "cmd.description.detach": "현재 세션에서 분리",
@@ -180,6 +181,9 @@ export const ko: I18nDictionary = {
   "settings.value.on": "켜기",
   "settings.value.off": "끄기",
   "settings.saved": "✅ 설정이 저장되었습니다.",
+
+  "language.menu.title": "Select bot language:",
+  "language.selected": "Language set to {language}.",
 
   "projects.empty":
     "📭 프로젝트가 없습니다.\n\nOpenCode에서 디렉터리를 열고 세션을 하나 이상 만들면 여기에 표시됩니다.",

@@ -9,6 +9,7 @@ import type { I18nDictionary } from "./en.js";
  */
 export const ar: I18nDictionary = {
   "cmd.description.status": "عرض حالة الخادم والجلسة",
+  "cmd.description.language": "Change bot language",
   "cmd.description.new": "بدء جلسة جديدة",
   "cmd.description.stop": "إيقاف المهمة الحالية",
   "cmd.description.detach": "الخروج من الجلسة دون إيقافها",
@@ -176,6 +177,9 @@ export const ar: I18nDictionary = {
   "settings.value.on": "مفعّل",
   "settings.value.off": "معطّل",
   "settings.saved": "✅ تم حفظ الإعداد.",
+
+  "language.menu.title": "Select bot language:",
+  "language.selected": "Language set to {language}.",
 
   "projects.empty":
     "📭 لم يتم العثور على مشاريع.\n\nافتح مجلدًا في OpenCode وأنشئ جلسة واحدة على الأقل، ثم سيظهر المشروع هنا.",

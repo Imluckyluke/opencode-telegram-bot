@@ -18,6 +18,7 @@ const INLINE_MENU_KINDS = [
   "ls",
   "worktree",
   "settings",
+  "language",
 ] as const;
 
 export type InlineMenuKind = (typeof INLINE_MENU_KINDS)[number];

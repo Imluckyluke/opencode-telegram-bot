@@ -2,6 +2,7 @@ import type { I18nDictionary } from "./en.js";
 
 export const fa: I18nDictionary = {
   "cmd.description.status": "وضعیت سرور و نشست",
+  "cmd.description.language": "تغییر زبان بات",
   "cmd.description.new": "ایجاد نشست جدید",
   "cmd.description.stop": "توقف اقدام جاری",
   "cmd.description.detach": "جدا شدن از نشست جاری",
@@ -172,6 +173,9 @@ export const fa: I18nDictionary = {
   "settings.value.on": "روشن",
   "settings.value.off": "خاموش",
   "settings.saved": "✅ تنظیم ذخیره شد.",
+
+  "language.menu.title": "🌐 زبان بات را انتخاب کنید:",
+  "language.selected": "✅ زبان به {language} تغییر کرد.",
 
   "projects.empty":
     "📭 پروژه‌ای یافت نشد.\n\nیک پوشه را در OpenCode باز کنید و حداقل یک نشست بسازید، بعد اینجا نمایش داده می‌شود.",

@@ -2,6 +2,7 @@ import type { I18nDictionary } from "./en.js";
 
 export const zh: I18nDictionary = {
   "cmd.description.status": "服务器和会话状态",
+  "cmd.description.language": "Change bot language",
   "cmd.description.new": "创建新会话",
   "cmd.description.stop": "停止当前操作",
   "cmd.description.detach": "从当前会话分离",
@@ -160,6 +161,9 @@ export const zh: I18nDictionary = {
   "settings.value.on": "开启",
   "settings.value.off": "关闭",
   "settings.saved": "✅ 设置已保存。",
+
+  "language.menu.title": "Select bot language:",
+  "language.selected": "Language set to {language}.",
 
   "projects.empty":
     "📭 未找到项目。\n\n在 OpenCode 中打开一个目录并至少创建一个会话，然后它会出现在这里。",

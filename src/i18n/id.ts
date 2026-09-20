@@ -9,6 +9,7 @@ import type { I18nDictionary } from "./en.js";
  */
 export const id: I18nDictionary = {
   "cmd.description.status": "Status server dan sesi",
+  "cmd.description.language": "Change bot language",
   "cmd.description.new": "Buat sesi baru",
   "cmd.description.stop": "Hentikan aksi saat ini",
   "cmd.description.detach": "Lepaskan dari sesi saat ini",
@@ -180,6 +181,9 @@ export const id: I18nDictionary = {
   "settings.value.on": "Aktif",
   "settings.value.off": "Nonaktif",
   "settings.saved": "✅ Pengaturan disimpan.",
+
+  "language.menu.title": "Select bot language:",
+  "language.selected": "Language set to {language}.",
 
   "projects.empty":
     "📭 Tidak ada proyek.\n\nBuka direktori di OpenCode dan buat minimal satu sesi, lalu proyek akan muncul di sini.",

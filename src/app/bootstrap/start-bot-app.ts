@@ -7,7 +7,8 @@ import {
   notifyOpencodeReadyIfHealthy,
   registerOpenCodeReadyRefreshHandler,
 } from "../../opencode/ready-refresh.js";
-import { flushSettings, loadSettings } from "../stores/settings-store.js";
+import { flushSettings, getPersistedLocale, loadSettings } from "../stores/settings-store.js";
+import { setRuntimeLocale } from "../../i18n/index.js";
 import { scheduledTaskRuntime } from "../services/scheduled-task-runtime-service.js";
 import { LocalCommandRegistry } from "../services/local-command-registry.js";
 import { BUILT_IN_COMMAND_NAMES } from "../../bot/commands/definitions.js";
@@ -204,6 +205,10 @@ export async function startBotApp(): Promise<void> {
   process.on("uncaughtException", uncaughtExceptionHandler);
 
   await loadSettings();
+  const persistedLocale = getPersistedLocale();
+  if (persistedLocale) {
+    setRuntimeLocale(persistedLocale);
+  }
   await reconcileStoredModelSelection();
   registerOpenCodeReadyRefreshHandler();
   const localCommandRegistry = await LocalCommandRegistry.load({

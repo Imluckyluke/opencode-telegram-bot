@@ -2,6 +2,7 @@ import type { ModelInfo } from "./model.js";
 import type { ProjectInfo } from "./project.js";
 import type { SessionDirectoryCacheInfo, SessionInfo } from "./session.js";
 import type { ScheduledTask } from "./scheduled-task.js";
+import type { Locale } from "../../i18n/index.js";
 
 export type ResponseStreamingMode = "edit" | "draft";
 
@@ -26,6 +27,7 @@ export interface Settings {
   sendDiffFileAttachments?: boolean | undefined;
   promptQueueEnabled?: boolean | undefined;
   showBottomKeyboard?: boolean | undefined;
+  locale?: Locale | undefined;
   sessionDirectoryCache?: SessionDirectoryCacheInfo | undefined;
   scheduledTasks?: ScheduledTask[] | undefined;
   scheduledTaskSessionIgnores?: ScheduledTaskSessionIgnoreInfo[] | undefined;

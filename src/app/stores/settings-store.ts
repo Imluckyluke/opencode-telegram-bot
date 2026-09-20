@@ -8,6 +8,7 @@ import type {
   ScheduledTaskSessionIgnoreInfo,
   Settings,
 } from "../types/settings.js";
+import type { Locale } from "../../i18n/index.js";
 import { config } from "../../config.js";
 import { getRuntimePaths } from "../../runtime/paths.js";
 import { logger } from "../../utils/logger.js";
@@ -263,6 +264,15 @@ export function getShowBottomKeyboard(): boolean {
 
 export function setShowBottomKeyboard(enabled: boolean): void {
   currentSettings.showBottomKeyboard = enabled;
+  void writeSettingsFile(currentSettings);
+}
+
+export function getPersistedLocale(): Locale | null {
+  return currentSettings.locale ?? null;
+}
+
+export function setPersistedLocale(locale: Locale): void {
+  currentSettings.locale = locale;
   void writeSettingsFile(currentSettings);
 }
 

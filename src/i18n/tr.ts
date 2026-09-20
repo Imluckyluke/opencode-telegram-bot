@@ -2,6 +2,7 @@ import type { I18nDictionary } from "./en.js";
 
 export const tr: I18nDictionary = {
   "cmd.description.status": "Sunucu ve oturum durumu",
+  "cmd.description.language": "Change bot language",
   "cmd.description.new": "Yeni oturum oluştur",
   "cmd.description.stop": "Geçerli işlemi durdur",
   "cmd.description.detach": "Geçerli oturumdan ayrıl",
@@ -174,6 +175,9 @@ export const tr: I18nDictionary = {
   "settings.value.on": "Açık",
   "settings.value.off": "Kapalı",
   "settings.saved": "✅ Ayar kaydedildi.",
+
+  "language.menu.title": "Select bot language:",
+  "language.selected": "Language set to {language}.",
 
   "projects.empty":
     "📭 Proje bulunamadı.\n\nOpenCode'da bir dizin açın ve en az bir oturum oluşturun, ardından burada görünecektir.",

@@ -2,6 +2,7 @@ import type { I18nDictionary } from "./en.js";
 
 export const es: I18nDictionary = {
   "cmd.description.status": "Estado del servidor y de la sesión",
+  "cmd.description.language": "Change bot language",
   "cmd.description.new": "Crear una sesión nueva",
   "cmd.description.stop": "Detener la acción actual",
   "cmd.description.detach": "Desconectar de la sesión actual",
@@ -179,6 +180,9 @@ export const es: I18nDictionary = {
   "settings.value.on": "Activado",
   "settings.value.off": "Desactivado",
   "settings.saved": "✅ Ajuste guardado.",
+
+  "language.menu.title": "Select bot language:",
+  "language.selected": "Language set to {language}.",
 
   "projects.empty":
     "📭 No se encontraron proyectos.\n\nAbre un directorio en OpenCode y crea al menos una sesión; entonces aparecerá aquí.",

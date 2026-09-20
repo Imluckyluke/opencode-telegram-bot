@@ -22,6 +22,7 @@ import { handlePermissionCallback } from "./permission-callback-handler.js";
 import { handleProjectSelect } from "./project-callback-handler.js";
 import { handlePromptAttachmentCancel } from "./prompt-attachment-callback-handler.js";
 import { handleQuestionCallback } from "./question-callback-handler.js";
+import { handleLanguageCallback } from "./language-callback-handler.js";
 import { handleRenameCancel } from "./rename-callback-handler.js";
 import { handleSettingsCallback } from "./settings-callback-handler.js";
 import {
@@ -86,6 +87,10 @@ export function registerCallbackRouter(bot: Bot<Context>, deps: CallbackRouterDe
     [
       "compact",
       { name: "compact", handlers: [handleCompactConfirm], errorScope: "interaction" },
+    ],
+    [
+      "language",
+      { name: "language", handlers: [handleLanguageCallback], errorScope: "none" },
     ],
     [
       "ls",
