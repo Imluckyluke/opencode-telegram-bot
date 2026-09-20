@@ -64,6 +64,12 @@ export const fa: I18nDictionary = {
   "help.group.automation": "⚙️ خودکارسازی",
   "help.group.system": "🛠 سیستم",
   "help.footer": "💡 نکته: با /status وضعیت سرور، پروژه، گفتگو و مدل را یک‌جا ببین.",
+  "inline.status.title": "📊 وضعیت بات",
+  "inline.status.description": "پروژه، گفتگو و مدل جاری",
+  "inline.ask.title": "▶ پرسیدن از گفتگوی جاری",
+  "inline.ask.description": "{query}",
+  "inline.posted.text": "⏳ {query}\n\nدارم روش کار می‌کنم…",
+  "inline.no_project": "🏗 پروژه انتخاب نشده است. اول در چت بات با /projects یکی انتخاب کن.",
   "help.text":
     "📖 **راهنما**\n\n/status - بررسی وضعیت سرور\n/sessions - فهرست نشست‌ها\n/new - ایجاد نشست جدید\n/help - راهنما",
 

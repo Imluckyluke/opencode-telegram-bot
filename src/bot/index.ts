@@ -25,6 +25,7 @@ import {
   registerCommandRouter,
 } from "./routers/command-router.js";
 import { registerMessageRouter } from "./routers/message-router.js";
+import { registerInlineRouter } from "./routers/inline-router.js";
 import {
   createEventSubscriptionService,
   type BotEventSubscriptionService,
@@ -221,6 +222,9 @@ export function createBot(localCommandRegistry = LocalCommandRegistry.empty()): 
   registerMessageRouter(bot, {
     ensureEventSubscription: eventSubscriptionService.ensureEventSubscription,
     setTelegramContext: eventSubscriptionService.setTelegramContext,
+  });
+  registerInlineRouter(bot, {
+    ensureEventSubscription: eventSubscriptionService.ensureEventSubscription,
   });
 
   safeBackgroundTask({

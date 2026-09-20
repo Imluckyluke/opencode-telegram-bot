@@ -181,6 +181,13 @@ export const it: I18nDictionary = {
   "settings.value.off": "Off",
   "settings.saved": "✅ Impostazione salvata.",
 
+  "inline.status.title": "Bot status",
+  "inline.status.description": "Current project, session, and model",
+  "inline.ask.title": "Ask current session",
+  "inline.ask.description": "{query}",
+  "inline.posted.text": "{query} (asked via bot, answer arrives in the bot chat)",
+  "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
+
   "help.intro": "Send any text as a prompt \u2014 no command needed.",
   "help.group.sessions": "Sessions & projects",
   "help.group.models": "Model & agent",

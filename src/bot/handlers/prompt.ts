@@ -79,7 +79,7 @@ export function consumePromptResponseMode(sessionId: string): PromptResponseMode
   return responseMode;
 }
 
-async function isSessionBusy(sessionId: string, directory: string): Promise<boolean> {
+export async function isSessionBusy(sessionId: string, directory: string): Promise<boolean> {
   try {
     const { data, error } = await opencodeClient.session.status({ directory });
 

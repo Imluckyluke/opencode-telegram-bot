@@ -67,6 +67,13 @@ export const en = {
   "help.group.system": "🛠 System",
   "help.footer":
     "💡 Tip: /status shows server, project, session, and model at a glance.",
+
+  "inline.status.title": "📊 Bot status",
+  "inline.status.description": "Current project, session, and model",
+  "inline.ask.title": "▶ Ask current session",
+  "inline.ask.description": "{query}",
+  "inline.posted.text": "⏳ {query}\n\nWorking on it…",
+  "inline.no_project": "🏗 Project is not selected. Open the bot chat and select one with /projects first.",
   "help.text":
     "📖 **Help**\n\n/status - Check server status\n/sessions - Session list\n/new - Create new session\n/help - Help",
 
