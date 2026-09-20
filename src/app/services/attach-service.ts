@@ -8,7 +8,6 @@ import type { PermissionRequest } from "../types/permission.js";
 import type { SessionInfo } from "../types/session.js";
 import { getCurrentSession } from "./session-service.js";
 import { getCurrentProject } from "../stores/settings-store.js";
-import { ensureSessionTopic } from "./dm-topic-service.js";
 import { attachManager } from "../managers/attach-manager.js";
 import { resetStreamThrottle } from "../../bot/streaming/stream-throttle.js";
 import { logger } from "../../utils/logger.js";
@@ -177,12 +176,6 @@ export async function attachToSession(deps: AttachSessionDeps): Promise<AttachSe
   }
 
   await syncPinnedAttachState();
-
-  // Every bound session gets its own DM topic (Threaded Mode).
-  // Awaited (not fire-and-forget) so the very first reply already lands in
-  // the topic instead of General. ensureSessionTopic never throws and is a
-  // synchronous map hit once the session is bound.
-  await ensureSessionTopic(bot.api, chatId, session);
 
   let restoredQuestion = false;
   let restoredPermissions = 0;

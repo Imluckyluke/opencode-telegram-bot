@@ -28,7 +28,6 @@ export interface Settings {
   promptQueueEnabled?: boolean | undefined;
   showBottomKeyboard?: boolean | undefined;
   locale?: Locale | undefined;
-  sessionTopics?: Record<string, number> | undefined;
   sessionDirectoryCache?: SessionDirectoryCacheInfo | undefined;
   scheduledTasks?: ScheduledTask[] | undefined;
   scheduledTaskSessionIgnores?: ScheduledTaskSessionIgnoreInfo[] | undefined;

@@ -276,33 +276,6 @@ export function setPersistedLocale(locale: Locale): void {
   void writeSettingsFile(currentSettings);
 }
 
-export function getSessionTopicMap(): Record<string, number> {
-  return currentSettings.sessionTopics ?? {};
-}
-
-export function getSessionTopicId(sessionId: string): number | null {
-  const threadId = currentSettings.sessionTopics?.[sessionId];
-  return typeof threadId === "number" && Number.isSafeInteger(threadId) ? threadId : null;
-}
-
-export function setSessionTopicId(sessionId: string, threadId: number): void {
-  if (!sessionId || !Number.isSafeInteger(threadId)) {
-    return;
-  }
-  currentSettings.sessionTopics = { ...currentSettings.sessionTopics, [sessionId]: threadId };
-  void writeSettingsFile(currentSettings);
-}
-
-export function clearSessionTopicId(sessionId: string): void {
-  if (!currentSettings.sessionTopics || !(sessionId in currentSettings.sessionTopics)) {
-    return;
-  }
-  const rest = { ...currentSettings.sessionTopics };
-  delete rest[sessionId];
-  currentSettings.sessionTopics = rest;
-  void writeSettingsFile(currentSettings);
-}
-
 export function getCurrentAgent(): string | undefined {
   return currentSettings.currentAgent;
 }

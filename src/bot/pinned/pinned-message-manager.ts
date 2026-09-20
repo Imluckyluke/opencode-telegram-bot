@@ -15,7 +15,6 @@ import {
   getModelContextLimit,
 } from "../../app/services/model-context-limit-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
-import { renameSessionTopic } from "../../app/services/dm-topic-service.js";
 import { isExpectedOpencodeUnavailableError } from "../../utils/opencode-error.js";
 import type { FileChange, PinnedMessageState, TokensInfo } from "./pinned-message-types.js";
 import { t } from "../../i18n/index.js";
@@ -617,11 +616,6 @@ class PinnedMessageManager {
       if (sessionData && sessionData.title !== this.state.sessionTitle) {
         this.state.sessionTitle = sessionData.title;
         logger.debug(`[PinnedManager] Session title refreshed: ${sessionData.title}`);
-        // Keep the DM topic name in sync (e.g. OpenCode-generated title after
-        // the first exchange, or a manual /rename).
-        if (this.api && this.chatId) {
-          await renameSessionTopic(this.api, this.chatId, session.id, sessionData.title);
-        }
       }
     } catch (err) {
       if (isExpectedOpencodeUnavailableError(err)) {
