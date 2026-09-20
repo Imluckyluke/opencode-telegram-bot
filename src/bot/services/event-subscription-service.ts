@@ -1,6 +1,3 @@
-import { promises as fs } from "fs";
-import * as path from "path";
-import { fileURLToPath } from "url";
 import { Bot, Context, InputFile } from "grammy";
 import { config } from "../../config.js";
 import { t } from "../../i18n/index.js";
@@ -109,12 +106,32 @@ const SUBAGENT_STREAM_PREFIX = "🧩";
 const TOOL_ELAPSED_TICK_INTERVAL_MS = 5000;
 const TOOL_ELAPSED_MAX_TRACKING_HOURS = 24;
 const TOOL_ELAPSED_MAX_TRACKING_MS = TOOL_ELAPSED_MAX_TRACKING_HOURS * 60 * 60 * 1000;
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const TEMP_DIR = path.join(__dirname, "..", "..", ".tmp");
 
 function isCompactProgressMode(): boolean {
   return getCompactOutputMode();
+}
+
+function getProviderRetryHint(message: string): string | null {
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes("rate_limit") ||
+    normalized.includes("rate limit") ||
+    normalized.includes("429") ||
+    normalized.includes("quota") ||
+    normalized.includes("too many requests")
+  ) {
+    return t("bot.session_retry_hint_rate_limit");
+  }
+  if (
+    normalized.includes("service_overloaded") ||
+    normalized.includes("overloaded") ||
+    normalized.includes("temporarily overloaded") ||
+    normalized.includes("upstream request failed") ||
+    normalized.includes("503")
+  ) {
+    return t("bot.session_retry_hint_overloaded");
+  }
+  return null;
 }
 
 type EventStreamItem = {
@@ -194,30 +211,21 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           return;
         }
 
-        const tempFilePath = path.join(TEMP_DIR, fileData.filename);
+        logger.debug(
+          `[Bot] Sending code file: ${fileData.filename} (${fileData.buffer.length} bytes, session=${sessionId})`,
+        );
 
-        try {
-          logger.debug(
-            `[Bot] Sending code file: ${fileData.filename} (${fileData.buffer.length} bytes, session=${sessionId})`,
-          );
+        const keyboard = this.getCurrentReplyKeyboard();
 
-          await fs.mkdir(TEMP_DIR, { recursive: true });
-          await fs.writeFile(tempFilePath, fileData.buffer);
-
-          const keyboard = this.getCurrentReplyKeyboard();
-
-          await this.botInstance.api.sendDocument(
-            this.chatIdInstance,
-            new InputFile(tempFilePath),
-            {
-              caption: fileData.caption,
-              disable_notification: true,
-              ...(keyboard ? { reply_markup: keyboard } : {}),
-            },
-          );
-        } finally {
-          await fs.unlink(tempFilePath).catch(() => {});
-        }
+        await this.botInstance.api.sendDocument(
+          this.chatIdInstance,
+          new InputFile(fileData.buffer, fileData.filename),
+          {
+            caption: fileData.caption,
+            disable_notification: true,
+            ...(keyboard ? { reply_markup: keyboard } : {}),
+          },
+        );
       },
     });
 
@@ -1303,7 +1311,10 @@ class EventSubscriptionService implements BotEventSubscriptionService {
           ? `${normalizedMessage.slice(0, 3497)}...`
           : normalizedMessage;
 
-      const retryMessage = t("bot.session_retry", { message: truncatedMessage });
+      const hint = getProviderRetryHint(normalizedMessage);
+      const retryMessage = hint
+        ? `${t("bot.session_retry", { message: truncatedMessage })}\n\n${hint}`
+        : t("bot.session_retry", { message: truncatedMessage });
       this.toolCallStreamer.replaceByPrefix(sessionId, SESSION_RETRY_PREFIX, retryMessage);
     });
 

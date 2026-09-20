@@ -81,6 +81,8 @@ export const zh: I18nDictionary = {
   "bot.stale_messages_skipped":
     "⚠️ Some messages were skipped while Telegram was unreachable. Please send them again.",
   "bot.session_retry": "🔁 {message}\n\n提供方在重复重试时持续返回同一错误。使用 /abort 可停止。",
+  "bot.session_retry_hint_rate_limit": "⏳ Rate limit hit. Wait 1-2 minutes, then send your message again. If it persists, switch to another model from the bottom keyboard or try /abort and retry.",
+  "bot.session_retry_hint_overloaded": "🐢 Provider is temporarily overloaded (free-tier traffic). Wait a bit and retry; if urgent, switch model or use /abort and send again.",
   "bot.external_user_input": "外部用户输入",
   "background.session_fallback": "会话 {id}",
   "background.assistant_response": "🔔 助手已在后台会话中回复：{session}",

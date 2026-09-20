@@ -89,6 +89,8 @@ export const ru: I18nDictionary = {
     "⚠️ Некоторые сообщения пропущены, пока не было связи с Telegram. Отправьте их ещё раз.",
   "bot.session_retry":
     "🔁 {message}\n\nПровайдер возвращает одну и ту же ошибку при повторных запросах. Используйте /abort для остановки.",
+  "bot.session_retry_hint_rate_limit": "⏳ Rate limit hit. Wait 1-2 minutes, then send your message again. If it persists, switch to another model from the bottom keyboard or try /abort and retry.",
+  "bot.session_retry_hint_overloaded": "🐢 Provider is temporarily overloaded (free-tier traffic). Wait a bit and retry; if urgent, switch model or use /abort and send again.",
   "bot.external_user_input": "Внешний ввод пользователя",
   "background.session_fallback": "сессия {id}",
   "background.assistant_response": "🔔 В фоновой сессии пришёл ответ ассистента: {session}",

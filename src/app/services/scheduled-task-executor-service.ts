@@ -3,6 +3,7 @@ import { t } from "../../i18n/index.js";
 import { opencodeClient } from "../../opencode/client.js";
 import { logger } from "../../utils/logger.js";
 import { extractErrorMessage } from "../../utils/opencode-error.js";
+import { withAgentContext } from "./agent-context-service.js";
 import {
   cleanupScheduledTaskSessionIgnores,
   registerScheduledTaskSessionIgnore,
@@ -526,7 +527,7 @@ export async function executeScheduledTask(
     } = {
       sessionID: session.id,
       directory: session.directory,
-      parts: [{ type: "text", text: task.prompt }],
+      parts: [{ type: "text", text: withAgentContext(task.prompt) }],
       agent: task.agent,
     };
 

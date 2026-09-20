@@ -97,6 +97,8 @@ export const ko: I18nDictionary = {
     "⚠️ Some messages were skipped while Telegram was unreachable. Please send them again.",
   "bot.session_retry":
     "🔁 {message}\n\n재시도할 때마다 동일한 오류가 반복됩니다. /abort로 중단하세요.",
+  "bot.session_retry_hint_rate_limit": "⏳ Rate limit hit. Wait 1-2 minutes, then send your message again. If it persists, switch to another model from the bottom keyboard or try /abort and retry.",
+  "bot.session_retry_hint_overloaded": "🐢 Provider is temporarily overloaded (free-tier traffic). Wait a bit and retry; if urgent, switch model or use /abort and send again.",
   "bot.external_user_input": "외부 사용자 입력",
   "background.session_fallback": "세션 {id}",
   "background.assistant_response": "🔔 백그라운드 세션에서 답변이 도착했습니다: {session}",

@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import { getRuntimePaths } from "./runtime/paths.js";
 import { normalizeLocale, type Locale } from "./i18n/index.js";
+import { DEFAULT_AGENT_CONTEXT_NOTE } from "./app/services/agent-context-service.js";
 
 const runtimePaths = getRuntimePaths();
 dotenv.config({ path: runtimePaths.envFilePath, quiet: true });
@@ -140,6 +141,20 @@ function getOptionalTtsProviderEnvVar(key: string, defaultValue: TtsProvider): T
 
 const VALID_STT_REQUEST_FORMATS: SttRequestFormat[] = ["multipart", "json"];
 
+export { DEFAULT_AGENT_CONTEXT_NOTE };
+
+function getAgentContextNote(): string {
+  const value = getEnvVar("AGENT_CONTEXT_NOTE", false);
+  if (!value) {
+    return DEFAULT_AGENT_CONTEXT_NOTE;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (["0", "false", "no", "off", "disabled"].includes(normalized)) {
+    return "";
+  }
+  return value.trim();
+}
+
 function getOptionalSttRequestFormatEnvVar(
   key: string,
   defaultValue: SttRequestFormat,
@@ -189,12 +204,23 @@ export function buildTelegramConfig(): {
 
   return {
     token: getEnvVar("TELEGRAM_BOT_TOKEN"),
-    allowedUserId: parseInt(getEnvVar("TELEGRAM_ALLOWED_USER_ID"), 10),
+    allowedUserId: parseAllowedUserId(),
     proxyUrl,
     apiRoot,
     proxySecret,
     forceIpv4,
   };
+}
+
+function parseAllowedUserId(): number {
+  const raw = getEnvVar("TELEGRAM_ALLOWED_USER_ID");
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(
+      `Invalid TELEGRAM_ALLOWED_USER_ID: "${raw}". It must be a positive numeric Telegram user ID.`,
+    );
+  }
+  return parsed;
 }
 
 export const config = {
@@ -239,12 +265,15 @@ export const config = {
     excludedProjectPaths: getOptionalPathListEnvVar("PROJECTS_EXCLUDED_PATHS"),
   },
   files: {
-    maxFileSizeKb: parseInt(getEnvVar("CODE_FILE_MAX_SIZE_KB", false) || "100", 10),
+    maxFileSizeKb: getOptionalPositiveIntEnvVar("CODE_FILE_MAX_SIZE_KB", 100),
     outputFileEnabled: getOptionalBooleanEnvVar("OUTPUT_FILE_ENABLED", true),
     outputFileThresholdChars: getOptionalPositiveIntEnvVar("OUTPUT_FILE_THRESHOLD_CHARS", 20000),
   },
   open: {
     browserRoots: getEnvVar("OPEN_BROWSER_ROOTS", false),
+  },
+  agent: {
+    contextNote: getAgentContextNote(),
   },
   stt: {
     apiUrl: getEnvVar("STT_API_URL", false),
@@ -262,13 +291,19 @@ export const config = {
   },
   tts: (() => {
     const provider = getOptionalTtsProviderEnvVar("TTS_PROVIDER", "openai");
+    const locale = normalizeLocale(getEnvVar("BOT_LOCALE", false), "en");
+    const isFa = locale === "fa";
     const defaultVoice =
       provider === "google"
-        ? "en-US-Studio-O"
+        ? isFa
+          ? "fa-IR-Standard-A"
+          : "en-US-Studio-O"
         : provider === "elevenlabs"
           ? "21m00Tcm4TlvDq8ikWAM"
           : provider === "edge"
-            ? "en-US-EmmaMultilingualNeural"
+            ? isFa
+              ? "fa-IR-DilaraNeural"
+              : "en-US-EmmaMultilingualNeural"
             : "alloy";
     const defaultModel = provider === "elevenlabs" ? "eleven_flash_v2_5" : "gpt-4o-mini-tts";
     return {

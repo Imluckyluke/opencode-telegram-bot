@@ -205,6 +205,6 @@ Agent picker behavior:
 
 Open tasks for upcoming iterations:
 
-- [ ] Model search in model switcher
+- [x] Model search in model switcher
 - [x] Docker runtime support and deployment guide
 - [x] Add a bot settings command with in-chat UI

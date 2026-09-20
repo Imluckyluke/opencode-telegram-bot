@@ -97,6 +97,8 @@ export const id: I18nDictionary = {
     "⚠️ Beberapa pesan terlewat saat Telegram tidak bisa dijangkau. Kirim ulang pesan-pesan itu.",
   "bot.session_retry":
     "🔁 {message}\n\nProvider terus mengembalikan kesalahan yang sama meski diulang berkali-kali. Gunakan /abort untuk menghentikan.",
+  "bot.session_retry_hint_rate_limit": "⏳ Rate limit hit. Wait 1-2 minutes, then send your message again. If it persists, switch to another model from the bottom keyboard or try /abort and retry.",
+  "bot.session_retry_hint_overloaded": "🐢 Provider is temporarily overloaded (free-tier traffic). Wait a bit and retry; if urgent, switch model or use /abort and send again.",
   "bot.external_user_input": "Input pengguna eksternal",
   "background.session_fallback": "sesi {id}",
   "background.assistant_response": "🔔 Asisten membalas di sesi latar belakang: {session}",

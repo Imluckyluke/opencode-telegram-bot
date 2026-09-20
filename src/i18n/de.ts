@@ -93,6 +93,8 @@ export const de: I18nDictionary = {
     "⚠️ Some messages were skipped while Telegram was unreachable. Please send them again.",
   "bot.session_retry":
     "🔁 {message}\n\nDer Provider liefert bei wiederholten Versuchen immer wieder denselben Fehler. Mit /abort abbrechen.",
+  "bot.session_retry_hint_rate_limit": "⏳ Rate limit hit. Wait 1-2 minutes, then send your message again. If it persists, switch to another model from the bottom keyboard or try /abort and retry.",
+  "bot.session_retry_hint_overloaded": "🐢 Provider is temporarily overloaded (free-tier traffic). Wait a bit and retry; if urgent, switch model or use /abort and send again.",
   "bot.external_user_input": "Externe Benutzereingabe",
   "background.session_fallback": "Sitzung {id}",
   "background.assistant_response":

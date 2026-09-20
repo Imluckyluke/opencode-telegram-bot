@@ -439,7 +439,7 @@ describe("bot/handlers/prompt", () => {
     expect(mocked.sessionPromptAsyncMock).toHaveBeenCalledWith(
       expect.objectContaining({
         parts: [
-          { type: "text", text: "See attached files" },
+          { type: "text", text: expect.stringContaining("See attached files") },
           expect.objectContaining({ type: "file", mime: "image/png" }),
           expect.objectContaining({ type: "file", mime: "image/png" }),
         ],
@@ -487,7 +487,7 @@ describe("bot/handlers/prompt", () => {
     expect(mocked.sessionPromptAsyncMock).toHaveBeenCalledWith(
       expect.objectContaining({
         parts: [
-          { type: "text", text: "See attached file" },
+          { type: "text", text: expect.stringContaining("See attached file") },
           expect.objectContaining({
             type: "file",
             mime: "image/jpeg",
