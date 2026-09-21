@@ -53,6 +53,12 @@ export async function ensureCommandsInitialized(
   }
 
   if (!ctx.chat) {
+    // Inline queries and chosen results carry no chat context by design.
+    if (!ctx.message && !ctx.callbackQuery) {
+      logger.debug("[Bot] Skipping command init: no chat context on this update type");
+      await next();
+      return;
+    }
     logger.warn("[Bot] Cannot initialize commands: chat context is missing");
     await next();
     return;
