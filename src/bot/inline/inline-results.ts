@@ -81,6 +81,40 @@ export function formatInlineAnswer(query: string, answer: string): string {
   return `❓ ${query.trim()}\n\n${answer.trim()}`;
 }
 
+export interface GuestPhotoInput {
+  fileId: string;
+  fileSize?: number | undefined;
+}
+
+interface PhotoSizeLike {
+  file_id: string;
+  file_size?: number | undefined;
+}
+
+interface GuestMessageLike {
+  photo?: PhotoSizeLike[] | undefined;
+  reply_to_message?: { photo?: PhotoSizeLike[] | undefined } | undefined;
+}
+
+function pickLargestPhoto(photos: PhotoSizeLike[] | undefined): GuestPhotoInput | null {
+  if (!photos || photos.length === 0) {
+    return null;
+  }
+  const largest = photos[photos.length - 1];
+  if (!largest || !largest.file_id) {
+    return null;
+  }
+  return { fileId: largest.file_id, fileSize: largest.file_size };
+}
+
+/** Photo from the message itself, falling back to the replied-to message. */
+export function extractGuestPhoto(message: GuestMessageLike | undefined): GuestPhotoInput | null {
+  if (!message) {
+    return null;
+  }
+  return pickLargestPhoto(message.photo) ?? pickLargestPhoto(message.reply_to_message?.photo);
+}
+
 function buildStatusMessageText(snapshot: InlineSnapshot): string {
   const lines = [
     `📊 ${t("inline.status.title")}`,

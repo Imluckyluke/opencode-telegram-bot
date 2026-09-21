@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildInlineResults,
   consumePendingInlineQuery,
+  extractGuestPhoto,
   INLINE_STATUS_RESULT_ID,
   truncateInlineText,
 } from "../../../src/bot/inline/inline-results.js";
@@ -52,5 +53,23 @@ describe("bot/inline/inline-results", () => {
     const long = truncateInlineText("x".repeat(5000));
     expect(long.length).toBeLessThanOrEqual(4000);
     expect(long.endsWith("…")).toBe(true);
+  });
+
+  it("extracts the largest photo, preferring the message over the reply", () => {
+    expect(extractGuestPhoto(undefined)).toBeNull();
+    expect(extractGuestPhoto({})).toBeNull();
+    expect(
+      extractGuestPhoto({
+        photo: [
+          { file_id: "small", file_size: 100 },
+          { file_id: "big", file_size: 900 },
+        ],
+      }),
+    ).toEqual({ fileId: "big", fileSize: 900 });
+    expect(
+      extractGuestPhoto({
+        reply_to_message: { photo: [{ file_id: "replied" }] },
+      }),
+    ).toEqual({ fileId: "replied", fileSize: undefined });
   });
 });

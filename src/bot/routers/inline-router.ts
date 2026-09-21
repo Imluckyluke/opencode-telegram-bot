@@ -16,11 +16,21 @@ import { isSessionBusy } from "../handlers/prompt.js";
 import {
   buildInlineResults,
   consumePendingInlineQuery,
+  extractGuestPhoto,
   formatInlineAnswer,
   truncateInlineText,
+  type GuestPhotoInput,
   type InlineSnapshot,
 } from "../inline/inline-results.js";
 import { renderAssistantFinalPartsSafe } from "../messages/assistant-rendering.js";
+import {
+  downloadTelegramFile,
+  toDataUri,
+} from "../../app/services/file-download-service.js";
+import {
+  getModelCapabilities,
+  supportsInput,
+} from "../../app/services/model-capabilities-service.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { formatContextLine } from "../pinned/pinned-message-format.js";
 
@@ -91,14 +101,40 @@ async function getInlineSession(directory: string): Promise<InlineSession | null
 }
 
 /**
- * Runs a text-only prompt from an inline query in the dedicated inline
+ * Runs a prompt from an inline query or guest summons in the dedicated inline
  * session. Nothing is sent to the DM chat: failures are reported through
  * onFailureNotice so the caller can edit the inline message instead.
  */
+const GUEST_PHOTO_MAX_BYTES = 20 * 1024 * 1024;
+
+async function downloadGuestPhoto(
+  api: Bot<Context>["api"],
+  photo: GuestPhotoInput,
+): Promise<{ type: "file"; mime: string; filename: string; url: string } | null> {
+  if (typeof photo.fileSize === "number" && photo.fileSize > GUEST_PHOTO_MAX_BYTES) {
+    logger.warn(`[Bot] Guest photo too large: bytes=${photo.fileSize}`);
+    return null;
+  }
+  try {
+    const downloaded = await downloadTelegramFile(api, photo.fileId);
+    return {
+      type: "file",
+      mime: "image/jpeg",
+      filename: "photo.jpg",
+      url: toDataUri(downloaded.buffer, "image/jpeg"),
+    };
+  } catch (error) {
+    logger.warn("[Bot] Guest photo download failed:", error);
+    return null;
+  }
+}
+
 async function runInlinePrompt(
   deps: InlineRouterDeps,
+  api: Bot<Context>["api"],
   text: string,
   onFailureNotice: (notice: string) => void,
+  photo?: GuestPhotoInput | null,
 ): Promise<{ sessionId: string; directory: string; startedAt: number } | null> {
   const project = getCurrentProject();
   if (!project) {
@@ -133,17 +169,37 @@ async function runInlinePrompt(
   const currentAgent = await resolveProjectAgent(getStoredAgent());
   const storedModel = getStoredModel();
   const notedText = withAgentContext(text);
+  const fileParts: Array<{ type: "file"; mime: string; filename: string; url: string }> = [];
+  if (photo) {
+    const capabilities = await getModelCapabilities(
+      storedModel.providerID,
+      storedModel.modelID,
+    ).catch(() => null);
+    if (capabilities && !supportsInput(capabilities, "image")) {
+      logger.warn(
+        `[Bot] Model ${storedModel.providerID}/${storedModel.modelID} doesn't support image input, sending text only`,
+      );
+    } else {
+      const downloaded = await downloadGuestPhoto(api, photo);
+      if (downloaded) {
+        fileParts.push(downloaded);
+      }
+    }
+  }
   const promptOptions: {
     sessionID: string;
     directory: string;
-    parts: Array<{ type: "text"; text: string }>;
+    parts: Array<
+      | { type: "text"; text: string }
+      | { type: "file"; mime: string; filename: string; url: string }
+    >;
     model?: { providerID: string; modelID: string };
     agent?: string;
     variant?: string;
   } = {
     sessionID: inlineSession.id,
     directory: inlineSession.directory,
-    parts: [{ type: "text", text: notedText }],
+    parts: [{ type: "text", text: notedText }, ...fileParts],
     agent: currentAgent,
   };
   if (storedModel.providerID && storedModel.modelID) {
@@ -410,7 +466,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       void editInlineMessage(bot.api, inlineMessageId, queryText, notice);
     };
     try {
-      const run = await runInlinePrompt(deps, queryText, notifyInline);
+      const run = await runInlinePrompt(deps, bot.api, queryText, notifyInline);
       if (run) {
         void streamInlineAnswer(
           bot.api,
@@ -441,11 +497,13 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       return;
     }
     const text = (guest.text ?? guest.caption ?? "").trim().slice(0, 4000);
-    if (!text) {
-      logger.info(`[Bot] Ignoring guest textless message: caller=${callerId}`);
+    const photo = extractGuestPhoto(guest);
+    if (!text && !photo) {
+      logger.info(`[Bot] Ignoring guest message without text or photo: caller=${callerId}`);
       return;
     }
-    logger.info(`[Bot] Guest summons accepted: caller=${callerId}, queryLength=${text.length}`);
+    const question = text || "See attached file";
+    logger.info(`[Bot] Guest summons accepted: caller=${callerId}, queryLength=${question.length}, hasPhoto=${Boolean(photo)}`);
 
     // Answer immediately with a working placeholder; the returned
     // inline_message_id lets us stream the real answer into it in place.
@@ -457,7 +515,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
         id: `guest${Date.now().toString(36)}`,
         title: t("inline.ask.title"),
         input_message_content: {
-          message_text: t("inline.posted.text", { query: text }),
+          message_text: t("inline.posted.text", { query: question }),
         },
         ...(botUsername
           ? {
@@ -480,10 +538,10 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       return;
     }
     const notifyGuest = (notice: string) => {
-      void editInlineMessage(bot.api, inlineMessageId, text, notice, false);
+      void editInlineMessage(bot.api, inlineMessageId, question, notice, false);
     };
     try {
-      const run = await runInlinePrompt(deps, text, notifyGuest);
+      const run = await runInlinePrompt(deps, bot.api, question, notifyGuest, photo);
       if (run) {
         void streamInlineAnswer(
           bot.api,
@@ -491,7 +549,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
           run.sessionId,
           run.directory,
           run.startedAt,
-          text,
+          question,
           false,
         ).finally(() => {
           inlineRunInFlight = false;
