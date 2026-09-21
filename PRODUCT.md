@@ -211,4 +211,6 @@ Open tasks for upcoming iterations:
 - [x] Inline mode: ask from any chat, answer edited in place with the question on top; runs use a dedicated ⚡ Inline session so the DM chat stays silent
 - [x] Guest mode (BotFather): answer summoned questions in groups without membership; runs share the ⚡ Inline session, caller must be whitelisted
 - [x] Guest photo support: direct photos, captioned photos, and replies on photos reach the model
+- [x] Guest files under 10MB (photos, office docs, text, voice transcripts), direct or via reply
+- [x] Separate fast model for inline/guest answers (`/inlinemodel`, env defaults, main model untouched)
 - [x] Automatic session compaction at a configurable context threshold (`AUTO_COMPACT_THRESHOLD_PERCENT`)

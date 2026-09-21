@@ -1,4 +1,8 @@
-import { getCurrentModel, setCurrentModel } from "../stores/settings-store.js";
+import {
+  getCurrentModel,
+  getInlineModel as getPersistedInlineModel,
+  setCurrentModel,
+} from "../stores/settings-store.js";
 import { config } from "../../config.js";
 import { opencodeClient } from "../../opencode/client.js";
 import { isServerUnavailableError } from "../../utils/opencode-error.js";
@@ -432,6 +436,41 @@ export async function searchModels(query: string): Promise<FavoriteModel[]> {
  */
 export function fetchCurrentModel(): ModelInfo {
   return getStoredModel();
+}
+
+/**
+ * Fast free default for inline/guest runs when nothing else is configured.
+ */
+export const DEFAULT_INLINE_MODEL: ModelInfo = {
+  providerID: "opencode",
+  modelID: "mimo-v2.6-flash-free",
+  variant: "default",
+};
+
+/**
+ * Model for inline/guest runs: explicit in-chat selection first, then env
+ * defaults, then a fast free fallback (NOT the main model, so quick asks
+ * stay cheap and the main model stays untouched).
+ */
+export function getStoredInlineModel(): ModelInfo {
+  const stored = getPersistedInlineModel();
+  if (stored?.providerID && stored?.modelID) {
+    return {
+      providerID: stored.providerID,
+      modelID: stored.modelID,
+      variant: stored.variant || "default",
+    };
+  }
+  const envProvider = config.opencode.inlineModel.provider;
+  const envModelId = config.opencode.inlineModel.modelId;
+  if (envProvider && envModelId) {
+    return {
+      providerID: envProvider,
+      modelID: envModelId,
+      variant: config.opencode.inlineModel.variant || "default",
+    };
+  }
+  return { ...DEFAULT_INLINE_MODEL };
 }
 
 /**

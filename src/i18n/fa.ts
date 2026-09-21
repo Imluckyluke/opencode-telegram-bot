@@ -192,6 +192,13 @@ export const fa: I18nDictionary = {
   "language.menu.title": "🌐 زبان بات را انتخاب کنید:",
   "language.selected": "✅ زبان به {language} تغییر کرد.",
 
+  "inlinemodel.current": "⚡ مدل اینلاین/گست: {model}",
+  "inlinemodel.following": "⚡ مدل اینلاین/گست روی پیش‌فرض سریع رایگان است.",
+  "inlinemodel.saved": "✅ مدل اینلاین/گست شد {model}.",
+  "inlinemodel.cleared": "✅ مدل اینلاین/گست به پیش‌فرض برگشت.",
+  "inlinemodel.invalid": "⚠️ مدل ناشناخته. به شکل provider/model-id بنویس، مثلاً opencode/mimo-v2.6-flash-free — یا /inlinemodel default.",
+  "inlinemodel.usage": "طرز استفاده: /inlinemodel provider/model-id — یا /inlinemodel default برای بازگشت.",
+
   "projects.empty":
     "📭 پروژه‌ای یافت نشد.\n\nیک پوشه را در OpenCode باز کنید و حداقل یک نشست بسازید، بعد اینجا نمایش داده می‌شود.",
   "projects.select": "یک پروژه انتخاب کنید:",
@@ -614,6 +621,7 @@ export const fa: I18nDictionary = {
   "cmd.description.model": "انتخاب مدل از همه مدل‌های در دسترس",
   "cmd.description.agent": "انتخاب ایجنت (ساخت یا برنامه‌ریزی)",
   "cmd.description.variant": "انتخاب واریانت مدل",
+  "cmd.description.inlinemodel": "مدل جواب‌های اینلاین و گست",
 
   "legacy.models.fetch_error":
     "🔴 دریافت فهرست مدل‌ها ناموفق بود. با /status وضعیت سرور را بررسی کنید.",

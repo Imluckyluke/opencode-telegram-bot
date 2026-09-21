@@ -253,6 +253,11 @@ export const config = {
       provider: getEnvVar("OPENCODE_MODEL_PROVIDER", true), // Required
       modelId: getEnvVar("OPENCODE_MODEL_ID", true), // Required
     },
+    inlineModel: {
+      provider: getEnvVar("INLINE_MODEL_PROVIDER", false),
+      modelId: getEnvVar("INLINE_MODEL_ID", false),
+      variant: getEnvVar("INLINE_MODEL_VARIANT", false),
+    },
   },
   server: {
     logLevel: getEnvVar("LOG_LEVEL", false) || "info",

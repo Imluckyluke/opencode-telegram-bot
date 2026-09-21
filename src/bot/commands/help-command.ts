@@ -16,7 +16,7 @@ const HELP_GROUPS: HelpGroup[] = [
   },
   {
     titleKey: "help.group.models",
-    commands: ["model", "agent", "variant"],
+    commands: ["model", "agent", "variant", "inlinemodel"],
   },
   {
     titleKey: "help.group.automation",

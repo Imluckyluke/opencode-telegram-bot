@@ -194,6 +194,13 @@ export const en = {
   "language.menu.title": "🌐 Select bot language:",
   "language.selected": "✅ Language set to {language}.",
 
+  "inlinemodel.current": "⚡ Inline/guest model: {model}",
+  "inlinemodel.following": "⚡ Inline/guest model follows the fast free default.",
+  "inlinemodel.saved": "✅ Inline/guest model set to {model}.",
+  "inlinemodel.cleared": "✅ Inline/guest model reset to default.",
+  "inlinemodel.invalid": "⚠️ Unknown model. Use provider/model-id, e.g. opencode/mimo-v2.6-flash-free — or /inlinemodel default.",
+  "inlinemodel.usage": "Usage: /inlinemodel provider/model-id — or /inlinemodel default to reset.",
+
   "projects.empty":
     "📭 No projects found.\n\nOpen a directory in OpenCode and create at least one session, then it will appear here.",
   "projects.select": "Select a project:",
@@ -631,6 +638,7 @@ export const en = {
   "cmd.description.model": "Select model",
   "cmd.description.agent": "Select agent",
   "cmd.description.variant": "Select variant",
+  "cmd.description.inlinemodel": "Model for inline and guest answers",
 
   "legacy.models.fetch_error": "🔴 Failed to get models list. Check server status with /status.",
   "legacy.models.empty": "📋 No available models. Configure providers in OpenCode.",

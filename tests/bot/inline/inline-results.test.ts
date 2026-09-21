@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   buildInlineResults,
   consumePendingInlineQuery,
+  extractGuestDocument,
   extractGuestPhoto,
+  extractGuestReplyText,
+  extractGuestVoice,
+  guestVoiceFilename,
   INLINE_STATUS_RESULT_ID,
+  stripBotMention,
   truncateInlineText,
 } from "../../../src/bot/inline/inline-results.js";
 import type { InlineSnapshot } from "../../../src/bot/inline/inline-results.js";
@@ -71,5 +76,39 @@ describe("bot/inline/inline-results", () => {
         reply_to_message: { photo: [{ file_id: "replied" }] },
       }),
     ).toEqual({ fileId: "replied", fileSize: undefined });
+  });
+
+  it("extracts documents and voice, preferring direct over replied", () => {
+    expect(
+      extractGuestDocument({ document: { file_id: "d1", mime_type: "application/pdf", file_name: "a.pdf" } }),
+    ).toEqual({ fileId: "d1", fileSize: undefined, mime: "application/pdf", filename: "a.pdf" });
+    expect(
+      extractGuestDocument({ reply_to_message: { document: { file_id: "d2" } } }),
+    ).toEqual({ fileId: "d2", fileSize: undefined, mime: undefined, filename: undefined });
+    expect(extractGuestDocument({})).toBeNull();
+    expect(
+      extractGuestVoice({ voice: { file_id: "v1", mime_type: "audio/ogg" } }),
+    ).toEqual({ fileId: "v1", fileSize: undefined, mime: "audio/ogg" });
+    expect(
+      extractGuestVoice({ reply_to_message: { audio: { file_id: "a1" } } }),
+    ).toEqual({ fileId: "a1", fileSize: undefined, mime: undefined });
+    expect(extractGuestVoice({})).toBeNull();
+    expect(guestVoiceFilename("audio/mpeg")).toBe("voice.mp3");
+    expect(guestVoiceFilename("audio/mp4")).toBe("voice.m4a");
+    expect(guestVoiceFilename(undefined)).toBe("voice.ogg");
+  });
+
+  it("extracts reply text and strips bot mentions", () => {
+    expect(extractGuestReplyText(undefined)).toBeNull();
+    expect(extractGuestReplyText({})).toBeNull();
+    expect(
+      extractGuestReplyText({ reply_to_message: { text: "  original question  " } }),
+    ).toBe("original question");
+    expect(
+      extractGuestReplyText({ reply_to_message: { caption: "cap" } }),
+    ).toBe("cap");
+    expect(stripBotMention("@ImLuckylukebot این چیه؟", "ImLuckylukebot")).toBe("این چیه؟");
+    expect(stripBotMention("hi @imluckylukebot there", "ImLuckylukebot")).toBe("hi there");
+    expect(stripBotMention("untouched", null)).toBe("untouched");
   });
 });

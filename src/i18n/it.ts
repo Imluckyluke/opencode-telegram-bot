@@ -200,6 +200,13 @@ export const it: I18nDictionary = {
   "language.menu.title": "Select bot language:",
   "language.selected": "Language set to {language}.",
 
+  "inlinemodel.current": "Inline/guest model: {model}",
+  "inlinemodel.following": "Inline/guest model follows the fast free default.",
+  "inlinemodel.saved": "Inline/guest model set to {model}.",
+  "inlinemodel.cleared": "Inline/guest model reset to default.",
+  "inlinemodel.invalid": "Unknown model. Use provider/model-id.",
+  "inlinemodel.usage": "Usage: /inlinemodel provider/model-id, or /inlinemodel default to reset.",
+
   "projects.empty":
     "📭 Nessun progetto trovato.\n\nApri una directory in OpenCode e crea almeno una sessione: poi apparirà qui.",
   "projects.select": "Seleziona un progetto:",
@@ -649,6 +656,7 @@ export const it: I18nDictionary = {
   "cmd.description.model": "Select model",
   "cmd.description.agent": "Select agent",
   "cmd.description.variant": "Select variant",
+  "cmd.description.inlinemodel": "Model for inline and guest answers",
 
   "legacy.models.fetch_error":
     "🔴 Recupero dell'elenco dei modelli non riuscito. Controlla lo stato del server con /status.",

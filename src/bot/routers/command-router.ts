@@ -25,6 +25,7 @@ import { startCommand } from "../commands/start-command.js";
 import { helpCommand } from "../commands/help-command.js";
 import { statusCommand } from "../commands/status-command.js";
 import { languageCommand } from "../commands/language-command.js";
+import { inlineModelCommand } from "../commands/inline-model-command.js";
 import { BOT_COMMANDS } from "../commands/definitions.js";
 import { logger } from "../../utils/logger.js";
 import { flushPendingPrompt } from "../handlers/message-merger.js";
@@ -126,6 +127,7 @@ export function registerCommandRouter(bot: Bot<Context>, deps: CommandRouterDeps
   bot.command("help", helpCommand);
   bot.command("status", statusCommand);
   bot.command("language", languageCommand);
+  bot.command("inlinemodel", inlineModelCommand);
   bot.command("settings", settingsCommand);
   bot.command("opencode_start", opencodeStartCommand);
   bot.command("opencode_stop", (ctx) =>

@@ -31,6 +31,7 @@ export const ar: I18nDictionary = {
   "cmd.description.model": "Select model",
   "cmd.description.agent": "Select agent",
   "cmd.description.variant": "Select variant",
+  "cmd.description.inlinemodel": "Model for inline and guest answers",
   "cmd.description.open": "إضافة مشروع عبر استعراض المجلدات",
 
   "callback.unknown_command": "الأمر غير معروف",
@@ -196,6 +197,13 @@ export const ar: I18nDictionary = {
 
   "language.menu.title": "Select bot language:",
   "language.selected": "Language set to {language}.",
+
+  "inlinemodel.current": "Inline/guest model: {model}",
+  "inlinemodel.following": "Inline/guest model follows the fast free default.",
+  "inlinemodel.saved": "Inline/guest model set to {model}.",
+  "inlinemodel.cleared": "Inline/guest model reset to default.",
+  "inlinemodel.invalid": "Unknown model. Use provider/model-id.",
+  "inlinemodel.usage": "Usage: /inlinemodel provider/model-id, or /inlinemodel default to reset.",
 
   "projects.empty":
     "📭 لم يتم العثور على مشاريع.\n\nافتح مجلدًا في OpenCode وأنشئ جلسة واحدة على الأقل، ثم سيظهر المشروع هنا.",

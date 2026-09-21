@@ -1,13 +1,15 @@
 import type { Bot, Context } from "grammy";
+import type { FilePartInput } from "@opencode-ai/sdk/v2";
 import { isAllowedTelegramUser } from "../../config.js";
 import { opencodeClient } from "../../opencode/client.js";
 import { getCurrentSession } from "../../app/services/session-service.js";
 import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
 import { getCurrentProject } from "../../app/stores/settings-store.js";
 import { getStoredAgent, resolveProjectAgent } from "../../app/services/agent-selection-service.js";
-import { getStoredModel } from "../../app/services/model-selection-service.js";
+import { getStoredInlineModel, getStoredModel } from "../../app/services/model-selection-service.js";
 import { backgroundSessionTracker } from "../../app/managers/background-session-manager.js";
 import { withAgentContext } from "../../app/services/agent-context-service.js";
+import { prepareGuestFiles, type GuestFileInput } from "../inline/guest-files.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { formatErrorDetails } from "../../utils/error-format.js";
 import { logger } from "../../utils/logger.js";
@@ -16,21 +18,17 @@ import { isSessionBusy } from "../handlers/prompt.js";
 import {
   buildInlineResults,
   consumePendingInlineQuery,
+  extractGuestDocument,
   extractGuestPhoto,
+  extractGuestReplyText,
+  extractGuestVoice,
   formatInlineAnswer,
+  guestVoiceFilename,
+  stripBotMention,
   truncateInlineText,
-  type GuestPhotoInput,
   type InlineSnapshot,
 } from "../inline/inline-results.js";
 import { renderAssistantFinalPartsSafe } from "../messages/assistant-rendering.js";
-import {
-  downloadTelegramFile,
-  toDataUri,
-} from "../../app/services/file-download-service.js";
-import {
-  getModelCapabilities,
-  supportsInput,
-} from "../../app/services/model-capabilities-service.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { formatContextLine } from "../pinned/pinned-message-format.js";
 
@@ -60,81 +58,46 @@ function buildSnapshot(): InlineSnapshot {
  * only delivers for the current session, and background notifications for
  * this session are muted. One per project directory, reused across asks.
  */
-const INLINE_SESSION_TITLE = "⚡ Inline";
+/**
+ * Every inline/guest ask runs in a FRESH session titled after the question,
+ * so answers can never bleed in from previous asks' memory. Nothing is sent
+ * to the DM chat: failures are reported through onFailureNotice so the
+ * caller can edit the inline message instead.
+ */
+const INLINE_SESSION_TITLE_PREFIX = "⚡ ";
 
 let inlineRunInFlight = false;
+
+function inlineSessionTitle(question: string): string {
+  const snippet = question.replace(/\s+/g, " ").trim().slice(0, 40) || "ask";
+  return `${INLINE_SESSION_TITLE_PREFIX}${snippet}`;
+}
 
 interface InlineSession {
   id: string;
   directory: string;
 }
 
-async function findInlineSession(directory: string): Promise<InlineSession | null> {
-  const { data, error } = await opencodeClient.session.list({
-    directory,
-    limit: 50,
-    roots: true,
-  });
-  if (error || !data) {
-    return null;
-  }
-  const found = (data as Array<{ id?: string; title?: string }>).find(
-    (session) => typeof session.id === "string" && session.title === INLINE_SESSION_TITLE,
-  );
-  return found?.id ? { id: found.id, directory } : null;
-}
-
-async function getInlineSession(directory: string): Promise<InlineSession | null> {
-  const existing = await findInlineSession(directory).catch(() => null);
-  if (existing) {
-    return existing;
-  }
+async function createInlineSession(
+  directory: string,
+  question: string,
+): Promise<InlineSession | null> {
   const { data, error } = await opencodeClient.session.create({ directory });
   if (error || !data?.id) {
     return null;
   }
   await opencodeClient.session
-    .update({ sessionID: data.id, directory, title: INLINE_SESSION_TITLE })
+    .update({ sessionID: data.id, directory, title: inlineSessionTitle(question) })
     .catch(() => {});
   await ingestSessionInfoForCache(data).catch(() => {});
   return { id: data.id, directory };
 }
-
-/**
- * Runs a prompt from an inline query or guest summons in the dedicated inline
- * session. Nothing is sent to the DM chat: failures are reported through
- * onFailureNotice so the caller can edit the inline message instead.
- */
-const GUEST_PHOTO_MAX_BYTES = 20 * 1024 * 1024;
-
-async function downloadGuestPhoto(
-  api: Bot<Context>["api"],
-  photo: GuestPhotoInput,
-): Promise<{ type: "file"; mime: string; filename: string; url: string } | null> {
-  if (typeof photo.fileSize === "number" && photo.fileSize > GUEST_PHOTO_MAX_BYTES) {
-    logger.warn(`[Bot] Guest photo too large: bytes=${photo.fileSize}`);
-    return null;
-  }
-  try {
-    const downloaded = await downloadTelegramFile(api, photo.fileId);
-    return {
-      type: "file",
-      mime: "image/jpeg",
-      filename: "photo.jpg",
-      url: toDataUri(downloaded.buffer, "image/jpeg"),
-    };
-  } catch (error) {
-    logger.warn("[Bot] Guest photo download failed:", error);
-    return null;
-  }
-}
-
 async function runInlinePrompt(
   deps: InlineRouterDeps,
   api: Bot<Context>["api"],
   text: string,
   onFailureNotice: (notice: string) => void,
-  photo?: GuestPhotoInput | null,
+  files: GuestFileInput[] = [],
 ): Promise<{ sessionId: string; directory: string; startedAt: number } | null> {
   const project = getCurrentProject();
   if (!project) {
@@ -146,7 +109,7 @@ async function runInlinePrompt(
     return null;
   }
 
-  const inlineSession = await getInlineSession(project.worktree).catch(() => null);
+  const inlineSession = await createInlineSession(project.worktree, text).catch(() => null);
   if (!inlineSession) {
     onFailureNotice(t("bot.create_session_error"));
     return null;
@@ -167,32 +130,17 @@ async function runInlinePrompt(
   }
 
   const currentAgent = await resolveProjectAgent(getStoredAgent());
-  const storedModel = getStoredModel();
-  const notedText = withAgentContext(text);
-  const fileParts: Array<{ type: "file"; mime: string; filename: string; url: string }> = [];
-  if (photo) {
-    const capabilities = await getModelCapabilities(
-      storedModel.providerID,
-      storedModel.modelID,
-    ).catch(() => null);
-    if (capabilities && !supportsInput(capabilities, "image")) {
-      logger.warn(
-        `[Bot] Model ${storedModel.providerID}/${storedModel.modelID} doesn't support image input, sending text only`,
-      );
-    } else {
-      const downloaded = await downloadGuestPhoto(api, photo);
-      if (downloaded) {
-        fileParts.push(downloaded);
-      }
-    }
-  }
+  const inlineModel = getStoredInlineModel();
+  const { prependText, fileParts } = await prepareGuestFiles(
+    api,
+    { providerID: inlineModel.providerID, modelID: inlineModel.modelID },
+    files,
+  );
+  const notedText = withAgentContext(prependText ? `${prependText}${text}` : text);
   const promptOptions: {
     sessionID: string;
     directory: string;
-    parts: Array<
-      | { type: "text"; text: string }
-      | { type: "file"; mime: string; filename: string; url: string }
-    >;
+    parts: Array<{ type: "text"; text: string } | FilePartInput>;
     model?: { providerID: string; modelID: string };
     agent?: string;
     variant?: string;
@@ -202,14 +150,12 @@ async function runInlinePrompt(
     parts: [{ type: "text", text: notedText }, ...fileParts],
     agent: currentAgent,
   };
-  if (storedModel.providerID && storedModel.modelID) {
-    promptOptions.model = {
-      providerID: storedModel.providerID,
-      modelID: storedModel.modelID,
-    };
-  }
-  if (storedModel.variant) {
-    promptOptions.variant = storedModel.variant;
+  promptOptions.model = {
+    providerID: inlineModel.providerID,
+    modelID: inlineModel.modelID,
+  };
+  if (inlineModel.variant) {
+    promptOptions.variant = inlineModel.variant;
   }
 
   const runContext = {
@@ -497,17 +443,43 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       return;
     }
     const text = (guest.text ?? guest.caption ?? "").trim().slice(0, 4000);
+    const files: GuestFileInput[] = [];
     const photo = extractGuestPhoto(guest);
-    if (!text && !photo) {
-      logger.info(`[Bot] Ignoring guest message without text or photo: caller=${callerId}`);
+    if (photo) {
+      files.push({ kind: "photo", fileId: photo.fileId, fileSize: photo.fileSize });
+    }
+    const document = extractGuestDocument(guest);
+    if (document) {
+      files.push({
+        kind: "document",
+        fileId: document.fileId,
+        fileSize: document.fileSize,
+        mime: document.mime,
+        filename: document.filename,
+      });
+    }
+    const voice = extractGuestVoice(guest);
+    if (voice) {
+      files.push({
+        kind: "voice",
+        fileId: voice.fileId,
+        fileSize: voice.fileSize,
+        mime: voice.mime,
+        filename: guestVoiceFilename(voice.mime),
+      });
+    }
+    if (!text && files.length === 0) {
+      logger.info(`[Bot] Ignoring guest message without text or files: caller=${callerId}`);
       return;
     }
-    const question = text || "See attached file";
-    logger.info(`[Bot] Guest summons accepted: caller=${callerId}, queryLength=${question.length}, hasPhoto=${Boolean(photo)}`);
-
     // Answer immediately with a working placeholder; the returned
     // inline_message_id lets us stream the real answer into it in place.
     const botUsername = bot.botInfo?.username ?? null;
+    const ownText = stripBotMention(text, botUsername);
+    const replyText = extractGuestReplyText(guest);
+    const promptText = replyText ? `> ${replyText}\n\n${ownText}` : ownText;
+    const question = ownText || (files.length === 1 ? "See attached file" : "See attached files");
+    logger.info(`[Bot] Guest summons accepted: caller=${callerId}, queryLength=${question.length}, files=${files.length}, hasReply=${Boolean(replyText)}`);
     let sent;
     try {
       sent = await ctx.answerGuestQuery({
@@ -541,7 +513,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       void editInlineMessage(bot.api, inlineMessageId, question, notice, false);
     };
     try {
-      const run = await runInlinePrompt(deps, bot.api, question, notifyGuest, photo);
+      const run = await runInlinePrompt(deps, bot.api, promptText, notifyGuest, files);
       if (run) {
         void streamInlineAnswer(
           bot.api,

@@ -181,6 +181,13 @@ export const zh: I18nDictionary = {
   "language.menu.title": "Select bot language:",
   "language.selected": "Language set to {language}.",
 
+  "inlinemodel.current": "Inline/guest model: {model}",
+  "inlinemodel.following": "Inline/guest model follows the fast free default.",
+  "inlinemodel.saved": "Inline/guest model set to {model}.",
+  "inlinemodel.cleared": "Inline/guest model reset to default.",
+  "inlinemodel.invalid": "Unknown model. Use provider/model-id.",
+  "inlinemodel.usage": "Usage: /inlinemodel provider/model-id, or /inlinemodel default to reset.",
+
   "projects.empty":
     "📭 未找到项目。\n\n在 OpenCode 中打开一个目录并至少创建一个会话，然后它会出现在这里。",
   "projects.select": "请选择一个项目：",
@@ -579,6 +586,7 @@ export const zh: I18nDictionary = {
   "cmd.description.model": "Select model",
   "cmd.description.agent": "Select agent",
   "cmd.description.variant": "Select variant",
+  "cmd.description.inlinemodel": "Model for inline and guest answers",
 
   "legacy.models.fetch_error": "🔴 获取模型列表失败。请使用 /status 检查服务器状态。",
   "legacy.models.empty": "📋 没有可用模型。请在 OpenCode 中配置 providers。",

@@ -299,6 +299,20 @@ export function setCurrentModel(modelInfo: ModelInfo): void {
   void writeSettingsFile(currentSettings);
 }
 
+export function getInlineModel(): ModelInfo | undefined {
+  return currentSettings.inlineModel;
+}
+
+export function setInlineModel(modelInfo: ModelInfo): void {
+  currentSettings.inlineModel = modelInfo;
+  void writeSettingsFile(currentSettings);
+}
+
+export function clearInlineModel(): void {
+  currentSettings.inlineModel = undefined;
+  void writeSettingsFile(currentSettings);
+}
+
 export function clearCurrentModel(): void {
   currentSettings.currentModel = undefined;
   void writeSettingsFile(currentSettings);

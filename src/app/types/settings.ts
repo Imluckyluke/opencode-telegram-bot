@@ -16,6 +16,7 @@ export interface Settings {
   currentSession?: SessionInfo | undefined;
   currentAgent?: string | undefined;
   currentModel?: ModelInfo | undefined;
+  inlineModel?: ModelInfo | undefined;
   pinnedMessageId?: number | undefined;
   ttsMode?: "off" | "all" | "auto" | undefined;
   compactOutputMode?: boolean | undefined;
