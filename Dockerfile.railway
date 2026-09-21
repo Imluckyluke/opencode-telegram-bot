@@ -24,6 +24,9 @@ COPY --from=builder --chown=node:node /app/package.json ./package.json
 COPY --chown=node:node opencode.json /app/opencode.json
 COPY --chown=node:node entrypoint.railway.sh /app/entrypoint.railway.sh
 RUN chmod +x /app/entrypoint.railway.sh
-USER node
+# NOTE: intentionally running as root (no USER directive). Railway volumes are
+# mounted root-owned, and the entrypoint must create /app/data subdirectories
+# on first boot. Running as an unprivileged user breaks with
+# "mkdir: Permission denied" and crash-loops because of `set -eu`.
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["/app/entrypoint.railway.sh"]
