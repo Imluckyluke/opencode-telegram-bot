@@ -18,6 +18,7 @@ import { registerCallbackRouter } from "./callbacks/callback-router.js";
 import { initializePromptQueueDispatch } from "./handlers/prompt-queue-dispatch.js";
 import { normalizeRichMessage } from "./handlers/rich-message-handler.js";
 import { authMiddleware } from "./middleware/auth.js";
+import { tierGuardMiddleware } from "./middleware/tier-guard.js";
 import { interactionGuardMiddleware } from "./middleware/interaction-guard.js";
 import { staleUpdateMiddleware } from "./middleware/stale-update.js";
 import {
@@ -215,6 +216,7 @@ export function createBot(localCommandRegistry = LocalCommandRegistry.empty()): 
   });
 
   bot.use(authMiddleware);
+  bot.use(tierGuardMiddleware);
   bot.use(staleUpdateMiddleware);
   bot.on("message:rich_message", normalizeRichMessage);
   bot.use((ctx, next) => ensureCommandsInitialized(ctx, next, localCommandRegistry));

@@ -68,6 +68,10 @@ export const en = {
   "help.footer":
     "💡 Tip: /status shows server, project, session, and model at a glance.",
 
+  "testmodels.start": "🧪 Testing {count} models one by one. This takes a while…",
+  "testmodels.header": "🧪 Model test results:",
+  "testmodels.empty": "📭 No models to test. Add favorites in OpenCode first.",
+
   "inline.status.title": "📊 Bot status",
   "inline.status.description": "Current project, session, and model",
   "inline.ask.title": "▶ Ask current session",
@@ -641,6 +645,19 @@ export const en = {
   "cmd.description.agent": "Select agent",
   "cmd.description.variant": "Select variant",
   "cmd.description.inlinemodel": "Model for inline and guest answers",
+  "cmd.description.allow": "Grant or revoke bot access",
+  "cmd.description.testmodels": "Test free models and report results",
+
+  "tier.blocked": "⚠️ Only the bot owner can use this.",
+
+  "allow.list_empty": "📭 No extra users. Whitelisted env IDs always have access.",
+  "allow.list": "👥 Extra users: {users}",
+  "allow.granted": "✅ Access granted: {user}.",
+  "allow.exists": "ℹ️ Already has access: {user}.",
+  "allow.revoked": "✅ Access revoked: {user}.",
+  "allow.not_found": "⚠️ Not in the extra list: {user}.",
+  "allow.invalid": "⚠️ Give a numeric user ID, reply on their message with /allow, or use /allow remove <id>.",
+  "allow.usage": "Usage: /allow <user-id> — /allow remove <user-id> — reply on a message with /allow to grant its author.",
 
   "legacy.models.fetch_error": "🔴 Failed to get models list. Check server status with /status.",
   "legacy.models.empty": "📋 No available models. Configure providers in OpenCode.",

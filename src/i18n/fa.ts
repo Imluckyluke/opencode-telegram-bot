@@ -64,6 +64,10 @@ export const fa: I18nDictionary = {
   "help.group.automation": "⚙️ خودکارسازی",
   "help.group.system": "🛠 سیستم",
   "help.footer": "💡 نکته: با /status وضعیت سرور، پروژه، گفتگو و مدل را یک‌جا ببین.",
+
+  "testmodels.start": "🧪 دارم {count} مدل را یکی‌یکی تست می‌کنم. کمی طول می‌کشد…",
+  "testmodels.header": "🧪 نتیجه تست مدل‌ها:",
+  "testmodels.empty": "📭 مدلی برای تست نیست. اول در OpenCode مدل به علاقه‌مندی‌ها اضافه کن.",
   "inline.status.title": "📊 وضعیت بات",
   "inline.status.description": "پروژه، گفتگو و مدل جاری",
   "inline.ask.title": "▶ پرسیدن از گفتگوی جاری",
@@ -624,6 +628,19 @@ export const fa: I18nDictionary = {
   "cmd.description.agent": "انتخاب ایجنت (ساخت یا برنامه‌ریزی)",
   "cmd.description.variant": "انتخاب واریانت مدل",
   "cmd.description.inlinemodel": "مدل جواب‌های اینلاین و گست",
+  "cmd.description.allow": "دادن یا گرفتن دسترسی بات",
+  "cmd.description.testmodels": "تست مدل‌های رایگان و گزارش نتیجه",
+
+  "tier.blocked": "⚠️ فقط مالک بات می‌تواند از این استفاده کند.",
+
+  "allow.list_empty": "📭 کاربر اضافه‌ای نیست. آی‌دی‌های داخل env همیشه دسترسی دارند.",
+  "allow.list": "👥 کاربران اضافه: {users}",
+  "allow.granted": "✅ دسترسی داده شد: {user}.",
+  "allow.exists": "ℹ️ از قبل دسترسی دارد: {user}.",
+  "allow.revoked": "✅ دسترسی گرفته شد: {user}.",
+  "allow.not_found": "⚠️ در فهرست اضافه‌ها نیست: {user}.",
+  "allow.invalid": "⚠️ یک آیدی عددی بده، یا روی پیامش ریپلای کن و /allow بفرست، یا /allow remove <id>.",
+  "allow.usage": "طرز استفاده: /allow <user-id> — /allow remove <user-id> — ریپلای روی پیام با /allow برای دسترسی دادن به نویسنده.",
 
   "legacy.models.fetch_error":
     "🔴 دریافت فهرست مدل‌ها ناموفق بود. با /status وضعیت سرور را بررسی کنید.",

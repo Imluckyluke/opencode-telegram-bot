@@ -1,5 +1,5 @@
 import type { Bot, Context, NextFunction } from "grammy";
-import { isAllowedTelegramUser } from "../../config.js";
+import { isAllowedUser } from "../../app/stores/settings-store.js";
 import { settingsCommand } from "../commands/settings-command.js";
 import { opencodeStartCommand } from "../commands/opencode-start-command.js";
 import { opencodeStopCommand } from "../commands/opencode-stop-command.js";
@@ -26,6 +26,8 @@ import { helpCommand } from "../commands/help-command.js";
 import { statusCommand } from "../commands/status-command.js";
 import { languageCommand } from "../commands/language-command.js";
 import { inlineModelCommand } from "../commands/inline-model-command.js";
+import { allowCommand } from "../commands/allow-command.js";
+import { testModelsCommand } from "../commands/model-test-command.js";
 import { BOT_COMMANDS } from "../commands/definitions.js";
 import { logger } from "../../utils/logger.js";
 import { flushPendingPrompt } from "../handlers/message-merger.js";
@@ -48,7 +50,7 @@ export async function ensureCommandsInitialized(
   next: NextFunction,
   localCommandRegistry = LocalCommandRegistry.empty(),
 ): Promise<void> {
-  if (!ctx.from || !isAllowedTelegramUser(ctx.from.id)) {
+  if (!ctx.from || !isAllowedUser(ctx.from.id)) {
     await next();
     return;
   }
@@ -128,6 +130,8 @@ export function registerCommandRouter(bot: Bot<Context>, deps: CommandRouterDeps
   bot.command("status", statusCommand);
   bot.command("language", languageCommand);
   bot.command("inlinemodel", inlineModelCommand);
+  bot.command("allow", allowCommand);
+  bot.command("testmodels", testModelsCommand);
   bot.command("settings", settingsCommand);
   bot.command("opencode_start", opencodeStartCommand);
   bot.command("opencode_stop", (ctx) =>

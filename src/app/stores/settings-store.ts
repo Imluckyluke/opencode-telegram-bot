@@ -313,6 +313,51 @@ export function clearInlineModel(): void {
   void writeSettingsFile(currentSettings);
 }
 
+export function getExtraAllowedUserIds(): number[] {
+  return currentSettings.extraAllowedUserIds ?? [];
+}
+
+/** Adds a user id to the extra whitelist. Returns false if already listed. */
+export function addExtraAllowedUserId(userId: number): boolean {
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    return false;
+  }
+  const current = getExtraAllowedUserIds();
+  if (config.telegram.allowedUserIds.includes(userId) || current.includes(userId)) {
+    return false;
+  }
+  currentSettings.extraAllowedUserIds = [...current, userId];
+  void writeSettingsFile(currentSettings);
+  return true;
+}
+
+/** Removes a user id from the extra whitelist. Returns false if absent. */
+export function removeExtraAllowedUserId(userId: number): boolean {
+  const current = getExtraAllowedUserIds();
+  if (!current.includes(userId)) {
+    return false;
+  }
+  currentSettings.extraAllowedUserIds = current.filter((id) => id !== userId);
+  void writeSettingsFile(currentSettings);
+  return true;
+}
+
+/** Env whitelist plus dynamically granted users. */
+export function isAllowedUser(userId: number | undefined | null): boolean {
+  return (
+    typeof userId === "number" &&
+    (config.telegram.allowedUserIds.includes(userId) ||
+      getExtraAllowedUserIds().includes(userId))
+  );
+}
+
+/** Env whitelist only (owners). Use for privileged actions like granting access. */
+export function isOwnerUser(userId: number | undefined | null): boolean {
+  return (
+    typeof userId === "number" && config.telegram.allowedUserIds.includes(userId)
+  );
+}
+
 export function clearCurrentModel(): void {
   currentSettings.currentModel = undefined;
   void writeSettingsFile(currentSettings);

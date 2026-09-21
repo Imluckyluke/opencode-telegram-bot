@@ -9,9 +9,15 @@ const GITHUB_NOTE =
 /** Kept for backwards compatibility; prefer buildDefaultContextNote(). */
 export const DEFAULT_AGENT_CONTEXT_NOTE = `${TELEGRAM_NOTE} ${GITHUB_NOTE}`;
 
+export interface AgentContextOptions {
+  /** Include the GitHub token sentence. Defaults to true. */
+  github?: boolean | undefined;
+}
+
 /** Default note; mentions GitHub push only when GH_TOKEN is actually set. */
-export function buildDefaultContextNote(): string {
-  if (process.env.GH_TOKEN?.trim()) {
+export function buildDefaultContextNote(opts?: AgentContextOptions): string {
+  const includeGithub = opts?.github !== false && Boolean(process.env.GH_TOKEN?.trim());
+  if (includeGithub) {
     return `${TELEGRAM_NOTE} ${GITHUB_NOTE}`;
   }
   return TELEGRAM_NOTE;
@@ -21,10 +27,19 @@ function isDisabledNote(value: string): boolean {
   return ["0", "false", "no", "off", "disabled"].includes(value.trim().toLowerCase());
 }
 
-/** Prepends the default agent context (Telegram + GH_TOKEN) unless disabled. */
-export function withAgentContext(text: string, note?: string): string {
+export interface AgentContextOptions {
+  /** Include the GitHub token sentence. Defaults to true. */
+  github?: boolean | undefined;
+}
+
+/** Prepends the default agent context unless disabled. */
+export function withAgentContext(
+  text: string,
+  note?: string,
+  opts?: AgentContextOptions,
+): string {
   const env = process.env.AGENT_CONTEXT_NOTE;
-  const raw = note ?? (env ? env : buildDefaultContextNote());
+  const raw = note ?? (env ? env : buildDefaultContextNote(opts));
   if (!raw.trim() || isDisabledNote(raw)) {
     return text;
   }

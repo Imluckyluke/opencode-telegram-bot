@@ -180,6 +180,21 @@ export const zh: I18nDictionary = {
 
   "language.menu.title": "Select bot language:",
   "language.selected": "Language set to {language}.",
+
+  "tier.blocked": "Only the bot owner can use this.",
+
+  "allow.list_empty": "No extra users.",
+  "allow.list": "Extra users: {users}",
+  "allow.granted": "Access granted: {user}.",
+  "allow.exists": "Already has access: {user}.",
+  "allow.revoked": "Access revoked: {user}.",
+  "allow.not_found": "Not in the extra list: {user}.",
+  "allow.invalid": "Give a numeric user ID.",
+  "allow.usage": "Usage: /allow <user-id>, /allow remove <user-id>.",
+
+  "testmodels.start": "Testing {count} models one by one.",
+  "testmodels.header": "Model test results:",
+  "testmodels.empty": "No models to test.",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
   "inlinemodel.current": "Inline/guest model: {model}",
@@ -588,6 +603,8 @@ export const zh: I18nDictionary = {
   "cmd.description.agent": "Select agent",
   "cmd.description.variant": "Select variant",
   "cmd.description.inlinemodel": "Model for inline and guest answers",
+  "cmd.description.allow": "Grant or revoke bot access",
+  "cmd.description.testmodels": "Test free models and report results",
 
   "legacy.models.fetch_error": "🔴 获取模型列表失败。请使用 /status 检查服务器状态。",
   "legacy.models.empty": "📋 没有可用模型。请在 OpenCode 中配置 providers。",

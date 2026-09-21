@@ -1,5 +1,6 @@
 import { Context, NextFunction } from "grammy";
-import { config, isAllowedTelegramUser } from "../../config.js";
+import { config } from "../../config.js";
+import { isAllowedUser } from "../../app/stores/settings-store.js";
 import { logger } from "../../utils/logger.js";
 
 export async function authMiddleware(ctx: Context, next: NextFunction): Promise<void> {
@@ -12,7 +13,7 @@ export async function authMiddleware(ctx: Context, next: NextFunction): Promise<
     `[Auth] Checking access: userId=${userId}, guestCallerId=${guestCallerId}, allowedUserIds=${config.telegram.allowedUserIds.join(",")}, hasCallbackQuery=${!!ctx.callbackQuery}, hasMessage=${!!ctx.message}`,
   );
 
-  if (isAllowedTelegramUser(userId) || isAllowedTelegramUser(guestCallerId)) {
+  if (isAllowedUser(userId) || isAllowedUser(guestCallerId)) {
     logger.debug(`[Auth] Access granted for userId=${userId}, guestCallerId=${guestCallerId}`);
     await next();
   } else {
@@ -23,7 +24,7 @@ export async function authMiddleware(ctx: Context, next: NextFunction): Promise<
     // Only do this if the chat is NOT an authorized chat
     // (to avoid resetting commands when forwarded messages are received).
     // Skipped for guest updates: the bot cannot manage group command lists.
-    if (!ctx.update.guest_message && ctx.chat?.id && !config.telegram.allowedUserIds.includes(ctx.chat.id)) {
+    if (!ctx.update.guest_message && ctx.chat?.id && !isAllowedUser(ctx.chat.id)) {
       try {
         // Set empty commands for this specific chat (more reliable than deleteMyCommands)
         await ctx.api.setMyCommands([], {

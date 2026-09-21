@@ -45,6 +45,7 @@ import {
 } from "../../app/services/model-capabilities-service.js";
 import type { IncomingPrompt } from "../../app/types/prompt.js";
 import { withAgentContext } from "../../app/services/agent-context-service.js";
+import { isAllowedTelegramUser } from "../../config.js";
 
 /** Module-level references for async callbacks that don't have ctx. */
 let botInstance: Bot<Context> | null = null;
@@ -282,7 +283,9 @@ export async function processUserPrompt(
 
     // Add text part if present
     if (preparedInput.text.trim().length > 0) {
-      sentText = withAgentContext(preparedInput.text);
+      sentText = withAgentContext(preparedInput.text, undefined, {
+        github: isAllowedTelegramUser(ctx.from?.id),
+      });
       parts.push({ type: "text", text: sentText });
     }
 
@@ -316,7 +319,9 @@ export async function processUserPrompt(
         // Files without text - add a minimal system prompt
         const attachmentText =
           preparedInput.fileParts.length === 1 ? "See attached file" : "See attached files";
-        sentText = withAgentContext(attachmentText);
+        sentText = withAgentContext(attachmentText, undefined, {
+          github: isAllowedTelegramUser(ctx.from?.id),
+        });
         parts.unshift({ type: "text", text: sentText });
       }
     }

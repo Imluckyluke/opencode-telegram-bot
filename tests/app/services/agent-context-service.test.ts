@@ -30,6 +30,10 @@ describe("agent-context-service", () => {
     expect(withAgentContext("do X")).toBe("[Note: custom ctx]\ndo X");
   });
 
+  it("keeps the legacy default with the GitHub sentence", () => {
+    expect(DEFAULT_AGENT_CONTEXT_NOTE).toContain("GH_TOKEN");
+  });
+
   it("mentions GitHub push only when GH_TOKEN is set", () => {
     vi.stubEnv("GH_TOKEN", "");
     expect(buildDefaultContextNote()).not.toContain("GH_TOKEN");
@@ -38,8 +42,12 @@ describe("agent-context-service", () => {
     expect(buildDefaultContextNote()).toContain("GH_TOKEN");
   });
 
-  it("keeps the legacy default with the GitHub sentence", () => {
-    expect(DEFAULT_AGENT_CONTEXT_NOTE).toContain("GH_TOKEN");
+  it("hides the GitHub sentence when github is false", () => {
+    vi.stubEnv("GH_TOKEN", "ghp_test");
+    expect(buildDefaultContextNote({ github: false })).not.toContain("GH_TOKEN");
+    expect(withAgentContext("do X", undefined, { github: false })).toBe(
+      `[Note: ${buildDefaultContextNote({ github: false })}]\ndo X`,
+    );
   });
 
   it("strips an injected leading note", () => {

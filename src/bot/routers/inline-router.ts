@@ -1,6 +1,6 @@
 import type { Bot, Context } from "grammy";
 import type { FilePartInput } from "@opencode-ai/sdk/v2";
-import { isAllowedTelegramUser } from "../../config.js";
+import { isAllowedUser } from "../../app/stores/settings-store.js";
 import { opencodeClient } from "../../opencode/client.js";
 import { getCurrentSession } from "../../app/services/session-service.js";
 import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
@@ -143,7 +143,9 @@ async function runInlinePrompt(
     onFailureNotice(videoUnsupported ? t("bot.video_unsupported") : t("error.generic"));
     return null;
   }
-  const notedText = withAgentContext(prependText ? `${prependText}${text}` : text);
+  const notedText = withAgentContext(prependText ? `${prependText}${text}` : text, undefined, {
+    github: false,
+  });
   const promptOptions: {
     sessionID: string;
     directory: string;
@@ -381,7 +383,7 @@ async function streamInlineAnswer(
 export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps): void {
   bot.on("inline_query", async (ctx) => {
     const inlineQuery = ctx.inlineQuery;
-    if (!inlineQuery || !isAllowedTelegramUser(inlineQuery.from.id)) {
+    if (!inlineQuery || !isAllowedUser(inlineQuery.from.id)) {
       await ctx.answerInlineQuery([], { cache_time: 0, is_personal: true }).catch(() => {});
       return;
     }
@@ -405,7 +407,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
 
   bot.on("chosen_inline_result", async (ctx) => {
     const chosen = ctx.chosenInlineResult;
-    if (!chosen || !isAllowedTelegramUser(chosen.from.id)) {
+    if (!chosen || !isAllowedUser(chosen.from.id)) {
       return;
     }
     logger.info(
@@ -454,7 +456,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
     const callerId = guest?.guest_bot_caller_user?.id ?? guest?.from?.id;
     // Authoritative check: the summoner must be whitelisted (auth middleware
     // already passed on sender-or-caller).
-    if (!guest || !isAllowedTelegramUser(callerId)) {
+    if (!guest || !isAllowedUser(callerId)) {
       logger.warn(`[Bot] Ignoring guest message: caller=${callerId}`);
       return;
     }

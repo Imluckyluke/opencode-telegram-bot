@@ -209,7 +209,9 @@ Open tasks for upcoming iterations:
 - [x] Docker runtime support and deployment guide
 - [x] Add a bot settings command with in-chat UI
 - [x] Inline mode: ask from any chat, answer edited in place with the question on top; runs use a dedicated ⚡ Inline session so the DM chat stays silent
-- [x] Guest mode (BotFather): answer summoned questions in groups without membership; runs share the ⚡ Inline session, caller must be whitelisted
+- [x] Guest mode (BotFather): answer summoned questions in groups without membership; each ask runs in a fresh ⚡ session, caller must be whitelisted
+- [x] Tiered access: owner commands + `/allow` user grants; granted users can use but not reconfigure; inline/guest runs never mention the GitHub token
+- [x] `/testmodels`: probe free models sequentially and report ok/failed with reasons
 - [x] Guest photo support: direct photos, captioned photos, and replies on photos reach the model
 - [x] Guest files under 10MB (photos, office docs, text, voice transcripts), direct or via reply
 - [x] Separate fast model for inline/guest answers (`/inlinemodel`, env defaults, main model untouched)
