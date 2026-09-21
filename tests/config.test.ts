@@ -325,6 +325,43 @@ describe("config boolean env parsing", () => {
     expect(config.tts.model).toBe("eleven_flash_v2_5");
     expect(config.tts.voice).toBe("21m00Tcm4TlvDq8ikWAM");
   });
+
+  it("parses a single allowed user id", async () => {
+    vi.stubEnv("TELEGRAM_ALLOWED_USER_ID", "123456789");
+
+    const module = await loadConfigModule();
+
+    expect(module.config.telegram.allowedUserId).toBe(123456789);
+    expect(module.config.telegram.allowedUserIds).toEqual([123456789]);
+    expect(module.isAllowedTelegramUser(123456789)).toBe(true);
+    expect(module.isAllowedTelegramUser(111)).toBe(false);
+    expect(module.isAllowedTelegramUser(undefined)).toBe(false);
+  });
+
+  it("parses comma-separated allowed user ids with the first as primary", async () => {
+    vi.stubEnv("TELEGRAM_ALLOWED_USER_ID", "111, 222,111");
+
+    const module = await loadConfigModule();
+
+    expect(module.config.telegram.allowedUserId).toBe(111);
+    expect(module.config.telegram.allowedUserIds).toEqual([111, 222]);
+    expect(module.isAllowedTelegramUser(222)).toBe(true);
+  });
+
+  it("throws on invalid allowed user ids", async () => {
+    const module = await loadConfigModule();
+    vi.stubEnv("TELEGRAM_ALLOWED_USER_ID", "abc");
+
+    expect(() => module.buildTelegramConfig()).toThrow(/TELEGRAM_ALLOWED_USER_ID/);
+
+    vi.stubEnv("TELEGRAM_ALLOWED_USER_ID", "123,-5");
+
+    expect(() => module.buildTelegramConfig()).toThrow(/TELEGRAM_ALLOWED_USER_ID/);
+
+    vi.stubEnv("TELEGRAM_ALLOWED_USER_ID", "   ");
+
+    expect(() => module.buildTelegramConfig()).toThrow(/TELEGRAM_ALLOWED_USER_ID/);
+  });
 });
 
 describe("config telegram reverse-proxy", () => {

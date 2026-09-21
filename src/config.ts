@@ -176,6 +176,7 @@ function getOptionalSttRequestFormatEnvVar(
 export function buildTelegramConfig(): {
   token: string;
   allowedUserId: number;
+  allowedUserIds: number[];
   proxyUrl: string;
   apiRoot: string;
   proxySecret: string;
@@ -202,9 +203,14 @@ export function buildTelegramConfig(): {
     );
   }
 
+  const allowedUserIds = parseAllowedUserIds();
+
   return {
     token: getEnvVar("TELEGRAM_BOT_TOKEN"),
-    allowedUserId: parseAllowedUserId(),
+    // Primary id (first listed): target for scheduled deliveries, restores,
+    // and startup context. All listed ids share one workspace view.
+    allowedUserId: allowedUserIds[0] as number,
+    allowedUserIds,
     proxyUrl,
     apiRoot,
     proxySecret,
@@ -212,15 +218,27 @@ export function buildTelegramConfig(): {
   };
 }
 
-function parseAllowedUserId(): number {
+/**
+ * Comma-separated Telegram user id whitelist, e.g. "123,456".
+ * At least one positive numeric id is required.
+ */
+function parseAllowedUserIds(): number[] {
   const raw = getEnvVar("TELEGRAM_ALLOWED_USER_ID");
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+  const ids = raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .map((part) => Number.parseInt(part, 10));
+  if (ids.length === 0 || ids.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
     throw new Error(
-      `Invalid TELEGRAM_ALLOWED_USER_ID: "${raw}". It must be a positive numeric Telegram user ID.`,
+      `Invalid TELEGRAM_ALLOWED_USER_ID: "${raw}". It must be one or more comma-separated positive numeric Telegram user IDs.`,
     );
   }
-  return parsed;
+  return [...new Set(ids)];
+}
+
+export function isAllowedTelegramUser(userId: number | undefined | null): boolean {
+  return typeof userId === "number" && config.telegram.allowedUserIds.includes(userId);
 }
 
 export const config = {

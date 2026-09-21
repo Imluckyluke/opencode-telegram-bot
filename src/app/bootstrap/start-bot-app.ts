@@ -141,7 +141,7 @@ export async function startBotApp(): Promise<void> {
   if (logFilePath) {
     logger.info(`Logs are written to ${logFilePath}`);
   }
-  logger.info(`Allowed User ID: ${config.telegram.allowedUserId}`);
+  logger.info(`Allowed User IDs: ${config.telegram.allowedUserIds.join(",")}`);
   logger.debug(`[Runtime] Application start mode: ${mode}`);
 
   let serviceStateCleared = false;

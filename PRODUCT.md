@@ -82,7 +82,7 @@ No public inbound ports are required for normal usage.
 
 ### Security
 
-- Whitelist by Telegram user ID (single-user mode)
+- Whitelist by Telegram user ID (one or more ids sharing a single workspace view)
 - Ignore messages from non-authorized users
 - Ignore updates queued while the bot was offline or unreachable, so they are not executed on startup
 - Mid-session, messages older than 60 seconds after an outage are still not executed; the chat gets one notice that messages were skipped while Telegram was unreachable
@@ -91,7 +91,7 @@ No public inbound ports are required for normal usage.
 ### Configuration
 
 - Telegram bot token
-- Allowed Telegram user ID
+- Allowed Telegram user ID(s), comma-separated
 - Default model provider and model ID
 - Selected project persisted in `settings.json`
 - Configurable sessions list size (default: 10)
@@ -162,7 +162,7 @@ Agent picker behavior:
 
 ### Main features already implemented
 
-- [x] Single-user access control by allowed Telegram user ID
+- [x] User ID whitelist access control (one or more ids sharing a single workspace view)
 - [x] OpenCode server control from Telegram (`/status`, `/opencode_start`, `/opencode_stop`)
 - [x] Project and session management from Telegram (`/projects`, `/worktree`, `/sessions`, `/new`)
 - [x] Automatic tracking of the current OpenCode CLI session, including continuing it from Telegram, live updates, and external text input notifications

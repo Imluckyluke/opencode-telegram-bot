@@ -1,5 +1,5 @@
 import type { Bot, Context, NextFunction } from "grammy";
-import { config } from "../../config.js";
+import { isAllowedTelegramUser } from "../../config.js";
 import { settingsCommand } from "../commands/settings-command.js";
 import { opencodeStartCommand } from "../commands/opencode-start-command.js";
 import { opencodeStopCommand } from "../commands/opencode-stop-command.js";
@@ -41,19 +41,24 @@ interface CommandRouterDeps {
   localCommandRegistry?: LocalCommandRegistry;
 }
 
-let commandsInitialized = false;
+const initializedCommandChats = new Set<number>();
 export async function ensureCommandsInitialized(
   ctx: Context,
   next: NextFunction,
   localCommandRegistry = LocalCommandRegistry.empty(),
 ): Promise<void> {
-  if (commandsInitialized || !ctx.from || ctx.from.id !== config.telegram.allowedUserId) {
+  if (!ctx.from || !isAllowedTelegramUser(ctx.from.id)) {
     await next();
     return;
   }
 
   if (!ctx.chat) {
     logger.warn("[Bot] Cannot initialize commands: chat context is missing");
+    await next();
+    return;
+  }
+
+  if (initializedCommandChats.has(ctx.chat.id)) {
     await next();
     return;
   }
@@ -66,7 +71,7 @@ export async function ensureCommandsInitialized(
       },
     });
 
-    commandsInitialized = true;
+    initializedCommandChats.add(ctx.chat.id);
     logger.debug(`[Bot] Commands initialized for authorized user (chat_id=${ctx.chat.id})`);
   } catch (err) {
     logger.error("[Bot] Failed to set commands:", err);

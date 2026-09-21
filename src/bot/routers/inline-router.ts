@@ -1,5 +1,5 @@
 import type { Bot, Context } from "grammy";
-import { config } from "../../config.js";
+import { isAllowedTelegramUser } from "../../config.js";
 import { opencodeClient } from "../../opencode/client.js";
 import {
   getCurrentSession,
@@ -51,15 +51,15 @@ function buildSnapshot(): InlineSnapshot {
 
 /**
  * Runs a text-only prompt from an inline query in the current session.
- * Progress and the answer are delivered to the DM chat via the normal
- * SSE pipeline; returns run coordinates for inline in-place streaming.
+ * Progress and the answer are delivered to the requester's DM chat via the
+ * normal SSE pipeline; returns run coordinates for inline in-place streaming.
  */
 async function runInlinePrompt(
   bot: Bot<Context>,
   deps: InlineRouterDeps,
+  chatId: number,
   text: string,
 ): Promise<{ sessionId: string; directory: string; startedAt: number } | null> {
-  const chatId = config.telegram.allowedUserId;
   const project = getCurrentProject();
   if (!project) {
     await bot.api.sendMessage(chatId, t("inline.no_project")).catch(() => {});
@@ -281,7 +281,7 @@ async function streamInlineAnswer(
 export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps): void {
   bot.on("inline_query", async (ctx) => {
     const inlineQuery = ctx.inlineQuery;
-    if (!inlineQuery || inlineQuery.from.id !== config.telegram.allowedUserId) {
+    if (!inlineQuery || !isAllowedTelegramUser(inlineQuery.from.id)) {
       await ctx.answerInlineQuery([], { cache_time: 0, is_personal: true }).catch(() => {});
       return;
     }
@@ -296,7 +296,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
 
   bot.on("chosen_inline_result", async (ctx) => {
     const chosen = ctx.chosenInlineResult;
-    if (!chosen || chosen.from.id !== config.telegram.allowedUserId) {
+    if (!chosen || !isAllowedTelegramUser(chosen.from.id)) {
       return;
     }
     const queryText = consumePendingInlineQuery(chosen.result_id);
@@ -307,8 +307,10 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       return;
     }
     logger.info(`[Bot] Inline tap accepted: queryLength=${queryText.length}`);
+    // In a private chat the chat id equals the user id: answer where asked.
+    const requesterChatId = chosen.from.id;
     try {
-      const run = await runInlinePrompt(bot, deps, queryText);
+      const run = await runInlinePrompt(bot, deps, requesterChatId, queryText);
       if (run && chosen.inline_message_id) {
         void streamInlineAnswer(
           bot.api,
@@ -321,7 +323,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
     } catch (err) {
       logger.error("[Bot] Error running inline prompt:", err);
       await bot.api
-        .sendMessage(config.telegram.allowedUserId, t("error.generic"))
+        .sendMessage(requesterChatId, t("error.generic"))
         .catch(() => {});
     }
   });
