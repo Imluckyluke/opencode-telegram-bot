@@ -422,4 +422,75 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       notifyInline(t("error.generic"));
     }
   });
+
+  bot.on("guest_message", async (ctx) => {
+    const guest = ctx.guestMessage;
+    const callerId = guest?.guest_bot_caller_user?.id;
+    // Authoritative check: the summoner must be whitelisted (auth middleware
+    // already passed on sender-or-caller).
+    if (!guest || !isAllowedTelegramUser(callerId)) {
+      logger.debug(`[Bot] Ignoring guest message: caller=${callerId}`);
+      return;
+    }
+    const text = (guest.text ?? guest.caption ?? "").trim().slice(0, 4000);
+    if (!text) {
+      logger.debug("[Bot] Ignoring guest message without text");
+      return;
+    }
+    logger.info(`[Bot] Guest summons accepted: caller=${callerId}, queryLength=${text.length}`);
+
+    // Answer immediately with a working placeholder; the returned
+    // inline_message_id lets us stream the real answer into it in place.
+    const botUsername = bot.botInfo?.username ?? null;
+    let sent;
+    try {
+      sent = await ctx.answerGuestQuery({
+        type: "article",
+        id: `guest${Date.now().toString(36)}`,
+        title: t("inline.ask.title"),
+        input_message_content: {
+          message_text: t("inline.posted.text", { query: text }),
+        },
+        ...(botUsername
+          ? {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: t("inline.open_bot"), url: `https://t.me/${botUsername}` }],
+                ],
+              },
+            }
+          : {}),
+      });
+    } catch (err) {
+      logger.error("[Bot] Error answering guest query:", err);
+      return;
+    }
+
+    const inlineMessageId = sent?.inline_message_id;
+    if (!inlineMessageId) {
+      logger.warn("[Bot] Guest answer has no inline_message_id, cannot stream result");
+      return;
+    }
+    const notifyGuest = (notice: string) => {
+      void editInlineMessage(bot.api, inlineMessageId, text, notice);
+    };
+    try {
+      const run = await runInlinePrompt(deps, text, notifyGuest);
+      if (run) {
+        void streamInlineAnswer(
+          bot.api,
+          inlineMessageId,
+          run.sessionId,
+          run.directory,
+          run.startedAt,
+          text,
+        ).finally(() => {
+          inlineRunInFlight = false;
+        });
+      }
+    } catch (err) {
+      logger.error("[Bot] Error running guest prompt:", err);
+      notifyGuest(t("error.generic"));
+    }
+  });
 }

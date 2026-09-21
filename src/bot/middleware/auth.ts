@@ -4,13 +4,16 @@ import { logger } from "../../utils/logger.js";
 
 export async function authMiddleware(ctx: Context, next: NextFunction): Promise<void> {
   const userId = ctx.from?.id;
+  // Guest-mode summons arrive without membership: the authorizing party is
+  // the caller, not the message sender.
+  const guestCallerId = ctx.update.guest_message?.guest_bot_caller_user?.id;
 
   logger.debug(
-    `[Auth] Checking access: userId=${userId}, allowedUserIds=${config.telegram.allowedUserIds.join(",")}, hasCallbackQuery=${!!ctx.callbackQuery}, hasMessage=${!!ctx.message}`,
+    `[Auth] Checking access: userId=${userId}, guestCallerId=${guestCallerId}, allowedUserIds=${config.telegram.allowedUserIds.join(",")}, hasCallbackQuery=${!!ctx.callbackQuery}, hasMessage=${!!ctx.message}`,
   );
 
-  if (isAllowedTelegramUser(userId)) {
-    logger.debug(`[Auth] Access granted for userId=${userId}`);
+  if (isAllowedTelegramUser(userId) || isAllowedTelegramUser(guestCallerId)) {
+    logger.debug(`[Auth] Access granted for userId=${userId}, guestCallerId=${guestCallerId}`);
     await next();
   } else {
     // Silently ignore unauthorized users
@@ -18,8 +21,9 @@ export async function authMiddleware(ctx: Context, next: NextFunction): Promise<
 
     // Actively hide commands for unauthorized users by setting empty command list
     // Only do this if the chat is NOT an authorized chat
-    // (to avoid resetting commands when forwarded messages are received)
-    if (ctx.chat?.id && !config.telegram.allowedUserIds.includes(ctx.chat.id)) {
+    // (to avoid resetting commands when forwarded messages are received).
+    // Skipped for guest updates: the bot cannot manage group command lists.
+    if (!ctx.update.guest_message && ctx.chat?.id && !config.telegram.allowedUserIds.includes(ctx.chat.id)) {
       try {
         // Set empty commands for this specific chat (more reliable than deleteMyCommands)
         await ctx.api.setMyCommands([], {

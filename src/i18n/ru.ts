@@ -176,7 +176,7 @@ export const ru: I18nDictionary = {
   "inline.status.description": "Current project, session, and model",
   "inline.ask.title": "Ask current session",
   "inline.ask.description": "{query}",
-  "inline.posted.text": "{query} (asked via bot, answer arrives in the bot chat)",
+  "inline.posted.text": "\u23F3 {query}\n\nWorking on it\u2026",
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
   "inline.open_bot": "Open bot",

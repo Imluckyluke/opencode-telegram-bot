@@ -470,3 +470,38 @@ describe("interaction-guard-decision inline updates", () => {
     expect(resolveInteractionGuardDecision(chosen).allow).toBe(true);
   });
 });
+
+describe("interaction-guard-decision guest updates", () => {
+  afterEach(() => {
+    interactionManager.clear("guest_decision_test_reset");
+    foregroundSessionState.clearAll("guest_decision_test_reset");
+  });
+
+  it("allows guest summons with no active interaction", () => {
+    const decision = resolveInteractionGuardDecision({
+      update: {
+        update_id: 1,
+        guest_message: { message_id: 5, date: 1, chat: { id: -100 }, text: "hi" },
+      },
+    } as unknown as Context);
+
+    expect(decision.allow).toBe(true);
+    expect(decision.inputType).toBe("inline");
+  });
+
+  it("allows guest summons while an inline menu interaction is open", () => {
+    interactionManager.start({
+      kind: "inline",
+      expectedInput: "callback",
+      metadata: { menuKind: "model", messageId: 10 },
+    });
+    const decision = resolveInteractionGuardDecision({
+      update: {
+        update_id: 2,
+        guest_message: { message_id: 6, date: 1, chat: { id: -100 }, text: "hi" },
+      },
+    } as unknown as Context);
+
+    expect(decision.allow).toBe(true);
+  });
+});

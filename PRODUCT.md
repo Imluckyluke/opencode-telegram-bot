@@ -209,4 +209,5 @@ Open tasks for upcoming iterations:
 - [x] Docker runtime support and deployment guide
 - [x] Add a bot settings command with in-chat UI
 - [x] Inline mode: ask from any chat, answer edited in place with the question on top; runs use a dedicated ⚡ Inline session so the DM chat stays silent
+- [x] Guest mode (BotFather): answer summoned questions in groups without membership; runs share the ⚡ Inline session, caller must be whitelisted
 - [x] Automatic session compaction at a configurable context threshold (`AUTO_COMPACT_THRESHOLD_PERCENT`)
