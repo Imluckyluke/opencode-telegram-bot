@@ -299,8 +299,17 @@ export async function startBotApp(): Promise<void> {
   bot.botInfo = identity;
 
   try {
+    // Explicit allowlist: guest_message is only delivered when listed
+    // (like reactions/membership updates), so the default "all" is not enough.
     await bot.start({
       drop_pending_updates: true,
+      allowed_updates: [
+        "message",
+        "callback_query",
+        "inline_query",
+        "chosen_inline_result",
+        "guest_message",
+      ],
       onStart: (botInfo) => {
         logger.info(`Bot @${botInfo.username} started!`);
         restoreFollowedSessionOnPollingStart(bot);
