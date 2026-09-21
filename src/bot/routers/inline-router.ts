@@ -22,6 +22,7 @@ import {
   extractGuestDocument,
   extractGuestPhoto,
   extractGuestReplyText,
+  extractGuestVideo,
   extractGuestVoice,
   formatInlineAnswer,
   guestVoiceFilename,
@@ -467,6 +468,16 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
         fileSize: voice.fileSize,
         mime: voice.mime,
         filename: guestVoiceFilename(voice.mime),
+      });
+    }
+    const video = extractGuestVideo(guest);
+    if (video) {
+      files.push({
+        kind: "document",
+        fileId: video.fileId,
+        fileSize: video.fileSize,
+        mime: video.mime,
+        filename: video.filename,
       });
     }
     if (!text && files.length === 0) {

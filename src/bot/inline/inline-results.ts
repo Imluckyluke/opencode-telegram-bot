@@ -117,6 +117,13 @@ interface AudioLike {
   mime_type?: string | undefined;
 }
 
+interface VideoLike {
+  file_id: string;
+  file_size?: number | undefined;
+  mime_type?: string | undefined;
+  file_name?: string | undefined;
+}
+
 interface GuestMessageLike {
   text?: string | undefined;
   caption?: string | undefined;
@@ -124,7 +131,28 @@ interface GuestMessageLike {
   document?: DocumentLike | undefined;
   voice?: AudioLike | undefined;
   audio?: AudioLike | undefined;
+  animation?: VideoLike | undefined;
+  video?: VideoLike | undefined;
   reply_to_message?: GuestMessageLike | undefined;
+}
+
+/** GIF/animation or video, direct or from the replied-to message. */
+export function extractGuestVideo(message: GuestMessageLike | undefined): GuestDocumentInput | null {
+  const media =
+    message?.animation ??
+    message?.video ??
+    message?.reply_to_message?.animation ??
+    message?.reply_to_message?.video;
+  if (!media?.file_id) {
+    return null;
+  }
+  const isAnimation = Boolean(message?.animation ?? message?.reply_to_message?.animation);
+  return {
+    fileId: media.file_id,
+    fileSize: media.file_size,
+    mime: media.mime_type || "video/mp4",
+    filename: media.file_name || (isAnimation ? "animation.mp4" : "video.mp4"),
+  };
 }
 
 /** Text (or caption) of the replied-to message, if any. */

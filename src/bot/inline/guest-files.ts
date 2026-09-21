@@ -129,6 +129,21 @@ export async function prepareGuestFiles(
         continue;
       }
 
+      if (mime.startsWith("video/")) {
+        if (!supportsInput(capabilities, "video")) {
+          logger.warn("[GuestFiles] Model doesn't support video input, skipping");
+          continue;
+        }
+        const downloaded = await downloadTelegramFile(api, file.fileId);
+        fileParts.push({
+          type: "file",
+          mime,
+          filename,
+          url: toDataUri(downloaded.buffer, mime),
+        });
+        continue;
+      }
+
       if (DOCUMENT_MIME_TYPES.includes(mime)) {
         if (supportsInput(capabilities, "pdf")) {
           const downloaded = await downloadTelegramFile(api, file.fileId);

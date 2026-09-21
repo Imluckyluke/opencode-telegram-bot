@@ -5,6 +5,7 @@ import {
   extractGuestDocument,
   extractGuestPhoto,
   extractGuestReplyText,
+  extractGuestVideo,
   extractGuestVoice,
   guestVoiceFilename,
   INLINE_STATUS_RESULT_ID,
@@ -96,6 +97,16 @@ describe("bot/inline/inline-results", () => {
     expect(guestVoiceFilename("audio/mpeg")).toBe("voice.mp3");
     expect(guestVoiceFilename("audio/mp4")).toBe("voice.m4a");
     expect(guestVoiceFilename(undefined)).toBe("voice.ogg");
+  });
+
+  it("extracts GIF/animation and video, direct or replied", () => {
+    expect(
+      extractGuestVideo({ animation: { file_id: "g1", mime_type: "video/mp4" } }),
+    ).toEqual({ fileId: "g1", fileSize: undefined, mime: "video/mp4", filename: "animation.mp4" });
+    expect(
+      extractGuestVideo({ reply_to_message: { video: { file_id: "v1" } } }),
+    ).toEqual({ fileId: "v1", fileSize: undefined, mime: "video/mp4", filename: "video.mp4" });
+    expect(extractGuestVideo({})).toBeNull();
   });
 
   it("extracts reply text and strips bot mentions", () => {
