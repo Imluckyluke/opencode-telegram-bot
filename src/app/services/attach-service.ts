@@ -6,7 +6,7 @@ import { questionManager } from "../managers/question-manager.js";
 import { permissionManager } from "../managers/permission-manager.js";
 import type { PermissionRequest } from "../types/permission.js";
 import type { SessionInfo } from "../types/session.js";
-import { getCurrentSession } from "./session-service.js";
+import { getCurrentSession, clearSession } from "./session-service.js";
 import { getCurrentProject } from "../stores/settings-store.js";
 import { attachManager } from "../managers/attach-manager.js";
 import { resetStreamThrottle } from "../../bot/streaming/stream-throttle.js";
@@ -64,6 +64,30 @@ function getAttachBusyStatus(
   statuses: Record<string, { type?: string }> | undefined,
 ): boolean {
   return statuses?.[sessionId]?.type === "busy";
+}
+
+/** True only when the server positively reports the session as missing. */
+async function isSessionGoneServerSide(sessionId: string, directory: string): Promise<boolean> {
+  try {
+    const { error } = await opencodeClient.session.get({
+      sessionID: sessionId,
+      directory,
+    });
+    if (!error) {
+      return false;
+    }
+    const message =
+      error instanceof Error ? error.message : JSON.stringify(error ?? "");
+    return message.includes("Session not found");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("Session not found")) {
+      return true;
+    }
+    // Any other failure (network, auth, …): don't touch stored state.
+    logger.debug("[Attach] Could not verify session existence, keeping it:", error);
+    return false;
+  }
 }
 
 async function syncPinnedAttachState(): Promise<void> {
@@ -227,6 +251,17 @@ export async function restoreAttachedCurrentSession(
       logger.warn(
         `[Attach] OpenCode server is unavailable; skipping followed session restore: session=${currentSession.id}, directory=${currentSession.directory}`,
       );
+      return false;
+    }
+
+    // Sessions live in opencode's own storage (not on our volume), so after a
+    // redeploy the stored session may be gone. Drop the ghost instead of
+    // restoring/attaching a dead session id.
+    if (await isSessionGoneServerSide(currentSession.id, currentSession.directory)) {
+      logger.warn(
+        `[Attach] Stored session is gone server-side, forgetting it: session=${currentSession.id}`,
+      );
+      clearSession();
       return false;
     }
 
