@@ -64,6 +64,13 @@ export async function ensureCommandsInitialized(
     return;
   }
 
+  // Guest-mode updates come from chats the bot is not a member of, where it
+  // cannot manage the command list.
+  if (ctx.update.guest_message) {
+    await next();
+    return;
+  }
+
   if (initializedCommandChats.has(ctx.chat.id)) {
     await next();
     return;
@@ -80,10 +87,30 @@ export async function ensureCommandsInitialized(
     initializedCommandChats.add(ctx.chat.id);
     logger.debug(`[Bot] Commands initialized for authorized user (chat_id=${ctx.chat.id})`);
   } catch (err) {
-    logger.error("[Bot] Failed to set commands:", err);
+    // 403 (blocked/kicked/no rights) is routine, not a malfunction.
+    if (isForbiddenTelegramError(err)) {
+      logger.debug("[Bot] Cannot set commands here (no rights), skipping:", err);
+    } else {
+      logger.error("[Bot] Failed to set commands:", err);
+    }
   }
 
   await next();
+}
+
+function isForbiddenTelegramError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const errorCode = Reflect.get(error, "error_code");
+  if (errorCode === 403) {
+    return true;
+  }
+  const description = Reflect.get(error, "description");
+  return (
+    typeof description === "string" &&
+    /forbidden|kicked|blocked|not a member|have no rights/i.test(description)
+  );
 }
 
 export function registerCommandRouter(bot: Bot<Context>, deps: CommandRouterDeps): void {
