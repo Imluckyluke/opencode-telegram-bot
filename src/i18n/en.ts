@@ -151,6 +151,7 @@ export const en = {
   "status.line.health": "Status: {health}",
   "status.line.version": "OpenCode version: {version}",
   "status.line.bot_version": "Bot version: {version}",
+  "status.line.memory": "Memory: {mb} MB",
   "status.line.managed_yes": "Started by bot: Yes",
   "status.line.managed_no": "Started by bot: No",
   "status.line.pid": "PID: {pid}",
@@ -658,13 +659,6 @@ export const en = {
   "allow.not_found": "⚠️ Not in the extra list: {user}.",
   "allow.invalid": "⚠️ Give a numeric user ID, reply on their message with /allow, or use /allow remove <id>.",
   "allow.usage": "Usage: /allow <user-id> — /allow remove <user-id> — reply on a message with /allow to grant its author.",
-
-  "legacy.models.fetch_error": "🔴 Failed to get models list. Check server status with /status.",
-  "legacy.models.empty": "📋 No available models. Configure providers in OpenCode.",
-  "legacy.models.header": "📋 Available models:\n\n",
-  "legacy.models.no_provider_models": "  ⚠️ No available models\n",
-  "legacy.models.env_hint": "💡 To use model in .env:\n",
-  "legacy.models.error": "🔴 An error occurred while loading models list.",
 
   "stt.recognizing": "🎤 Recognizing audio...",
   "stt.recognized": "🎤 Recognized:",

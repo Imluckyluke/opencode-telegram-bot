@@ -25,6 +25,8 @@ export async function statusCommand(ctx: CommandContext<Context>) {
     const botVersion = await getBotVersion();
     let message = `${t("status.header_running")}\n\n`;
     message += `${t("status.line.bot_version", { version: botVersion })}\n`;
+    const heapMb = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+    message += `${t("status.line.memory", { mb: heapMb })}\n`;
     if (data.version) {
       message += `${t("status.line.version", { version: data.version })}\n`;
     }

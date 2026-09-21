@@ -202,6 +202,9 @@ export async function processUserPrompt(
 
   let currentSession = getCurrentSession();
   let createdNewSession = false;
+  // Fresh sessions cannot be busy; for existing ones this is filled by the
+  // liveness check below, so no second status call is needed later.
+  let sessionIsBusy = false;
 
   if (currentSession && currentSession.directory !== currentProject.worktree) {
     logger.warn(
@@ -215,7 +218,8 @@ export async function processUserPrompt(
   if (currentSession) {
     // Sessions vanish server-side on every redeploy (opencode storage is not
     // on the volume). Detect the ghost here and fall through to auto-create
-    // instead of failing later with "Session not found".
+    // instead of failing later with "Session not found". One status call
+    // covers both existence and busyness.
     const liveness = await checkSessionLiveness(currentSession.id, currentSession.directory);
     if (!liveness.exists) {
       logger.warn(
@@ -223,6 +227,8 @@ export async function processUserPrompt(
       );
       clearSession();
       currentSession = null;
+    } else {
+      sessionIsBusy = liveness.busy;
     }
   }
 
@@ -282,7 +288,7 @@ export async function processUserPrompt(
     });
   }
 
-  const sessionIsBusy = await isSessionBusy(currentSession.id, currentSession.directory);
+  // Fresh sessions cannot be busy; existing ones were already checked above.
   if (sessionIsBusy) {
     logger.info(`[Bot] Ignoring new prompt: session ${currentSession.id} is busy`);
     await ctx.reply(t("bot.session_busy"));

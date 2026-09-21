@@ -117,6 +117,7 @@ export const zh: I18nDictionary = {
   "status.line.health": "状态：{health}",
   "status.line.version": "OpenCode 版本：{version}",
   "status.line.bot_version": "Bot version: {version}",
+  "status.line.memory": "Memory: {mb} MB",
   "status.line.managed_yes": "由机器人启动：是",
   "status.line.managed_no": "由机器人启动：否",
   "status.line.pid": "PID：{pid}",
@@ -605,13 +606,6 @@ export const zh: I18nDictionary = {
   "cmd.description.inlinemodel": "Model for inline and guest answers",
   "cmd.description.allow": "Grant or revoke bot access",
   "cmd.description.testmodels": "Test free models and report results",
-
-  "legacy.models.fetch_error": "🔴 获取模型列表失败。请使用 /status 检查服务器状态。",
-  "legacy.models.empty": "📋 没有可用模型。请在 OpenCode 中配置 providers。",
-  "legacy.models.header": "📋 可用模型：\n\n",
-  "legacy.models.no_provider_models": "  ⚠️ 没有可用模型\n",
-  "legacy.models.env_hint": "💡 在 .env 中使用该模型：\n",
-  "legacy.models.error": "🔴 加载模型列表时发生错误。",
 
   "stt.recognizing": "🎤 正在识别音频...",
   "stt.recognized": "🎤 识别结果：",

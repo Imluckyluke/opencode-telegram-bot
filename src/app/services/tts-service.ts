@@ -1,7 +1,9 @@
 import { config } from "../../config.js";
 import { logger } from "../../utils/logger.js";
-import textToSpeech from "@google-cloud/text-to-speech";
 import { synthesizeWithEdgeTts, EDGE_DEFAULT_VOICE } from "./edge-tts.js";
+
+// Loaded lazily: the Google client pulls in a heavy dependency tree
+// (google-gax, protobuf) that most installs never use.
 
 const TTS_REQUEST_TIMEOUT_MS = 60_000;
 const MAX_TTS_INPUT_CHARS = 4_000;
@@ -75,10 +77,13 @@ export function extractLanguageCode(voiceName: string): string {
 
 // --- Provider implementations ---
 
-let googleClient: textToSpeech.TextToSpeechClient | null = null;
+type GoogleTextToSpeechClient = import("@google-cloud/text-to-speech").TextToSpeechClient;
 
-function getGoogleClient(): textToSpeech.TextToSpeechClient {
+let googleClient: GoogleTextToSpeechClient | null = null;
+
+async function getGoogleClient(): Promise<GoogleTextToSpeechClient> {
   if (!googleClient) {
+    const { default: textToSpeech } = await import("@google-cloud/text-to-speech");
     googleClient = new textToSpeech.TextToSpeechClient();
   }
   return googleClient;
@@ -90,7 +95,7 @@ export function _resetGoogleClient(): void {
 }
 
 async function synthesizeWithGoogle(text: string): Promise<TtsResult> {
-  const client = getGoogleClient();
+  const client = await getGoogleClient();
   const voiceName = config.tts.voice || "en-US-Studio-O";
   const languageCode = extractLanguageCode(voiceName);
 

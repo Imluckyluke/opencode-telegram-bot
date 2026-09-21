@@ -149,6 +149,7 @@ export const fa: I18nDictionary = {
   "status.line.health": "وضعیت: {health}",
   "status.line.version": "نسخه OpenCode: {version}",
   "status.line.bot_version": "نسخه بات: {version}",
+  "status.line.memory": "حافظه: {mb} مگابایت",
   "status.line.managed_yes": "اجرا توسط بات: بله",
   "status.line.managed_no": "اجرا توسط بات: خیر",
   "status.line.pid": "PID: {pid}",
@@ -641,14 +642,6 @@ export const fa: I18nDictionary = {
   "allow.not_found": "⚠️ در فهرست اضافه‌ها نیست: {user}.",
   "allow.invalid": "⚠️ یک آیدی عددی بده، یا روی پیامش ریپلای کن و /allow بفرست، یا /allow remove <id>.",
   "allow.usage": "طرز استفاده: /allow <user-id> — /allow remove <user-id> — ریپلای روی پیام با /allow برای دسترسی دادن به نویسنده.",
-
-  "legacy.models.fetch_error":
-    "🔴 دریافت فهرست مدل‌ها ناموفق بود. با /status وضعیت سرور را بررسی کنید.",
-  "legacy.models.empty": "📋 مدلی در دسترس نیست. ارائه‌دهنده‌ها را در OpenCode پیکربندی کنید.",
-  "legacy.models.header": "📋 مدل‌های در دسترس:\n\n",
-  "legacy.models.no_provider_models": "  ⚠️ مدلی در دسترس نیست\n",
-  "legacy.models.env_hint": "💡 برای استفاده از مدل در .env:\n",
-  "legacy.models.error": "🔴 هنگام بارگیری فهرست مدل‌ها خطایی رخ داد.",
 
   "stt.recognizing": "🎤 در حال تشخیص گفتار...",
   "stt.recognized": "🎤 تشخیص داده شد:",

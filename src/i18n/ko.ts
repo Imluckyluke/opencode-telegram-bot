@@ -136,6 +136,7 @@ export const ko: I18nDictionary = {
   "status.line.health": "상태: {health}",
   "status.line.version": "OpenCode 버전: {version}",
   "status.line.bot_version": "Bot version: {version}",
+  "status.line.memory": "Memory: {mb} MB",
   "status.line.managed_yes": "봇이 시작함: 예",
   "status.line.managed_no": "봇이 시작함: 아니요",
   "status.line.pid": "PID: {pid}",
@@ -667,14 +668,6 @@ export const ko: I18nDictionary = {
   "cmd.description.inlinemodel": "Model for inline and guest answers",
   "cmd.description.allow": "Grant or revoke bot access",
   "cmd.description.testmodels": "Test free models and report results",
-
-  "legacy.models.fetch_error":
-    "🔴 모델 목록을 가져오지 못했습니다. /status로 서버 상태를 확인해 주세요.",
-  "legacy.models.empty": "📋 사용 가능한 모델이 없습니다. OpenCode에서 프로바이더를 설정해 주세요.",
-  "legacy.models.header": "📋 사용 가능한 모델:\n\n",
-  "legacy.models.no_provider_models": "  ⚠️ 사용 가능한 모델이 없습니다\n",
-  "legacy.models.env_hint": "💡 .env에서 이 모델을 사용하려면:\n",
-  "legacy.models.error": "🔴 모델 목록을 불러오는 중 오류가 발생했습니다.",
 
   "stt.recognizing": "🎤 오디오를 인식하는 중...",
   "stt.recognized": "🎤 인식 결과:",

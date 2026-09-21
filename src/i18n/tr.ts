@@ -130,6 +130,7 @@ export const tr: I18nDictionary = {
   "status.line.health": "Durum: {health}",
   "status.line.version": "OpenCode sürümü: {version}",
   "status.line.bot_version": "Bot sürümü: {version}",
+  "status.line.memory": "Memory: {mb} MB",
   "status.line.managed_yes": "Bot tarafından başlatıldı: Evet",
   "status.line.managed_no": "Bot tarafından başlatıldı: Hayır",
   "status.line.pid": "PID: {pid}",
@@ -656,14 +657,6 @@ export const tr: I18nDictionary = {
   "cmd.description.inlinemodel": "Model for inline and guest answers",
   "cmd.description.allow": "Grant or revoke bot access",
   "cmd.description.testmodels": "Test free models and report results",
-
-  "legacy.models.fetch_error":
-    "🔴 Model listesi alınamadı. Sunucu durumunu /status ile kontrol edin.",
-  "legacy.models.empty": "📋 Kullanılabilir model yok. OpenCode'da sağlayıcıları yapılandırın.",
-  "legacy.models.header": "📋 Kullanılabilir modeller:\n\n",
-  "legacy.models.no_provider_models": "  ⚠️ Kullanılabilir model yok\n",
-  "legacy.models.env_hint": "💡 Modeli .env içinde kullanmak için:\n",
-  "legacy.models.error": "🔴 Model listesi yüklenirken bir hata oluştu.",
 
   "stt.recognizing": "🎤 Ses tanınıyor...",
   "stt.recognized": "🎤 Tanınan:",

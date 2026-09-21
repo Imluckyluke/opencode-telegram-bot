@@ -136,6 +136,7 @@ export const id: I18nDictionary = {
   "status.line.health": "Status: {health}",
   "status.line.version": "Versi OpenCode: {version}",
   "status.line.bot_version": "Versi bot: {version}",
+  "status.line.memory": "Memory: {mb} MB",
   "status.line.managed_yes": "Dimulai oleh bot: Ya",
   "status.line.managed_no": "Dimulai oleh bot: Tidak",
   "status.line.pid": "PID: {pid}",
@@ -652,14 +653,6 @@ export const id: I18nDictionary = {
   "cmd.description.inlinemodel": "Model for inline and guest answers",
   "cmd.description.allow": "Grant or revoke bot access",
   "cmd.description.testmodels": "Test free models and report results",
-
-  "legacy.models.fetch_error":
-    "🔴 Gagal memuat daftar model. Periksa status server dengan /status.",
-  "legacy.models.empty": "📋 Tidak ada model yang tersedia. Atur provider di OpenCode.",
-  "legacy.models.header": "📋 Model yang tersedia:\n\n",
-  "legacy.models.no_provider_models": "  ⚠️ Tidak ada model yang tersedia\n",
-  "legacy.models.env_hint": "💡 Untuk menggunakan model di .env:\n",
-  "legacy.models.error": "🔴 Gagal memuat daftar model.",
 
   "stt.recognizing": "🎤 Mengenali audio...",
   "stt.recognized": "🎤 Terdeteksi:",

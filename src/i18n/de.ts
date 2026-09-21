@@ -135,6 +135,7 @@ export const de: I18nDictionary = {
   "status.line.health": "Status: {health}",
   "status.line.version": "OpenCode-Version: {version}",
   "status.line.bot_version": "Bot version: {version}",
+  "status.line.memory": "Memory: {mb} MB",
   "status.line.managed_yes": "Vom Bot gestartet: Ja",
   "status.line.managed_no": "Vom Bot gestartet: Nein",
   "status.line.pid": "PID: {pid}",
@@ -680,14 +681,6 @@ export const de: I18nDictionary = {
   "cmd.description.inlinemodel": "Model for inline and guest answers",
   "cmd.description.allow": "Grant or revoke bot access",
   "cmd.description.testmodels": "Test free models and report results",
-
-  "legacy.models.fetch_error":
-    "🔴 Modellliste konnte nicht geladen werden. Prüfe den Serverstatus mit /status.",
-  "legacy.models.empty": "📋 Keine verfügbaren Modelle. Konfiguriere Provider in OpenCode.",
-  "legacy.models.header": "📋 Verfügbare Modelle:\n\n",
-  "legacy.models.no_provider_models": "  ⚠️ Keine verfügbaren Modelle\n",
-  "legacy.models.env_hint": "💡 Um ein Modell in .env zu nutzen:\n",
-  "legacy.models.error": "🔴 Beim Laden der Modellliste ist ein Fehler aufgetreten.",
 
   "stt.recognizing": "🎤 Erkenne Audio...",
   "stt.recognized": "🎤 Erkannt:",

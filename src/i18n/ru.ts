@@ -127,6 +127,7 @@ export const ru: I18nDictionary = {
   "status.line.health": "Статус: {health}",
   "status.line.version": "Версия OpenCode: {version}",
   "status.line.bot_version": "Версия бота: {version}",
+  "status.line.memory": "Memory: {mb} MB",
   "status.line.managed_yes": "Запущен ботом: Да",
   "status.line.managed_no": "Запущен ботом: Нет",
   "status.line.pid": "PID: {pid}",
@@ -662,14 +663,6 @@ export const ru: I18nDictionary = {
   "cmd.description.inlinemodel": "Model for inline and guest answers",
   "cmd.description.allow": "Grant or revoke bot access",
   "cmd.description.testmodels": "Test free models and report results",
-
-  "legacy.models.fetch_error":
-    "🔴 Не удалось получить список моделей. Проверьте статус сервера /status.",
-  "legacy.models.empty": "📋 Нет доступных моделей. Настройте провайдеры через OpenCode.",
-  "legacy.models.header": "📋 Доступные модели:\n\n",
-  "legacy.models.no_provider_models": "  ⚠️ Нет доступных моделей\n",
-  "legacy.models.env_hint": "💡 Для использования модели в .env:\n",
-  "legacy.models.error": "🔴 Произошла ошибка при получении списка моделей.",
 
   "stt.recognizing": "🎤 Распознаю аудио...",
   "stt.recognized": "🎤 Распознано:",

@@ -59,15 +59,11 @@
     "grammy": "^1.45.1",
     "https-proxy-agent": "^7.0.6",
     "mdast-util-to-string": "^4.0.0",
-    "node-fetch": "^2.7.0",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "socks-proxy-agent": "^8.0.5",
     "unified": "^11.0.5",
     "ws": "^8.21.1"
-  },
-  "optionalDependencies": {
-    "better-sqlite3": "^13.0.1"
   },
   "overrides": {
     "google-gax": {
@@ -75,9 +71,7 @@
     }
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.20.1",
-    "@types/node-fetch": "^2.6.13",
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.53.0",
     "@typescript-eslint/parser": "^8.53.0",

@@ -135,6 +135,7 @@ export const ar: I18nDictionary = {
   "status.line.health": "الحالة: {health}",
   "status.line.version": "إصدار OpenCode: {version}",
   "status.line.bot_version": "Bot version: {version}",
+  "status.line.memory": "Memory: {mb} MB",
   "status.line.managed_yes": "تم تشغيله بواسطة البوت: نعم",
   "status.line.managed_no": "تم تشغيله بواسطة البوت: لا",
   "status.line.pid": "PID: {pid}",
@@ -634,13 +635,6 @@ export const ar: I18nDictionary = {
   "mcps.button.disable": "🔴 تعطيل",
   "mcps.button.back": "⬅️ رجوع",
   "mcps.auth_required": "هذا الخادم يحتاج إلى تسجيل دخول، ولا يمكن تفعيله من داخل البوت.",
-
-  "legacy.models.fetch_error": "🔴 تعذر تحميل قائمة النماذج. تحقق من حالة الخادم باستخدام /status.",
-  "legacy.models.empty": "📋 لا توجد نماذج متاحة. اضبط المزوّدين في OpenCode.",
-  "legacy.models.header": "📋 النماذج المتاحة:\n\n",
-  "legacy.models.no_provider_models": "  ⚠️ لا توجد نماذج متاحة\n",
-  "legacy.models.env_hint": "💡 لاستخدام النموذج في .env:\n",
-  "legacy.models.error": "🔴 حدث خطأ أثناء تحميل قائمة النماذج.",
 
   "stt.recognizing": "🎤 جارٍ تحويل الصوت إلى نص...",
   "stt.recognized": "🎤 النص المستخرج من الرسالة الصوتية:",
