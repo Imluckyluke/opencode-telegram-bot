@@ -248,9 +248,24 @@ async function editInlineMessage(
   }
 }
 
+async function isRunIdle(sessionId: string, directory: string): Promise<boolean> {
+  try {
+    const { data, error } = await opencodeClient.session.status({ directory });
+    if (error || !data) {
+      return false;
+    }
+    const status = (data as Record<string, { type?: string }>)[sessionId];
+    return !status || status.type !== "busy";
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Streams the run result into the chosen inline message in place, so the
  * answer lands in the same chat without adding the bot anywhere.
+ * Aborted/errored runs end the placeholder with an interruption note
+ * instead of leaving it stuck.
  */
 async function streamInlineAnswer(
   api: Bot<Context>["api"],
@@ -282,6 +297,15 @@ async function streamInlineAnswer(
       }
       return;
     }
+    // The run died without a completion (abort/error): don't poll till timeout.
+    if (!snapshot && lastSent && (await isRunIdle(sessionId, directory))) {
+      logger.info(`[Bot] Inline run went idle, keeping last text: session=${sessionId}`);
+      return;
+    }
+    if (!snapshot && !lastSent && now > deadline) {
+      await editInlineMessage(api, inlineMessageId, t("inline.interrupted"));
+      return;
+    }
   }
 }
 
@@ -292,6 +316,9 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       await ctx.answerInlineQuery([], { cache_time: 0, is_personal: true }).catch(() => {});
       return;
     }
+    logger.info(
+      `[Bot] Inline query: from=${inlineQuery.from.id}, queryLength=${(inlineQuery.query ?? "").length}`,
+    );
     try {
       const results = buildInlineResults(inlineQuery.query ?? "", buildSnapshot());
       await ctx.answerInlineQuery(results, { cache_time: 0, is_personal: true });
@@ -306,6 +333,9 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
     if (!chosen || !isAllowedTelegramUser(chosen.from.id)) {
       return;
     }
+    logger.info(
+      `[Bot] Inline chosen: from=${chosen.from.id}, result_id=${chosen.result_id}, hasInlineMessage=${Boolean(chosen.inline_message_id)}`,
+    );
     const queryText = consumePendingInlineQuery(chosen.result_id);
     if (!queryText) {
       logger.warn(

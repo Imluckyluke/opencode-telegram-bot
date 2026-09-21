@@ -74,6 +74,7 @@ export const en = {
   "inline.ask.description": "{query}",
   "inline.posted.text": "⏳ {query}\n\nWorking on it…",
   "inline.no_project": "🏗 Project is not selected. Open the bot chat and select one with /projects first.",
+  "inline.interrupted": "⏹ Stopped — see the bot chat for details.",
   "help.text":
     "📖 **Help**\n\n/status - Check server status\n/sessions - Session list\n/new - Create new session\n/help - Help",
 

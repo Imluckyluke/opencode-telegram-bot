@@ -70,6 +70,7 @@ export const fa: I18nDictionary = {
   "inline.ask.description": "{query}",
   "inline.posted.text": "⏳ {query}\n\nدارم روش کار می‌کنم…",
   "inline.no_project": "🏗 پروژه انتخاب نشده است. اول در چت بات با /projects یکی انتخاب کن.",
+  "inline.interrupted": "⏹ متوقف شد — جزئیات در چت بات.",
   "help.text":
     "📖 **راهنما**\n\n/status - بررسی وضعیت سرور\n/sessions - فهرست نشست‌ها\n/new - ایجاد نشست جدید\n/help - راهنما",
 
