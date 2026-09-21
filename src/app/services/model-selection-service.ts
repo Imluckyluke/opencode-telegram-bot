@@ -439,12 +439,12 @@ export function fetchCurrentModel(): ModelInfo {
 }
 
 /**
- * Default for inline/guest runs: the free model with documented video, image
- * and document input. Override with /inlinemodel or INLINE_MODEL_* env vars.
+ * Default for inline/guest runs: fast free model. Note: it does not promise
+ * video input — use /inlinemodel to switch when you need video understanding.
  */
 export const DEFAULT_INLINE_MODEL: ModelInfo = {
   providerID: "opencode",
-  modelID: "muse-spark-1.3-contributor-free",
+  modelID: "mimo-v2.6-flash-free",
   variant: "default",
 };
 
