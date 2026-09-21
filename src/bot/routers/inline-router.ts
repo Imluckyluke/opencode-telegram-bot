@@ -12,6 +12,8 @@ import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { attachToSession, markAttachedSessionBusy } from "../../app/services/attach-service.js";
 import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
 import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
+import { questionManager } from "../../app/managers/question-manager.js";
+import { permissionManager } from "../../app/managers/permission-manager.js";
 import { externalUserInputSuppressionManager } from "../../app/managers/external-input-suppression-manager.js";
 import { withAgentContext } from "../../app/services/agent-context-service.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
@@ -89,6 +91,11 @@ async function runInlinePrompt(
 
   if (await isSessionBusy(session.id, session.directory)) {
     await bot.api.sendMessage(chatId, t("bot.session_busy")).catch(() => {});
+    return null;
+  }
+
+  if (questionManager.isActive() || permissionManager.isActive()) {
+    await bot.api.sendMessage(chatId, t("interaction.blocked.finish_current")).catch(() => {});
     return null;
   }
 

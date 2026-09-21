@@ -2,7 +2,7 @@ export type InteractionKind = "inline" | "permission" | "question" | "rename" | 
 
 export type ExpectedInput = "callback" | "text" | "command" | "mixed";
 
-export type IncomingInputType = "callback" | "command" | "text" | "other";
+export type IncomingInputType = "callback" | "command" | "text" | "inline" | "other";
 
 export type InteractionMetadata = Record<string, unknown>;
 

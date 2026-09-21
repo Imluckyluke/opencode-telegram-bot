@@ -54,6 +54,13 @@ function classifyIncomingInput(ctx: Context): {
   inputType: IncomingInputType;
   command?: string;
 } {
+  // Inline mode updates carry no message/callback semantics of their own:
+  // answering is read-only and chosen runs enforce busy/interaction rules
+  // themselves in the inline router.
+  if (ctx.inlineQuery || ctx.chosenInlineResult) {
+    return { inputType: "inline" };
+  }
+
   if (ctx.callbackQuery?.data) {
     return { inputType: "callback" };
   }
@@ -153,6 +160,12 @@ export function resolveInteractionGuardDecision(
   const state = interactionManager.getSnapshot();
   const { inputType, command } = classifyIncomingInput(ctx);
   const isBusy = foregroundSessionState.isBusy() || attachManager.isBusy();
+
+  // Inline updates never participate in menu/question flows: answering is
+  // read-only and chosen taps enforce their own busy/interaction rules.
+  if (inputType === "inline") {
+    return createAllowDecision(inputType, state);
+  }
 
   if (state && interactionManager.isExpired()) {
     interactionManager.clear("expired");
