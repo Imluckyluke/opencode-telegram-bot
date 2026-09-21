@@ -12,7 +12,7 @@ import {
   getModelCapabilities,
   supportsInput,
 } from "../../app/services/model-capabilities-service.js";
-import { isSttConfigured, transcribeAudio } from "../../app/services/stt-service.js";
+import { isSttConfigured, markTranscribedAudio, transcribeAudio } from "../../app/services/stt-service.js";
 import { logger } from "../../utils/logger.js";
 import type { FilePartInput } from "@opencode-ai/sdk/v2";
 
@@ -35,6 +35,8 @@ export interface GuestFilesResult {
   /** Extracted/transcribed text to prepend to the prompt. */
   prependText: string;
   fileParts: FilePartInput[];
+  /** A video/GIF was skipped because the model cannot watch video. */
+  videoUnsupported: boolean;
 }
 
 const DOCUMENT_MIME_TYPES = [
@@ -73,6 +75,7 @@ export async function prepareGuestFiles(
 ): Promise<GuestFilesResult> {
   const texts: string[] = [];
   const fileParts: FilePartInput[] = [];
+  let videoUnsupported = false;
   const capabilities = await getModelCapabilities(model.providerID, model.modelID).catch(
     () => null,
   );
@@ -95,7 +98,7 @@ export async function prepareGuestFiles(
           file.filename || "voice.ogg",
         );
         if (result.text.trim()) {
-          texts.push(result.text.trim());
+          texts.push(markTranscribedAudio(result.text.trim()));
         }
         continue;
       }
@@ -132,6 +135,7 @@ export async function prepareGuestFiles(
       if (mime.startsWith("video/")) {
         if (!supportsInput(capabilities, "video")) {
           logger.warn("[GuestFiles] Model doesn't support video input, skipping");
+          videoUnsupported = true;
           continue;
         }
         const downloaded = await downloadTelegramFile(api, file.fileId);
@@ -171,5 +175,5 @@ export async function prepareGuestFiles(
     }
   }
 
-  return { prependText: texts.join("\n\n"), fileParts };
+  return { prependText: texts.join("\n\n"), fileParts, videoUnsupported };
 }

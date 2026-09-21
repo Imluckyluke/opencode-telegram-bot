@@ -8,6 +8,7 @@ import { config } from "../../config.js";
 import { getTtsMode } from "../../app/stores/settings-store.js";
 import {
   isSttConfigured,
+  markTranscribedAudio,
   transcribeAudio,
   type SttResult,
 } from "../../app/services/stt-service.js";
@@ -247,13 +248,13 @@ export async function handleVoiceMessage(ctx: Context, deps: VoiceMessageDeps): 
 
     logger.info(`[Voice] Transcribed audio: ${recognizedText.length} chars`);
 
-    let textForLLM = recognizedText;
+    let textForLLM = markTranscribedAudio(recognizedText);
     const notePrompt = config.stt.notePrompt.trim();
 
     if (notePrompt && notePrompt.toLowerCase() !== "false" && notePrompt !== "0") {
       const llmNote = `[Note: ${notePrompt}]`;
       logger.debug(`[Voice] Added STT note to LLM prompt: ${llmNote}`);
-      textForLLM = `${llmNote}\n${recognizedText}`;
+      textForLLM = `${llmNote}\n${textForLLM}`;
     }
 
     // Process the recognized text as a prompt

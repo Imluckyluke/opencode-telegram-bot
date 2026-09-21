@@ -129,6 +129,8 @@ export const en = {
   "bot.file_download_error": "🔴 Failed to download file",
   "bot.file_type_unsupported":
     "⚠️ This file type is not supported. Send an image, document (PDF, DOCX, PPTX), or text/code file.",
+  "bot.video_unsupported":
+    "⚠️ Sorry, I can't watch videos or GIFs yet — send a photo or describe it instead.",
   "bot.rich_message_media_skipped": "⚠️ Skipped {count} unsupported media part(s).",
   "bot.message_type_unsupported": "⚠️ This message type is not supported.",
   "bot.media_group_not_processed":

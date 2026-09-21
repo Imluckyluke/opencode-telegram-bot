@@ -100,6 +100,7 @@ async function runInlinePrompt(
   text: string,
   onFailureNotice: (notice: string) => void,
   files: GuestFileInput[] = [],
+  hasRealText = true,
 ): Promise<{ sessionId: string; directory: string; startedAt: number } | null> {
   const project = getCurrentProject();
   if (!project) {
@@ -133,11 +134,15 @@ async function runInlinePrompt(
 
   const currentAgent = await resolveProjectAgent(getStoredAgent());
   const inlineModel = getStoredInlineModel();
-  const { prependText, fileParts } = await prepareGuestFiles(
+  const { prependText, fileParts, videoUnsupported } = await prepareGuestFiles(
     api,
     { providerID: inlineModel.providerID, modelID: inlineModel.modelID },
     files,
   );
+  if (!hasRealText && fileParts.length === 0 && !prependText.trim()) {
+    onFailureNotice(videoUnsupported ? t("bot.video_unsupported") : t("error.generic"));
+    return null;
+  }
   const notedText = withAgentContext(prependText ? `${prependText}${text}` : text);
   const promptOptions: {
     sessionID: string;
@@ -529,7 +534,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       return;
     }
     try {
-      const run = await runInlinePrompt(deps, bot.api, promptText, notifyGuest, files);
+      const run = await runInlinePrompt(deps, bot.api, promptText, notifyGuest, files, ownText.trim().length > 0);
       if (run) {
         void streamInlineAnswer(
           bot.api,

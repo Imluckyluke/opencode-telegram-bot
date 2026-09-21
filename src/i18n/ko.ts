@@ -200,6 +200,7 @@ export const ko: I18nDictionary = {
 
   "language.menu.title": "Select bot language:",
   "language.selected": "Language set to {language}.",
+  "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
   "inlinemodel.current": "Inline/guest model: {model}",
   "inlinemodel.following": "Inline/guest model follows the fast free default.",

@@ -127,6 +127,8 @@ export const fa: I18nDictionary = {
   "bot.file_download_error": "🔴 دانلود فایل ناموفق بود",
   "bot.file_type_unsupported":
     "⚠️ این نوع فایل پشتیبانی نمی‌شود. تصویر، سند (PDF، DOCX، PPTX) یا فایل متنی/کد بفرستید.",
+  "bot.video_unsupported":
+    "⚠️ متأسفم، فعلاً نمی‌توانم ویدیو یا گیف ببینم — عکس بفرست یا توضیح بده.",
   "bot.rich_message_media_skipped": "⚠️ {count} بخش رسانه‌ای پشتیبانی‌نشده نادیده گرفته شد.",
   "bot.message_type_unsupported": "⚠️ این نوع پیام پشتیبانی نمی‌شود.",
   "bot.media_group_not_processed":

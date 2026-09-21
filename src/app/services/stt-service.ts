@@ -7,6 +7,14 @@ export interface SttResult {
   text: string;
 }
 
+/**
+ * Marks transcribed audio so the model knows it received text (speech or
+ * song lyrics), not the raw audio itself.
+ */
+export function markTranscribedAudio(text: string): string {
+  return `[Note: the following is a text transcription of received audio (spoken words or song lyrics). The raw audio itself was not provided.]\n${text}`;
+}
+
 const AUDIO_FORMAT_BY_EXTENSION: Record<string, string> = {
   oga: "ogg",
   ogg: "ogg",
