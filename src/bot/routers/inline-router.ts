@@ -20,6 +20,7 @@ import {
   truncateInlineText,
   type InlineSnapshot,
 } from "../inline/inline-results.js";
+import { renderAssistantFinalPartsSafe } from "../messages/assistant-rendering.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { formatContextLine } from "../pinned/pinned-message-format.js";
 
@@ -221,7 +222,9 @@ async function readInlineSnapshot(
   if (error || !data) {
     return null;
   }
-  let best: { created: number; text: string; completed: boolean } | null = null;
+  // An answer can span several assistant messages (e.g. text plus a table):
+  // concatenate all of them in order instead of keeping only the latest.
+  const collected: Array<{ created: number; text: string; completed: boolean }> = [];
   for (const message of data as SessionMessageLike[]) {
     if (message.info.role !== "assistant" || message.info.summary) {
       continue;
@@ -238,18 +241,38 @@ async function readInlineSnapshot(
     if (!text) {
       continue;
     }
-    if (!best || created >= best.created) {
-      best = { created, text, completed: Boolean(message.info.time?.completed) };
-    }
+    collected.push({ created, text, completed: Boolean(message.info.time?.completed) });
   }
-  return best;
+  if (collected.length === 0) {
+    return null;
+  }
+  collected.sort((a, b) => a.created - b.created);
+  const last = collected[collected.length - 1] as { text: string; completed: boolean };
+  return {
+    text: collected.map((entry) => entry.text).join("\n\n"),
+    completed: last.completed,
+  };
 }
+
+const INLINE_RICH_BUDGET_CHARS = 30000;
 
 async function editInlineMessage(
   api: Bot<Context>["api"],
   inlineMessageId: string,
   text: string,
 ): Promise<boolean> {
+  // 1. Native rich blocks: real tables, lists, quotes — same as the DM chat.
+  try {
+    const parts = renderAssistantFinalPartsSafe(truncateInlineText(text, INLINE_RICH_BUDGET_CHARS));
+    const blocks = parts.flatMap((part) => part.blocks);
+    if (blocks.length > 0) {
+      await api.editMessageTextInline(inlineMessageId, { blocks });
+      return true;
+    }
+  } catch (error) {
+    logger.debug("[Bot] Inline rich edit failed, retrying as Markdown", error);
+  }
+  // 2. Classic Markdown text (no native tables, but widely supported).
   const trimmed = truncateInlineText(text);
   try {
     await api.editMessageTextInline(inlineMessageId, trimmed, { parse_mode: "Markdown" });

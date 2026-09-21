@@ -78,7 +78,7 @@ export function truncateInlineText(text: string, limit = 4000): string {
 
 /** Keeps the asked question pinned above the streamed answer. */
 export function formatInlineAnswer(query: string, answer: string): string {
-  return truncateInlineText(`❓ ${query.trim()}\n\n${answer.trim()}`);
+  return `❓ ${query.trim()}\n\n${answer.trim()}`;
 }
 
 function buildStatusMessageText(snapshot: InlineSnapshot): string {
