@@ -28,10 +28,11 @@ echo "entrypoint: opencode starting (pid=$SERVER_PID), waiting for $OPENCODE_API
 READY_ATTEMPT=0
 for i in $(seq 1 60); do
   READY_ATTEMPT=$i
-  if curl -sf -u "$OPENCODE_SERVER_USERNAME:$OPENCODE_SERVER_PASSWORD" "$OPENCODE_API_URL/app" >/dev/null 2>&1; then break; fi
+  if curl -sf --max-time 5 -u "$OPENCODE_SERVER_USERNAME:$OPENCODE_SERVER_PASSWORD" "$OPENCODE_API_URL/app" >/dev/null 2>&1; then break; fi
   sleep 1
 done
 echo "entrypoint: opencode wait finished after ${READY_ATTEMPT}s"
+echo "entrypoint: disk state: $(df -h /app/data 2>/dev/null | tail -1 || echo unavailable)"
 
 if [ -f dist/index.js ]; then
   echo "entrypoint: starting bot ($(node --version))"
