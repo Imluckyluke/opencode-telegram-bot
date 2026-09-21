@@ -324,7 +324,9 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       await ctx.answerInlineQuery(results, { cache_time: 0, is_personal: true });
     } catch (err) {
       logger.error("[Bot] Error answering inline query:", err);
-      await ctx.answerInlineQuery([], { cache_time: 0, is_personal: true }).catch(() => {});
+      await ctx.answerInlineQuery([], { cache_time: 0, is_personal: true }).catch((error: unknown) => {
+        logger.warn("[Bot] Fallback empty inline answer failed:", error);
+      });
     }
   });
 

@@ -18,7 +18,7 @@ export interface InlineSnapshot {
 }
 
 export const INLINE_STATUS_RESULT_ID = "status";
-const INLINE_ASK_RESULT_PREFIX = "ask:";
+const INLINE_ASK_RESULT_PREFIX = "ask_";
 const PENDING_QUERY_TTL_MS = 10 * 60 * 1000;
 const MAX_INLINE_QUERY_LENGTH = 4000;
 
@@ -43,7 +43,7 @@ export function registerPendingInlineQuery(text: string): string {
   const now = Date.now();
   prunePendingQueries(now);
   pendingQueryCounter += 1;
-  const id = `${INLINE_ASK_RESULT_PREFIX}${pendingQueryCounter.toString(36)}-${now.toString(36)}`;
+  const id = `${INLINE_ASK_RESULT_PREFIX}${pendingQueryCounter.toString(36)}${now.toString(36)}`;
   pendingQueries.set(id, { text, createdAt: now });
   return id;
 }

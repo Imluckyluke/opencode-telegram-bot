@@ -34,7 +34,7 @@ describe("bot/inline/inline-results", () => {
   });
 
   it("rejects unknown result ids", () => {
-    expect(consumePendingInlineQuery("ask:unknown")).toBeNull();
+    expect(consumePendingInlineQuery("ask_unknown")).toBeNull();
     expect(consumePendingInlineQuery(INLINE_STATUS_RESULT_ID)).toBeNull();
   });
 
