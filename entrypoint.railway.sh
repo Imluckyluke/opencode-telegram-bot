@@ -8,7 +8,7 @@ if [ -z "${TELEGRAM_BOT_TOKEN:-}" ]; then echo "missing TELEGRAM_BOT_TOKEN"; exi
 if [ -z "${TELEGRAM_ALLOWED_USER_ID:-}" ]; then echo "missing TELEGRAM_ALLOWED_USER_ID"; exit 1; fi
 if [ -z "${OPENCODE_SERVER_PASSWORD:-}" ] || [ "${OPENCODE_SERVER_PASSWORD}" = "changeme" ]; then echo "set real OPENCODE_SERVER_PASSWORD"; exit 1; fi
 
-mkdir -p "$HOME/.config/opencode" /app/data/logs /app/data/run /workspace
+mkdir -p "$HOME/.config/opencode" /app/data/logs /app/data/run /workspace "${TMPDIR:-/app/data/tmp}"
 [ -f "$HOME/.config/opencode/opencode.json" ] || cp /app/opencode.json "$HOME/.config/opencode/opencode.json"
 
 # Optional GitHub access for the agent (GH_TOKEN set in Railway Variables).
