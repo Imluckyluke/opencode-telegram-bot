@@ -439,13 +439,13 @@ export function fetchCurrentModel(): ModelInfo {
 }
 
 /**
- * Default for inline/guest runs: fastest free model (up to 4x throughput).
- * Note: image/video input is not promised — use /inlinemodel to switch when
- * you need multimodal understanding.
+ * Default for inline/guest runs: older Spark generation — lighter and faster
+ * than 1.3/Ultra for quick answers, still multimodal. Override with
+ * /inlinemodel or INLINE_MODEL_* env vars.
  */
 export const DEFAULT_INLINE_MODEL: ModelInfo = {
   providerID: "opencode",
-  modelID: "nemotron-3.5-lightning-free",
+  modelID: "muse-spark-1.2-contributor-free",
   variant: "default",
 };
 
