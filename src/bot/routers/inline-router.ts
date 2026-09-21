@@ -10,6 +10,7 @@ import { getStoredInlineModel, getStoredModel } from "../../app/services/model-s
 import { backgroundSessionTracker } from "../../app/managers/background-session-manager.js";
 import { withAgentContext } from "../../app/services/agent-context-service.js";
 import { prepareGuestFiles, type GuestFileInput } from "../inline/guest-files.js";
+import { isSttConfigured } from "../../app/services/stt-service.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { formatErrorDetails } from "../../utils/error-format.js";
 import { logger } from "../../utils/logger.js";
@@ -512,6 +513,10 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
     const notifyGuest = (notice: string) => {
       void editInlineMessage(bot.api, inlineMessageId, question, notice, false);
     };
+    if (files.some((file) => file.kind === "voice") && !isSttConfigured()) {
+      notifyGuest(t("stt.not_configured"));
+      return;
+    }
     try {
       const run = await runInlinePrompt(deps, bot.api, promptText, notifyGuest, files);
       if (run) {
