@@ -8,6 +8,9 @@ export interface InlineArticleResult {
   input_message_content: {
     message_text: string;
   };
+  reply_markup?: {
+    inline_keyboard: Array<Array<{ text: string; url: string }>>;
+  };
 }
 
 export interface InlineSnapshot {
@@ -93,11 +96,14 @@ function buildStatusMessageText(snapshot: InlineSnapshot): string {
 /**
  * Builds inline answers: always a status card, plus a "run in current
  * session" action when the user typed a question. Tapping the action posts a
- * visible placeholder and the answer is delivered in the bot DM chat.
+ * visible placeholder and the answer is edited into it in place.
+ * The ask action carries a button on purpose: Telegram only reports
+ * inline_message_id (needed for those edits) when a keyboard is attached.
  */
 export function buildInlineResults(
   query: string,
   snapshot: InlineSnapshot,
+  botUsername: string | null,
 ): InlineArticleResult[] {
   const results: InlineArticleResult[] = [
     {
@@ -113,7 +119,7 @@ export function buildInlineResults(
 
   const text = query.trim().slice(0, MAX_INLINE_QUERY_LENGTH);
   if (text) {
-    results.unshift({
+    const askResult: InlineArticleResult = {
       type: "article",
       id: registerPendingInlineQuery(text),
       title: t("inline.ask.title"),
@@ -121,7 +127,13 @@ export function buildInlineResults(
       input_message_content: {
         message_text: t("inline.posted.text", { query: text }),
       },
-    });
+    };
+    if (botUsername) {
+      askResult.reply_markup = {
+        inline_keyboard: [[{ text: t("inline.open_bot"), url: `https://t.me/${botUsername}` }]],
+      };
+    }
+    results.unshift(askResult);
   }
 
   return results;

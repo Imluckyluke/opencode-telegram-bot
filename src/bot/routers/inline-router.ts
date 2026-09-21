@@ -320,7 +320,11 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       `[Bot] Inline query: from=${inlineQuery.from.id}, queryLength=${(inlineQuery.query ?? "").length}`,
     );
     try {
-      const results = buildInlineResults(inlineQuery.query ?? "", buildSnapshot());
+      const botUsername = bot.botInfo?.username ?? null;
+      if (!botUsername) {
+        logger.warn("[Bot] Bot username unknown, inline answers cannot be edited in place");
+      }
+      const results = buildInlineResults(inlineQuery.query ?? "", buildSnapshot(), botUsername);
       await ctx.answerInlineQuery(results, { cache_time: 0, is_personal: true });
     } catch (err) {
       logger.error("[Bot] Error answering inline query:", err);
@@ -358,6 +362,8 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
           run.directory,
           run.startedAt,
         );
+      } else if (run) {
+        logger.warn("[Bot] Inline tap has no inline_message_id, answer stays in bot chat");
       }
     } catch (err) {
       logger.error("[Bot] Error running inline prompt:", err);

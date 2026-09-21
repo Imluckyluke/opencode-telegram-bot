@@ -190,6 +190,7 @@ export const fr: I18nDictionary = {
   "inline.posted.text": "{query} (asked via bot, answer arrives in the bot chat)",
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
+  "inline.open_bot": "Open bot",
 
   "help.intro": "Send any text as a prompt \u2014 no command needed.",
   "help.group.sessions": "Sessions & projects",

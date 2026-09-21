@@ -16,21 +16,30 @@ const snapshot: InlineSnapshot = {
 
 describe("bot/inline/inline-results", () => {
   it("always includes the status card", () => {
-    const results = buildInlineResults("", snapshot);
+    const results = buildInlineResults("", snapshot, "TestBot");
 
     expect(results).toHaveLength(1);
     expect(results[0]?.id).toBe(INLINE_STATUS_RESULT_ID);
   });
 
-  it("adds an ask action for non-empty queries and consumes it once", () => {
-    const results = buildInlineResults("fix the bug", snapshot);
+  it("adds an ask action with a keyboard for in-place edits", () => {
+    const results = buildInlineResults("fix the bug", snapshot, "TestBot");
 
     expect(results).toHaveLength(2);
     const askId = String(results[0]?.id);
     expect(askId).not.toBe(INLINE_STATUS_RESULT_ID);
+    expect(results[0]?.reply_markup?.inline_keyboard[0]?.[0]?.url).toBe(
+      "https://t.me/TestBot",
+    );
 
     expect(consumePendingInlineQuery(askId)).toBe("fix the bug");
     expect(consumePendingInlineQuery(askId)).toBeNull();
+  });
+
+  it("omits the keyboard without a bot username", () => {
+    const results = buildInlineResults("fix the bug", snapshot, null);
+
+    expect(results[0]?.reply_markup).toBeUndefined();
   });
 
   it("rejects unknown result ids", () => {
