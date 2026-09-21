@@ -204,7 +204,7 @@ type SessionMessageLike = {
 
 const INLINE_POLL_INTERVAL_MS = 3000;
 const INLINE_RUN_TIMEOUT_MS = 10 * 60 * 1000;
-const INLINE_EDIT_THROTTLE_MS = 20000;
+const INLINE_EDIT_THROTTLE_MS = 10000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
