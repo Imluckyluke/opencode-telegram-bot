@@ -439,12 +439,13 @@ export function fetchCurrentModel(): ModelInfo {
 }
 
 /**
- * Default for inline/guest runs: fast free model. Note: it does not promise
- * video input — use /inlinemodel to switch when you need video understanding.
+ * Default for inline/guest runs: fastest free model (up to 4x throughput).
+ * Note: image/video input is not promised — use /inlinemodel to switch when
+ * you need multimodal understanding.
  */
 export const DEFAULT_INLINE_MODEL: ModelInfo = {
   providerID: "opencode",
-  modelID: "mimo-v2.6-flash-free",
+  modelID: "nemotron-3.5-lightning-free",
   variant: "default",
 };
 
