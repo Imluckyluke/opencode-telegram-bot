@@ -337,6 +337,7 @@ async function streamInlineAnswer(
   const deadline = Date.now() + INLINE_RUN_TIMEOUT_MS;
   let lastSent = "";
   let lastEditAt = 0;
+  let observedBusy = false;
   logger.info(`[Bot] Streaming inline answer: session=${sessionId}`);
   for (;;) {
     await sleep(INLINE_POLL_INTERVAL_MS);
@@ -347,22 +348,30 @@ async function streamInlineAnswer(
         lastSent = snapshot.text;
         lastEditAt = now;
       }
-      if (snapshot.completed) {
+    }
+    if (now > deadline) {
+      logger.warn(`[Bot] Inline answer timed out: session=${sessionId}`);
+      if (!lastSent) {
+        await editInlineMessage(api, inlineMessageId, query, t("inline.interrupted"), includeQuestion);
+      }
+      return;
+    }
+    // A completed message is not the end: the model may continue with tool
+    // calls and more messages (e.g. "let me check the link…"). Only stop
+    // once the session itself goes idle.
+    const busy = !(await isRunIdle(sessionId, directory).catch(() => false));
+    observedBusy = observedBusy || busy;
+    if (!busy && observedBusy) {
+      if (snapshot && snapshot.text !== lastSent) {
+        if (await editInlineMessage(api, inlineMessageId, query, snapshot.text, includeQuestion)) {
+          lastSent = snapshot.text;
+        }
+      }
+      if (lastSent) {
         logger.info(`[Bot] Inline answer delivered: session=${sessionId}`);
         return;
       }
-    } else if (snapshot?.completed || now > deadline) {
-      if (now > deadline) {
-        logger.warn(`[Bot] Inline answer timed out: session=${sessionId}`);
-      }
-      return;
-    }
-    // The run died without a completion (abort/error): don't poll till timeout.
-    if (!snapshot && lastSent && (await isRunIdle(sessionId, directory))) {
-      logger.info(`[Bot] Inline run went idle, keeping last text: session=${sessionId}`);
-      return;
-    }
-    if (!snapshot && !lastSent && now > deadline) {
+      // Idle with nothing ever shown: interrupted (abort/error before output).
       await editInlineMessage(api, inlineMessageId, query, t("inline.interrupted"), includeQuestion);
       return;
     }
