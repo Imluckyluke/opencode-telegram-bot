@@ -460,7 +460,7 @@ describe("app/services/model-selection-service", () => {
     it("falls back to env default when stored model is unavailable", async () => {
       setCurrentModelState({ providerID: "openai", modelID: "retired", variant: "high" });
 
-      await reconcileStoredModelSelection();
+      await reconcileStoredModelSelection({ retryDelayMs: 0 });
 
       expect(getCurrentModelState()).toEqual({
         providerID: "opencode",
@@ -468,6 +468,24 @@ describe("app/services/model-selection-service", () => {
         variant: "default",
       });
       expect(setCurrentModelMock).toHaveBeenCalledTimes(1);
+      expect(providersMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("keeps stored model when it appears on catalog refresh", async () => {
+      setCurrentModelState({ providerID: "openai", modelID: "gpt-4o", variant: "high" });
+      providersMock.mockResolvedValueOnce(
+        createProvidersResponse({ opencode: ["big-pickle"] }),
+      );
+
+      await reconcileStoredModelSelection({ retryDelayMs: 0 });
+
+      expect(getCurrentModelState()).toEqual({
+        providerID: "openai",
+        modelID: "gpt-4o",
+        variant: "high",
+      });
+      expect(setCurrentModelMock).not.toHaveBeenCalled();
+      expect(providersMock).toHaveBeenCalledTimes(2);
     });
 
     it("keeps stored model when it is available", async () => {

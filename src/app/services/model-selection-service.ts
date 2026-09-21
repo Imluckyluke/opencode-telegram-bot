@@ -297,9 +297,21 @@ export async function getModelSelectionLists(): Promise<ModelSelectionLists> {
 /**
  * Validate stored selected model against OpenCode providers catalog.
  * If selected model is unavailable, fallback to env default model.
+ *
+ * Right after a redeploy the catalog can be partially loaded, so a missing
+ * key is rechecked a few times before the stored pick is discarded —
+ * otherwise every restart would silently reset the user's model.
  */
+const RECONCILE_MAX_ATTEMPTS = 3;
+const RECONCILE_RETRY_DELAY_MS = 10_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function reconcileStoredModelSelection(options?: {
   forceCatalogRefresh?: boolean;
+  retryDelayMs?: number;
 }): Promise<void> {
   const currentModel = getCurrentModel();
 
@@ -307,17 +319,29 @@ export async function reconcileStoredModelSelection(options?: {
     return;
   }
 
-  const validModelKeys = await getValidModelKeys({ force: options?.forceCatalogRefresh });
-
-  if (!validModelKeys) {
-    logger.warn("[ModelManager] Skipping stored model validation: model catalog unavailable");
-    return;
-  }
-
   const currentModelKey = getModelKey(currentModel.providerID, currentModel.modelID);
+  const retryDelayMs = options?.retryDelayMs ?? RECONCILE_RETRY_DELAY_MS;
 
-  if (validModelKeys.has(currentModelKey)) {
-    return;
+  for (let attempt = 1; attempt <= RECONCILE_MAX_ATTEMPTS; attempt++) {
+    const validModelKeys = await getValidModelKeys({
+      force: attempt > 1 || options?.forceCatalogRefresh,
+    });
+
+    if (!validModelKeys) {
+      logger.warn("[ModelManager] Skipping stored model validation: model catalog unavailable");
+      return;
+    }
+
+    if (validModelKeys.has(currentModelKey)) {
+      return;
+    }
+
+    if (attempt < RECONCILE_MAX_ATTEMPTS) {
+      logger.warn(
+        `[ModelManager] Stored model ${currentModelKey} missing from catalog (attempt ${attempt}/${RECONCILE_MAX_ATTEMPTS}), rechecking...`,
+      );
+      await sleep(retryDelayMs);
+    }
   }
 
   const envDefaultModel = getEnvDefaultModel();
