@@ -261,11 +261,14 @@ async function editInlineMessage(
   inlineMessageId: string,
   query: string,
   answer: string,
+  includeQuestion = true,
 ): Promise<boolean> {
   // 1. Native rich blocks: the question becomes a real quote block, tables
-  // stay real tables — same rendering as the DM chat.
+  // stay real tables — same rendering as the DM chat. Guest answers skip the
+  // question: they already reply to the user's message.
+  const questionPrefix = includeQuestion ? `> ${query.trim()}\n\n` : "";
   try {
-    const richSource = `> ${query.trim()}\n\n${answer.trim()}`;
+    const richSource = `${questionPrefix}${answer.trim()}`;
     const parts = renderAssistantFinalPartsSafe(truncateInlineText(richSource, INLINE_RICH_BUDGET_CHARS));
     const blocks = parts.flatMap((part) => part.blocks);
     if (blocks.length > 0) {
@@ -276,7 +279,9 @@ async function editInlineMessage(
     logger.debug("[Bot] Inline rich edit failed, retrying as Markdown", error);
   }
   // 2. Classic Markdown text (no native tables, but widely supported).
-  const trimmed = truncateInlineText(formatInlineAnswer(query, answer));
+  const trimmed = truncateInlineText(
+    includeQuestion ? formatInlineAnswer(query, answer) : answer,
+  );
   try {
     await api.editMessageTextInline(inlineMessageId, trimmed, { parse_mode: "Markdown" });
     return true;
@@ -318,6 +323,7 @@ async function streamInlineAnswer(
   directory: string,
   startedAt: number,
   query: string,
+  includeQuestion = true,
 ): Promise<void> {
   const deadline = Date.now() + INLINE_RUN_TIMEOUT_MS;
   let lastSent = "";
@@ -328,7 +334,7 @@ async function streamInlineAnswer(
     const snapshot = await readInlineSnapshot(sessionId, directory, startedAt).catch(() => null);
     const now = Date.now();
     if (snapshot && snapshot.text !== lastSent && (snapshot.completed || now - lastEditAt >= INLINE_EDIT_THROTTLE_MS)) {
-      if (await editInlineMessage(api, inlineMessageId, query, snapshot.text)) {
+      if (await editInlineMessage(api, inlineMessageId, query, snapshot.text, includeQuestion)) {
         lastSent = snapshot.text;
         lastEditAt = now;
       }
@@ -348,7 +354,7 @@ async function streamInlineAnswer(
       return;
     }
     if (!snapshot && !lastSent && now > deadline) {
-      await editInlineMessage(api, inlineMessageId, query, t("inline.interrupted"));
+      await editInlineMessage(api, inlineMessageId, query, t("inline.interrupted"), includeQuestion);
       return;
     }
   }
@@ -474,7 +480,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       return;
     }
     const notifyGuest = (notice: string) => {
-      void editInlineMessage(bot.api, inlineMessageId, text, notice);
+      void editInlineMessage(bot.api, inlineMessageId, text, notice, false);
     };
     try {
       const run = await runInlinePrompt(deps, text, notifyGuest);
@@ -486,6 +492,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
           run.directory,
           run.startedAt,
           text,
+          false,
         ).finally(() => {
           inlineRunInFlight = false;
         });
