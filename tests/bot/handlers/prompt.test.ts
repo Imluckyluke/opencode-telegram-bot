@@ -62,6 +62,10 @@ vi.mock("../../../src/app/stores/settings-store.js", () => ({
   getShowBottomKeyboard: vi.fn(() => true),
 }));
 
+vi.mock("../../../src/app/services/agent-context-service.js", () => ({
+  withAgentContext: (text: string) => text,
+}));
+
 vi.mock("../../../src/app/services/agent-selection-service.js", () => ({
   getStoredAgent: vi.fn(() => "build"),
   resolveProjectAgent: vi.fn(async (agentName?: string) => agentName ?? "build"),
@@ -279,6 +283,30 @@ describe("bot/handlers/prompt", () => {
       variant: "default",
     });
     expect(mocked.sessionPromptMock).not.toHaveBeenCalled();
+  });
+
+  it("recreates the session when the stored one is gone server-side", async () => {
+    mocked.sessionStatusMock.mockResolvedValue({ data: {}, error: null });
+    mocked.sessionCreateMock.mockResolvedValue({
+      data: { id: "session-2", title: "Fresh" },
+      error: null,
+    });
+
+    const handled = await processUserPrompt(createContext(), "Review README", createDeps());
+
+    expect(handled).toBe(true);
+    expect(mocked.sessionCreateMock).toHaveBeenCalledWith({
+      directory: "D:\\Projects\\Repo",
+    });
+    expect(mocked.attachToSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        session: {
+          id: "session-2",
+          title: "Fresh",
+          directory: "D:\\Projects\\Repo",
+        },
+      }),
+    );
   });
 
   it("still notifies the user when promptAsync reports a real start error", async () => {

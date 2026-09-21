@@ -80,26 +80,34 @@ export function consumePromptResponseMode(sessionId: string): PromptResponseMode
   return responseMode;
 }
 
-export async function isSessionBusy(sessionId: string, directory: string): Promise<boolean> {
+async function checkSessionLiveness(
+  sessionId: string,
+  directory: string,
+): Promise<{ exists: boolean; busy: boolean }> {
   try {
     const { data, error } = await opencodeClient.session.status({ directory });
 
     if (error || !data) {
       logger.warn("[Bot] Failed to check session status before prompt:", error);
-      return false;
+      return { exists: true, busy: false };
     }
 
     const sessionStatus = (data as Record<string, { type?: string }>)[sessionId];
     if (!sessionStatus) {
-      return false;
+      return { exists: false, busy: false };
     }
 
     logger.debug(`[Bot] Current session status before prompt: ${sessionStatus.type || "unknown"}`);
-    return sessionStatus.type === "busy";
+    return { exists: true, busy: sessionStatus.type === "busy" };
   } catch (err) {
     logger.warn("[Bot] Error checking session status before prompt:", err);
-    return false;
+    return { exists: true, busy: false };
   }
+}
+
+export async function isSessionBusy(sessionId: string, directory: string): Promise<boolean> {
+  const state = await checkSessionLiveness(sessionId, directory);
+  return state.busy;
 }
 
 async function resetMismatchedSessionContext(): Promise<void> {
@@ -202,6 +210,20 @@ export async function processUserPrompt(
     await resetMismatchedSessionContext();
     await ctx.reply(t("bot.session_reset_project_mismatch"));
     return false;
+  }
+
+  if (currentSession) {
+    // Sessions vanish server-side on every redeploy (opencode storage is not
+    // on the volume). Detect the ghost here and fall through to auto-create
+    // instead of failing later with "Session not found".
+    const liveness = await checkSessionLiveness(currentSession.id, currentSession.directory);
+    if (!liveness.exists) {
+      logger.warn(
+        `[Bot] Stored session is gone server-side, creating a fresh one: session=${currentSession.id}`,
+      );
+      clearSession();
+      currentSession = null;
+    }
   }
 
   if (!currentSession) {

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import type { Context } from "grammy";
 import type { VoiceMessageDeps } from "../../../src/bot/handlers/voice-handler.js";
+import { markTranscribedAudio } from "../../../src/app/services/stt-service.js";
 import { t } from "../../../src/i18n/index.js";
 import { defined } from "../../helpers/defined.js";
 
@@ -166,7 +167,7 @@ describe("bot/handlers/voice-handler", () => {
       "🎤 Recognized:\n> Line 1\n> Line 2",
       { parse_mode: "MarkdownV2" },
     );
-    expect(processPromptMock).toHaveBeenCalledWith(ctx, "Line 1\nLine 2", deps, [], {
+    expect(processPromptMock).toHaveBeenCalledWith(ctx, markTranscribedAudio("Line 1\nLine 2"), deps, [], {
       responseMode: "text_only",
     });
   });
@@ -209,7 +210,7 @@ describe("bot/handlers/voice-handler", () => {
 
     expect(mocked.flushPendingPromptMock).toHaveBeenCalledWith(777);
     expect(replyMock).toHaveBeenCalledWith(t("stt.recognizing"));
-    expect(processPromptMock).toHaveBeenCalledWith(ctx, "run tests", deps, [], {
+    expect(processPromptMock).toHaveBeenCalledWith(ctx, markTranscribedAudio("run tests"), deps, [], {
       responseMode: "text_only",
     });
   });
@@ -256,7 +257,7 @@ describe("bot/handlers/voice-handler", () => {
 
     await handleVoiceMessage(ctx, deps);
 
-    expect(processPromptMock).toHaveBeenCalledWith(ctx, `[Note: ${note}]\nrun tests`, deps, [], {
+    expect(processPromptMock).toHaveBeenCalledWith(ctx, `[Note: ${note}]\n${markTranscribedAudio("run tests")}`, deps, [], {
       responseMode: "text_only",
     });
     expect(logger.debug).toHaveBeenCalledWith(
