@@ -259,11 +259,14 @@ const INLINE_RICH_BUDGET_CHARS = 30000;
 async function editInlineMessage(
   api: Bot<Context>["api"],
   inlineMessageId: string,
-  text: string,
+  query: string,
+  answer: string,
 ): Promise<boolean> {
-  // 1. Native rich blocks: real tables, lists, quotes — same as the DM chat.
+  // 1. Native rich blocks: the question becomes a real quote block, tables
+  // stay real tables — same rendering as the DM chat.
   try {
-    const parts = renderAssistantFinalPartsSafe(truncateInlineText(text, INLINE_RICH_BUDGET_CHARS));
+    const richSource = `> ${query.trim()}\n\n${answer.trim()}`;
+    const parts = renderAssistantFinalPartsSafe(truncateInlineText(richSource, INLINE_RICH_BUDGET_CHARS));
     const blocks = parts.flatMap((part) => part.blocks);
     if (blocks.length > 0) {
       await api.editMessageTextInline(inlineMessageId, { blocks });
@@ -273,7 +276,7 @@ async function editInlineMessage(
     logger.debug("[Bot] Inline rich edit failed, retrying as Markdown", error);
   }
   // 2. Classic Markdown text (no native tables, but widely supported).
-  const trimmed = truncateInlineText(text);
+  const trimmed = truncateInlineText(formatInlineAnswer(query, answer));
   try {
     await api.editMessageTextInline(inlineMessageId, trimmed, { parse_mode: "Markdown" });
     return true;
@@ -325,7 +328,7 @@ async function streamInlineAnswer(
     const snapshot = await readInlineSnapshot(sessionId, directory, startedAt).catch(() => null);
     const now = Date.now();
     if (snapshot && snapshot.text !== lastSent && (snapshot.completed || now - lastEditAt >= INLINE_EDIT_THROTTLE_MS)) {
-      if (await editInlineMessage(api, inlineMessageId, formatInlineAnswer(query, snapshot.text))) {
+      if (await editInlineMessage(api, inlineMessageId, query, snapshot.text)) {
         lastSent = snapshot.text;
         lastEditAt = now;
       }
@@ -345,7 +348,7 @@ async function streamInlineAnswer(
       return;
     }
     if (!snapshot && !lastSent && now > deadline) {
-      await editInlineMessage(api, inlineMessageId, t("inline.interrupted"));
+      await editInlineMessage(api, inlineMessageId, query, t("inline.interrupted"));
       return;
     }
   }
@@ -398,7 +401,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       return;
     }
     const notifyInline = (notice: string) => {
-      void editInlineMessage(bot.api, inlineMessageId, formatInlineAnswer(queryText, notice));
+      void editInlineMessage(bot.api, inlineMessageId, queryText, notice);
     };
     try {
       const run = await runInlinePrompt(deps, queryText, notifyInline);
