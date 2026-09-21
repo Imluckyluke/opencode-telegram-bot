@@ -425,16 +425,18 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
 
   bot.on("guest_message", async (ctx) => {
     const guest = ctx.guestMessage;
-    const callerId = guest?.guest_bot_caller_user?.id;
+    // The summoner arrives as guest_bot_caller_user, or for direct summons
+    // as the message sender itself.
+    const callerId = guest?.guest_bot_caller_user?.id ?? guest?.from?.id;
     // Authoritative check: the summoner must be whitelisted (auth middleware
     // already passed on sender-or-caller).
     if (!guest || !isAllowedTelegramUser(callerId)) {
-      logger.debug(`[Bot] Ignoring guest message: caller=${callerId}`);
+      logger.warn(`[Bot] Ignoring guest message: caller=${callerId}`);
       return;
     }
     const text = (guest.text ?? guest.caption ?? "").trim().slice(0, 4000);
     if (!text) {
-      logger.debug("[Bot] Ignoring guest message without text");
+      logger.info(`[Bot] Ignoring guest textless message: caller=${callerId}`);
       return;
     }
     logger.info(`[Bot] Guest summons accepted: caller=${callerId}, queryLength=${text.length}`);
