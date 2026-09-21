@@ -85,6 +85,11 @@ function isTelegramApiErrorResponse(response: unknown): response is TelegramApiE
   );
 }
 
+function describeUpdateKind(update: object): string {
+  const kind = Object.keys(update).find((key) => key !== "update_id");
+  return kind ?? "unknown";
+}
+
 export function createBot(localCommandRegistry = LocalCommandRegistry.empty()): Bot<Context> {
   clearAllInteractionState("bot_startup");
   attachManager.clear("bot_startup");
@@ -201,6 +206,11 @@ export function createBot(localCommandRegistry = LocalCommandRegistry.empty()): 
     logger.debug(
       `[DEBUG] Incoming update: hasCallbackQuery=${hasCallbackQuery}, hasMessage=${hasMessage}, callbackData=${callbackData}`,
     );
+    // Non-chat updates (inline, guest, …) are rare: log their kind at info
+    // level so missing update types are diagnosable from normal logs.
+    if (!hasCallbackQuery && !hasMessage) {
+      logger.info(`[Bot] Update received: kind=${describeUpdateKind(ctx.update)}`);
+    }
     return next();
   });
 
