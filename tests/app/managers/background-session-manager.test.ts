@@ -324,3 +324,72 @@ describe("BackgroundSessionTracker", () => {
     expect(onNotification).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("BackgroundSessionTracker muted sessions", () => {
+  it("does not notify for muted sessions", async () => {
+    const tracker = new BackgroundSessionTracker();
+    const onNotification = vi.fn();
+    tracker.setOnNotification(onNotification);
+    tracker.setMuted("session-9", true);
+
+    tracker.processEvent(
+      event({
+        type: "message.updated",
+        properties: {
+          info: {
+            id: "message-9",
+            sessionID: "session-9",
+            role: "assistant",
+            time: { completed: 123 },
+          },
+        },
+      }),
+      "session-1",
+    );
+    tracker.processEvent(
+      event({
+        type: "session.idle",
+        properties: { sessionID: "session-9" },
+      }),
+      "session-1",
+    );
+
+    await flushNotifications();
+
+    expect(onNotification).not.toHaveBeenCalled();
+  });
+
+  it("notifies again after unmuting", async () => {
+    const tracker = new BackgroundSessionTracker();
+    const onNotification = vi.fn();
+    tracker.setOnNotification(onNotification);
+    tracker.setMuted("session-9", true);
+    tracker.setMuted("session-9", false);
+
+    tracker.processEvent(
+      event({
+        type: "message.updated",
+        properties: {
+          info: {
+            id: "message-9",
+            sessionID: "session-9",
+            role: "assistant",
+            time: { completed: 123 },
+          },
+        },
+      }),
+      "session-1",
+    );
+    tracker.processEvent(
+      event({
+        type: "session.idle",
+        properties: { sessionID: "session-9" },
+      }),
+      "session-1",
+    );
+
+    await flushNotifications();
+
+    expect(onNotification).toHaveBeenCalledTimes(1);
+  });
+});

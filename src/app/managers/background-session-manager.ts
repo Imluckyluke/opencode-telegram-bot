@@ -26,6 +26,7 @@ class BackgroundSessionTracker {
   private onNotification: NotificationCallback | null = null;
   private sessionTitles = new Map<string, string>();
   private childSessionIds = new Set<string>();
+  private mutedSessionIds = new Set<string>();
   private completedAssistantMessageIds = new Set<string>();
   private pendingAssistantResponsesBySessionId = new Map<string, PendingAssistantResponse>();
   private questionRequestIds = new Set<string>();
@@ -44,10 +45,26 @@ class BackgroundSessionTracker {
     this.onNotification = callback;
   }
 
+  /**
+   * Excludes a session from background notifications (e.g. the dedicated
+   * inline session, whose results are delivered in place).
+   */
+  setMuted(sessionId: string, muted: boolean): void {
+    if (!sessionId) {
+      return;
+    }
+    if (muted) {
+      this.mutedSessionIds.add(sessionId);
+    } else {
+      this.mutedSessionIds.delete(sessionId);
+    }
+  }
+
   clear(): void {
     this.directory = null;
     this.sessionTitles.clear();
     this.childSessionIds.clear();
+    this.mutedSessionIds.clear();
     this.completedAssistantMessageIds.clear();
     this.pendingAssistantResponsesBySessionId.clear();
     this.questionRequestIds.clear();
@@ -172,6 +189,7 @@ class BackgroundSessionTracker {
     return (
       sessionId === currentSessionId ||
       this.childSessionIds.has(sessionId) ||
+      this.mutedSessionIds.has(sessionId) ||
       isScheduledTaskSessionIgnored(sessionId)
     );
   }

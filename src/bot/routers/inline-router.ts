@@ -1,30 +1,22 @@
 import type { Bot, Context } from "grammy";
 import { isAllowedTelegramUser } from "../../config.js";
 import { opencodeClient } from "../../opencode/client.js";
-import {
-  getCurrentSession,
-  setCurrentSession,
-} from "../../app/services/session-service.js";
+import { getCurrentSession } from "../../app/services/session-service.js";
 import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
 import { getCurrentProject } from "../../app/stores/settings-store.js";
 import { getStoredAgent, resolveProjectAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
-import { attachToSession, markAttachedSessionBusy } from "../../app/services/attach-service.js";
-import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
-import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
-import { questionManager } from "../../app/managers/question-manager.js";
-import { permissionManager } from "../../app/managers/permission-manager.js";
-import { externalUserInputSuppressionManager } from "../../app/managers/external-input-suppression-manager.js";
+import { backgroundSessionTracker } from "../../app/managers/background-session-manager.js";
 import { withAgentContext } from "../../app/services/agent-context-service.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { formatErrorDetails } from "../../utils/error-format.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { isSessionBusy } from "../handlers/prompt.js";
-import { setPromptResponseMode } from "../handlers/prompt.js";
 import {
   buildInlineResults,
   consumePendingInlineQuery,
+  formatInlineAnswer,
   truncateInlineText,
   type InlineSnapshot,
 } from "../inline/inline-results.js";
@@ -52,50 +44,88 @@ function buildSnapshot(): InlineSnapshot {
 }
 
 /**
- * Runs a text-only prompt from an inline query in the current session.
- * Progress and the answer are delivered to the requester's DM chat via the
- * normal SSE pipeline; returns run coordinates for inline in-place streaming.
+ * Dedicated session for inline runs. It is never set as the current session
+ * and never attached, so nothing leaks into the DM chat: the DM pipeline
+ * only delivers for the current session, and background notifications for
+ * this session are muted. One per project directory, reused across asks.
+ */
+const INLINE_SESSION_TITLE = "⚡ Inline";
+
+let inlineRunInFlight = false;
+
+interface InlineSession {
+  id: string;
+  directory: string;
+}
+
+async function findInlineSession(directory: string): Promise<InlineSession | null> {
+  const { data, error } = await opencodeClient.session.list({
+    directory,
+    limit: 50,
+    roots: true,
+  });
+  if (error || !data) {
+    return null;
+  }
+  const found = (data as Array<{ id?: string; title?: string }>).find(
+    (session) => typeof session.id === "string" && session.title === INLINE_SESSION_TITLE,
+  );
+  return found?.id ? { id: found.id, directory } : null;
+}
+
+async function getInlineSession(directory: string): Promise<InlineSession | null> {
+  const existing = await findInlineSession(directory).catch(() => null);
+  if (existing) {
+    return existing;
+  }
+  const { data, error } = await opencodeClient.session.create({ directory });
+  if (error || !data?.id) {
+    return null;
+  }
+  await opencodeClient.session
+    .update({ sessionID: data.id, directory, title: INLINE_SESSION_TITLE })
+    .catch(() => {});
+  await ingestSessionInfoForCache(data).catch(() => {});
+  return { id: data.id, directory };
+}
+
+/**
+ * Runs a text-only prompt from an inline query in the dedicated inline
+ * session. Nothing is sent to the DM chat: failures are reported through
+ * onFailureNotice so the caller can edit the inline message instead.
  */
 async function runInlinePrompt(
-  bot: Bot<Context>,
   deps: InlineRouterDeps,
-  chatId: number,
   text: string,
+  onFailureNotice: (notice: string) => void,
 ): Promise<{ sessionId: string; directory: string; startedAt: number } | null> {
   const project = getCurrentProject();
   if (!project) {
-    await bot.api.sendMessage(chatId, t("inline.no_project")).catch(() => {});
+    onFailureNotice(t("inline.no_project"));
+    return null;
+  }
+  if (inlineRunInFlight) {
+    onFailureNotice(t("bot.session_busy"));
     return null;
   }
 
-  let session = getCurrentSession();
-  if (!session || session.directory !== project.worktree) {
-    const { data, error } = await opencodeClient.session.create({
-      directory: project.worktree,
-    });
-    if (error || !data) {
-      await bot.api.sendMessage(chatId, t("bot.create_session_error")).catch(() => {});
-      return null;
-    }
-    session = { id: data.id, title: data.title, directory: project.worktree };
-    setCurrentSession(session);
-    await ingestSessionInfoForCache(data).catch(() => {});
-  }
-
-  await attachToSession({
-    bot,
-    chatId,
-    session,
-    ensureEventSubscription: deps.ensureEventSubscription,
-  });
-
-  if (await isSessionBusy(session.id, session.directory)) {
-    await bot.api.sendMessage(chatId, t("bot.session_busy")).catch(() => {});
+  const inlineSession = await getInlineSession(project.worktree).catch(() => null);
+  if (!inlineSession) {
+    onFailureNotice(t("bot.create_session_error"));
     return null;
   }
 
-  if (questionManager.isActive() || permissionManager.isActive()) {
-    await bot.api.sendMessage(chatId, t("interaction.blocked.finish_current")).catch(() => {});
+  backgroundSessionTracker.setMuted(inlineSession.id, true);
+  try {
+    await deps.ensureEventSubscription(project.worktree);
+  } catch (error) {
+    logger.warn("[Bot] Inline event subscription failed:", error);
+    onFailureNotice(t("bot.create_session_error"));
+    return null;
+  }
+
+  if (await isSessionBusy(inlineSession.id, inlineSession.directory)) {
+    onFailureNotice(t("bot.session_busy"));
     return null;
   }
 
@@ -110,8 +140,8 @@ async function runInlinePrompt(
     agent?: string;
     variant?: string;
   } = {
-    sessionID: session.id,
-    directory: session.directory,
+    sessionID: inlineSession.id,
+    directory: inlineSession.directory,
     parts: [{ type: "text", text: notedText }],
     agent: currentAgent,
   };
@@ -125,29 +155,18 @@ async function runInlinePrompt(
     promptOptions.variant = storedModel.variant;
   }
 
-  foregroundSessionState.markBusy(session.id, session.directory);
-  await markAttachedSessionBusy(session.id);
-  assistantRunState.startRun(session.id, {
-    startedAt: Date.now(),
-    configuredAgent: currentAgent,
-    configuredProviderID: storedModel.providerID,
-    configuredModelID: storedModel.modelID,
-  });
-  setPromptResponseMode(session.id, "text_only");
-  externalUserInputSuppressionManager.register(session.id, notedText);
-
   const runContext = {
-    sessionId: session.id,
+    sessionId: inlineSession.id,
     promptLength: notedText.length,
   };
   const startedAt = Date.now();
+  inlineRunInFlight = true;
   safeBackgroundTask({
     taskName: "session.promptAsync.inline",
     task: () => opencodeClient.session.promptAsync(promptOptions),
     onSuccess: ({ error }) => {
       if (error) {
-        foregroundSessionState.markIdle(runContext.sessionId);
-        assistantRunState.clearRun(runContext.sessionId, "inline_prompt_api_error");
+        inlineRunInFlight = false;
         logger.error(
           "[Bot] OpenCode API returned an error for inline promptAsync",
           runContext,
@@ -156,19 +175,18 @@ async function runInlinePrompt(
           "[Bot] inline promptAsync error details:",
           formatErrorDetails(error, 6000),
         );
-        void bot.api.sendMessage(chatId, t("bot.prompt_send_error")).catch(() => {});
+        onFailureNotice(t("bot.prompt_send_error"));
       }
     },
     onError: (error) => {
-      foregroundSessionState.markIdle(runContext.sessionId);
-      assistantRunState.clearRun(runContext.sessionId, "inline_prompt_background_error");
+      inlineRunInFlight = false;
       logger.error("[Bot] inline promptAsync background task failed", runContext);
       logger.error("[Bot] inline promptAsync background failure details:", formatErrorDetails(error, 6000));
-      void bot.api.sendMessage(chatId, t("bot.prompt_send_error")).catch(() => {});
+      onFailureNotice(t("bot.prompt_send_error"));
     },
   });
 
-  return { sessionId: session.id, directory: session.directory, startedAt };
+  return { sessionId: inlineSession.id, directory: inlineSession.directory, startedAt };
 }
 
 type SessionMessageLike = {
@@ -273,6 +291,7 @@ async function streamInlineAnswer(
   sessionId: string,
   directory: string,
   startedAt: number,
+  query: string,
 ): Promise<void> {
   const deadline = Date.now() + INLINE_RUN_TIMEOUT_MS;
   let lastSent = "";
@@ -283,7 +302,7 @@ async function streamInlineAnswer(
     const snapshot = await readInlineSnapshot(sessionId, directory, startedAt).catch(() => null);
     const now = Date.now();
     if (snapshot && snapshot.text !== lastSent && (snapshot.completed || now - lastEditAt >= INLINE_EDIT_THROTTLE_MS)) {
-      if (await editInlineMessage(api, inlineMessageId, snapshot.text)) {
+      if (await editInlineMessage(api, inlineMessageId, formatInlineAnswer(query, snapshot.text))) {
         lastSent = snapshot.text;
         lastEditAt = now;
       }
@@ -350,26 +369,31 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       return;
     }
     logger.info(`[Bot] Inline tap accepted: queryLength=${queryText.length}`);
-    // In a private chat the chat id equals the user id: answer where asked.
-    const requesterChatId = chosen.from.id;
+    const inlineMessageId = chosen.inline_message_id;
+    if (!inlineMessageId) {
+      logger.warn("[Bot] Inline tap has no inline_message_id, cannot answer in place");
+      return;
+    }
+    const notifyInline = (notice: string) => {
+      void editInlineMessage(bot.api, inlineMessageId, formatInlineAnswer(queryText, notice));
+    };
     try {
-      const run = await runInlinePrompt(bot, deps, requesterChatId, queryText);
-      if (run && chosen.inline_message_id) {
+      const run = await runInlinePrompt(deps, queryText, notifyInline);
+      if (run) {
         void streamInlineAnswer(
           bot.api,
-          chosen.inline_message_id,
+          inlineMessageId,
           run.sessionId,
           run.directory,
           run.startedAt,
-        );
-      } else if (run) {
-        logger.warn("[Bot] Inline tap has no inline_message_id, answer stays in bot chat");
+          queryText,
+        ).finally(() => {
+          inlineRunInFlight = false;
+        });
       }
     } catch (err) {
       logger.error("[Bot] Error running inline prompt:", err);
-      await bot.api
-        .sendMessage(requesterChatId, t("error.generic"))
-        .catch(() => {});
+      notifyInline(t("error.generic"));
     }
   });
 }
