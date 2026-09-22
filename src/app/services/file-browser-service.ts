@@ -315,7 +315,10 @@ export async function scanLsDirectory(
   page: number = 0,
 ): Promise<LsDirectoryScanResult | { error: string }> {
   try {
-    if (!isWithinProjectRoot(dirPath)) {
+    // Resolve symlinks before the membership check: a symlink inside the
+    // project pointing outside would otherwise pass the string-only check
+    // while readdir/stat follow it.
+    if (!(await isWithinProjectRootSafe(dirPath))) {
       return { error: t("ls.access_denied") };
     }
 
@@ -355,7 +358,7 @@ export async function scanLsDirectory(
 
 export async function getFileDetails(filePath: string): Promise<FileDetails | { error: string }> {
   try {
-    if (!isWithinProjectRoot(filePath)) {
+    if (!(await isWithinProjectRootSafe(filePath))) {
       return { error: t("ls.access_denied") };
     }
 

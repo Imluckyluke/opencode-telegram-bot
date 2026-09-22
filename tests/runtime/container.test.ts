@@ -25,18 +25,14 @@ describe("runtime/container", () => {
   });
 
   it("is false when OPENCODE_TELEGRAM_CONTAINER is 0 or false", () => {
-    expect(
-      isContainerRuntime({
-        env: { [OPENCODE_TELEGRAM_CONTAINER_ENV]: "0" },
-        dockerEnvExists: () => false,
-      }),
-    ).toBe(false);
-    expect(
-      isContainerRuntime({
-        env: { [OPENCODE_TELEGRAM_CONTAINER_ENV]: "false" },
-        dockerEnvExists: () => false,
-      }),
-    ).toBe(false);
+    for (const value of ["0", "false", "no", "off", "disabled", "n", "", "banana"]) {
+      expect(
+        isContainerRuntime({
+          env: { [OPENCODE_TELEGRAM_CONTAINER_ENV]: value },
+          dockerEnvExists: () => false,
+        }),
+      ).toBe(false);
+    }
   });
 
   it("is true when /.dockerenv exists even without the env flag", () => {

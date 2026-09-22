@@ -4,6 +4,7 @@ import { interactionManager } from "../../../src/app/managers/interaction-manage
 import { promptAttachment } from "../../../src/app/managers/prompt-attachment-manager.js";
 import { handleLsCallback } from "../../../src/bot/callbacks/file-browser-callback-handler.js";
 import { LS_CALLBACK_ATTACH_PREFIX } from "../../../src/bot/menus/file-browser-menu.js";
+import { t } from "../../../src/i18n/index.js";
 import { defined } from "../../helpers/defined.js";
 
 const PROJECT_ROOT = "D:\\Repo";
@@ -59,6 +60,7 @@ describe("bot/callbacks/file-browser-callback-handler - attach branch", () => {
     mocked.isForegroundBusyMock.mockReturnValue(false);
     mocked.ensureActiveInlineMenuMock.mockResolvedValue(true);
     mocked.clearActiveInlineMenuMock.mockReset();
+    vi.unstubAllEnvs();
   });
 
   it("stores the file, closes the menu and confirms with a cancel button", async () => {
@@ -119,5 +121,18 @@ describe("bot/callbacks/file-browser-callback-handler - attach branch", () => {
 
     expect(await handleLsCallback(ctx)).toBe(true);
     expect(promptAttachment.get()).toBeNull();
+  });
+
+  it("refuses callbacks in container runtime even for in-project paths", async () => {
+    vi.stubEnv("OPENCODE_TELEGRAM_CONTAINER", "1");
+    const ctx = createContext(`${LS_CALLBACK_ATTACH_PREFIX}${FILE_PATH}`);
+
+    expect(await handleLsCallback(ctx)).toBe(true);
+    expect(promptAttachment.get()).toBeNull();
+    expect(ctx.reply).not.toHaveBeenCalled();
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
+      text: t("runtime.container.command_unavailable"),
+      show_alert: true,
+    });
   });
 });

@@ -2,11 +2,12 @@ import { InlineKeyboard, type Context } from "grammy";
 import {
   getProjectRoot,
   isPathWithinDirectory,
-  isWithinAllowedRoot,
-  isWithinProjectRoot,
+  isWithinAllowedRootSafe,
+  isWithinProjectRootSafe,
   pathToDisplayPath,
 } from "../../app/services/file-browser-service.js";
 import { isForegroundBusy } from "../../app/services/run-control-service.js";
+import { isContainerRuntime } from "../../runtime/container.js";
 import { t } from "../../i18n/index.js";
 import { alert, failure } from "./feedback.js";
 import { getProjectByWorktree } from "../../app/services/project-service.js";
@@ -90,6 +91,11 @@ export async function handleOpenCallback(
     return true;
   }
 
+  if (isContainerRuntime()) {
+    await alert(ctx, "runtime.container.command_unavailable");
+    return true;
+  }
+
   const isActiveMenu = await ensureActiveInlineMenu(ctx, "open");
   if (!isActiveMenu) {
     return true;
@@ -103,7 +109,7 @@ export async function handleOpenCallback(
 
     const navPath = decodeOpenPathFromCallback(OPEN_CALLBACK_NAV_PREFIX, data);
     if (navPath !== null) {
-      if (!isWithinAllowedRoot(navPath)) {
+      if (!(await isWithinAllowedRootSafe(navPath))) {
         await alert(ctx, "open.access_denied");
         return true;
       }
@@ -113,7 +119,7 @@ export async function handleOpenCallback(
 
     const pageInfo = decodeOpenPaginationCallback(data);
     if (pageInfo !== null) {
-      if (!isWithinAllowedRoot(pageInfo.path)) {
+      if (!(await isWithinAllowedRootSafe(pageInfo.path))) {
         await alert(ctx, "open.access_denied");
         return true;
       }
@@ -123,7 +129,7 @@ export async function handleOpenCallback(
 
     const selectPath = decodeOpenPathFromCallback(OPEN_CALLBACK_SELECT_PREFIX, data);
     if (selectPath !== null) {
-      if (!isWithinAllowedRoot(selectPath)) {
+      if (!(await isWithinAllowedRootSafe(selectPath))) {
         await alert(ctx, "open.access_denied");
         return true;
       }
@@ -197,6 +203,11 @@ export async function handleLsCallback(ctx: Context): Promise<boolean> {
     return true;
   }
 
+  if (isContainerRuntime()) {
+    await alert(ctx, "runtime.container.command_unavailable");
+    return true;
+  }
+
   const isActiveMenu = await ensureActiveInlineMenu(ctx, "ls");
   if (!isActiveMenu) {
     return true;
@@ -205,7 +216,7 @@ export async function handleLsCallback(ctx: Context): Promise<boolean> {
   try {
     const navPath = decodeLsPathFromCallback(LS_CALLBACK_NAV_PREFIX, data);
     if (navPath !== null) {
-      if (!isWithinProjectRoot(navPath)) {
+      if (!(await isWithinProjectRootSafe(navPath))) {
         await alert(ctx, "ls.access_denied");
         return true;
       }
@@ -215,7 +226,7 @@ export async function handleLsCallback(ctx: Context): Promise<boolean> {
 
     const pageInfo = decodeLsPaginationCallback(data);
     if (pageInfo !== null) {
-      if (!isWithinProjectRoot(pageInfo.path)) {
+      if (!(await isWithinProjectRootSafe(pageInfo.path))) {
         await alert(ctx, "ls.access_denied");
         return true;
       }
@@ -225,7 +236,7 @@ export async function handleLsCallback(ctx: Context): Promise<boolean> {
 
     const fileInfo = decodeLsFileCallback(data);
     if (fileInfo !== null) {
-      if (!isWithinProjectRoot(fileInfo.path)) {
+      if (!(await isWithinProjectRootSafe(fileInfo.path))) {
         await alert(ctx, "ls.access_denied");
         return true;
       }
@@ -235,7 +246,7 @@ export async function handleLsCallback(ctx: Context): Promise<boolean> {
 
     const attachPath = decodeLsAttachCallback(data);
     if (attachPath !== null) {
-      if (!isWithinProjectRoot(attachPath)) {
+      if (!(await isWithinProjectRootSafe(attachPath))) {
         await alert(ctx, "ls.access_denied");
         return true;
       }
@@ -245,7 +256,7 @@ export async function handleLsCallback(ctx: Context): Promise<boolean> {
 
     const downloadPath = decodeLsPathFromCallback(LS_CALLBACK_DOWNLOAD_PREFIX, data);
     if (downloadPath !== null) {
-      if (!isWithinProjectRoot(downloadPath)) {
+      if (!(await isWithinProjectRootSafe(downloadPath))) {
         await alert(ctx, "ls.access_denied");
         return true;
       }
@@ -255,7 +266,7 @@ export async function handleLsCallback(ctx: Context): Promise<boolean> {
 
     const backInfo = decodeLsBackCallback(data);
     if (backInfo !== null) {
-      if (!isWithinProjectRoot(backInfo.path)) {
+      if (!(await isWithinProjectRootSafe(backInfo.path))) {
         await alert(ctx, "ls.access_denied");
         return true;
       }

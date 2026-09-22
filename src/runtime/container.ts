@@ -12,8 +12,9 @@ function isEnabledFlag(value: string | undefined): boolean {
     return false;
   }
 
-  const normalized = value.trim().toLowerCase();
-  return normalized !== "" && normalized !== "0" && normalized !== "false" && normalized !== "no";
+  // Explicit allowlist, mirroring getOptionalBooleanEnvVar: anything else
+  // (including "off", "disabled", "n") means disabled, never enabled.
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
 }
 
 export function isContainerRuntime(options?: ContainerRuntimeOptions): boolean {

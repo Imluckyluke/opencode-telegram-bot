@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import { mkdtemp, rm, mkdir } from "node:fs/promises";
+import { mkdtemp, rm, mkdir, symlink, writeFile } from "node:fs/promises";
 import {
   getHomeDirectory,
   pathToDisplayPath,
@@ -11,8 +11,22 @@ import {
   buildTreeHeader,
   isScanError,
   MAX_ENTRIES_PER_PAGE,
+  scanLsDirectory,
+  getFileDetails,
+  isWithinProjectRootSafe,
 } from "../../../src/app/services/file-browser-service.js";
 import { defined } from "../../helpers/defined.js";
+
+const projectHolder = vi.hoisted(() => ({ worktree: null as string | null }));
+
+vi.mock("../../../src/app/stores/settings-store.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../src/app/stores/settings-store.js")>();
+  return {
+    ...actual,
+    getCurrentProject: () =>
+      projectHolder.worktree ? { id: "project-1", worktree: projectHolder.worktree } : null,
+  };
+});
 
 vi.mock("../../../src/utils/logger.js", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -232,5 +246,49 @@ describe("file-tree", () => {
       };
       expect(isScanError(result)).toBe(false);
     });
+  });
+});
+
+describe("project-root symlink escape", () => {
+  let tempRoot: string;
+  let projectDir: string;
+  let outsideDir: string;
+
+  beforeEach(async () => {
+    tempRoot = await mkdtemp(path.join(os.tmpdir(), "file-browser-symlink-"));
+    projectDir = path.join(tempRoot, "project");
+    outsideDir = path.join(tempRoot, "outside");
+    await mkdir(projectDir, { recursive: true });
+    await mkdir(outsideDir, { recursive: true });
+    await writeFile(path.join(outsideDir, "secret.txt"), "top secret");
+    // Junctions need no privileges on Windows; plain dir links elsewhere.
+    await symlink(outsideDir, path.join(projectDir, "link"), process.platform === "win32" ? "junction" : "dir");
+    projectHolder.worktree = projectDir;
+  });
+
+  afterEach(async () => {
+    projectHolder.worktree = null;
+    await rm(tempRoot, { recursive: true, force: true });
+  });
+
+  it("refuses to browse through a symlink pointing outside the project", async () => {
+    const linkPath = path.join(projectDir, "link");
+
+    expect(await isWithinProjectRootSafe(linkPath)).toBe(false);
+
+    const scan = await scanLsDirectory(linkPath);
+    expect(scan).toEqual({ error: expect.any(String) });
+  });
+
+  it("refuses file details through a symlink pointing outside the project", async () => {
+    const details = await getFileDetails(path.join(projectDir, "link", "secret.txt"));
+
+    expect(details).toEqual({ error: expect.any(String) });
+  });
+
+  it("still browses real directories inside the project", async () => {
+    const scan = await scanLsDirectory(projectDir);
+
+    expect(isScanError(scan)).toBe(false);
   });
 });

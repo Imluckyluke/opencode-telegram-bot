@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends dumb-init ca-ce
  && npm install -g opencode-ai@1.18.31
 ENV NODE_ENV=production \
     OPENCODE_TELEGRAM_HOME=/app/data \
+    OPENCODE_TELEGRAM_CONTAINER=1 \
     PORT=4096 \
     NODE_OPTIONS=--max-old-space-size=384
 RUN mkdir -p /app/data/logs /app/data/run /workspace /home/node/.config/opencode && chown -R node:node /app /workspace /home/node/.config

@@ -2,6 +2,7 @@ import type { Context } from "grammy";
 import { clearAllInteractionState } from "../../app/managers/interaction-manager.js";
 import { getProjectByWorktree } from "../../app/services/project-service.js";
 import { isForegroundBusy } from "../../app/services/run-control-service.js";
+import { isContainerRuntime } from "../../runtime/container.js";
 import { switchToProject } from "../../app/services/project-switch-service.js";
 import { getGitWorktreeContext } from "../../app/services/worktree-service.js";
 import { upsertSessionDirectory } from "../../app/services/session-cache-service.js";
@@ -44,6 +45,11 @@ export async function handleWorktreeCallback(
 
   if (isForegroundBusy()) {
     await replyBusyBlocked(ctx);
+    return true;
+  }
+
+  if (isContainerRuntime()) {
+    await alert(ctx, "runtime.container.command_unavailable");
     return true;
   }
 
