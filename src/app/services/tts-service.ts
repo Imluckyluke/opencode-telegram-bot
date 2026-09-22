@@ -75,6 +75,11 @@ export function extractLanguageCode(voiceName: string): string {
   return match?.[1] ?? "en-US";
 }
 
+/** Trims whitespace and trailing slashes so base URLs join cleanly. */
+function normalizeApiUrl(apiUrl: string): string {
+  return apiUrl.trim().replace(/\/+$/, "");
+}
+
 // --- Provider implementations ---
 
 type GoogleTextToSpeechClient = import("@google-cloud/text-to-speech").TextToSpeechClient;
@@ -113,7 +118,19 @@ async function synthesizeWithGoogle(text: string): Promise<TtsResult> {
   );
 
   const raw = response.audioContent;
-  const buffer = Buffer.isBuffer(raw) ? raw : Buffer.from(raw as Uint8Array);
+  // Google returns audioContent as a base64-encoded string; decode it as such.
+  // Buffer.from(string) without an encoding would treat it as UTF-8 and
+  // produce a corrupt MP3.
+  let buffer: Buffer;
+  if (Buffer.isBuffer(raw)) {
+    buffer = raw;
+  } else if (typeof raw === "string") {
+    buffer = Buffer.from(raw, "base64");
+  } else if (raw instanceof Uint8Array) {
+    buffer = Buffer.from(raw);
+  } else {
+    throw new Error("Google TTS API returned an unexpected audio response");
+  }
   if (buffer.length === 0) {
     throw new Error("Google TTS API returned an empty audio response");
   }
@@ -122,7 +139,7 @@ async function synthesizeWithGoogle(text: string): Promise<TtsResult> {
 }
 
 async function synthesizeWithOpenAi(text: string): Promise<TtsResult> {
-  const url = `${config.tts.apiUrl}/audio/speech`;
+  const url = `${normalizeApiUrl(config.tts.apiUrl)}/audio/speech`;
 
   logger.debug(
     `[TTS] OpenAI-compatible: url=${url}, model=${config.tts.model}, voice=${config.tts.voice}, chars=${text.length}`,
@@ -167,7 +184,7 @@ async function synthesizeWithOpenAi(text: string): Promise<TtsResult> {
 }
 
 async function synthesizeWithElevenLabs(text: string): Promise<TtsResult> {
-  const apiUrl = config.tts.apiUrl.replace(/\/+$/, "");
+  const apiUrl = normalizeApiUrl(config.tts.apiUrl);
   const voiceId = config.tts.voice || "21m00Tcm4TlvDq8ikWAM";
   const url = `${apiUrl}/text-to-speech/${encodeURIComponent(voiceId)}`;
 
@@ -256,6 +273,12 @@ export async function synthesizeSpeech(text: string): Promise<TtsResult> {
   }
 
   const input = stripMarkdownForSpeech(raw);
+
+  // prepareTtsResponseForSession pre-checks this; fail fast here too so future
+  // direct callers cannot send unbounded text to paid TTS APIs.
+  if (input.length > MAX_TTS_INPUT_CHARS) {
+    throw new Error(`TTS input text exceeds the ${MAX_TTS_INPUT_CHARS} character limit`);
+  }
 
   try {
     if (config.tts.provider === "google") {

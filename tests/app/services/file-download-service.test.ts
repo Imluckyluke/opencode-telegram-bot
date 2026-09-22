@@ -360,7 +360,7 @@ describe("downloadTelegramFile size caps", () => {
 
   it("streams small bodies through untouched", async () => {
     const { EventEmitter } = await import("node:events");
-    const body = new EventEmitter() as EventEmitter & {
+    const body = new EventEmitter() as InstanceType<typeof EventEmitter> & {
       destroy?: () => void;
     };
     nodeFetchMock.mockResolvedValue({ ok: true, headers: { get: () => null }, body });
@@ -380,7 +380,7 @@ describe("downloadTelegramFile size caps", () => {
 
   it("destroys the stream once the body exceeds the cap mid-download", async () => {
     const { EventEmitter } = await import("node:events");
-    const body = new EventEmitter() as EventEmitter & {
+    const body = new EventEmitter() as InstanceType<typeof EventEmitter> & {
       destroy?: () => void;
     };
     const destroyMock = vi.fn();

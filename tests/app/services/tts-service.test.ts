@@ -297,6 +297,25 @@ describe("synthesizeSpeech (OpenAI)", () => {
       "TTS API returned HTTP 400: Bad request",
     );
   });
+
+  it("normalizes a trailing slash and whitespace in the API URL", async () => {
+    mockTts.apiUrl = "https://api.openai.com/v1/  ";
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(Uint8Array.from([1, 2, 3]), {
+        status: 200,
+        headers: { "Content-Type": "audio/mpeg" },
+      }),
+    );
+
+    await synthesizeSpeech("Hello world");
+
+    const call = defined(fetchSpy.mock.calls[0]);
+    expect(call[0]).toBe("https://api.openai.com/v1/audio/speech");
+  });
+
+  it("rejects input over the character limit", async () => {
+    await expect(synthesizeSpeech(`x${"y".repeat(5000)}`)).rejects.toThrow("character limit");
+  });
 });
 
 describe("synthesizeSpeech (Google)", () => {
@@ -334,6 +353,21 @@ describe("synthesizeSpeech (Google)", () => {
     const callArgs = defined(mockSynthesizeSpeech.mock.calls[0]);
     expect(callArgs[1]).toHaveProperty("timeout");
     expect(defined(callArgs[1]).timeout).toBe(60_000);
+  });
+
+  it("decodes base64 string audioContent instead of treating it as UTF-8", async () => {
+    const mp3Bytes = Buffer.from([0x49, 0x44, 0x33, 0x04]);
+    mockSynthesizeSpeech.mockResolvedValue([{ audioContent: mp3Bytes.toString("base64") }]);
+
+    const result = await synthesizeSpeech("Hello world");
+
+    expect(result.buffer).toEqual(mp3Bytes);
+  });
+
+  it("rejects unexpected audioContent shapes", async () => {
+    mockSynthesizeSpeech.mockResolvedValue([{ audioContent: 42 }]);
+
+    await expect(synthesizeSpeech("Hello world")).rejects.toThrow("unexpected audio response");
   });
 
   it("handles Uint8Array audioContent from Google SDK", async () => {
