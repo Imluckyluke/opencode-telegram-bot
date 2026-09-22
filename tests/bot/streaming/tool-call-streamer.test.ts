@@ -228,6 +228,64 @@ describe("bot/streaming/tool-call-streamer", () => {
     }
   });
 
+  it("never splits a surrogate pair across messages", async () => {
+    vi.useFakeTimers();
+
+    let nextMessageId = 100;
+    const sendText = vi.fn(async () => nextMessageId++);
+    const editText = vi.fn().mockResolvedValue(undefined);
+    const deleteText = vi.fn().mockResolvedValue(undefined);
+    const streamer = new ToolCallStreamer({
+      throttleMs: 0,
+      sendText,
+      editText,
+      deleteText,
+    });
+
+    streamer.append("s1", `${"x".repeat(3999)}😀${"y".repeat(3000)}`);
+    await vi.waitFor(() => {
+      expect(sendText).toHaveBeenCalled();
+    });
+    await vi.advanceTimersByTimeAsync(50);
+
+    const sentTexts = [
+      ...sendText.mock.calls.map((call) => (call as unknown as [string, string])[1]),
+      ...editText.mock.calls.map((call) => (call as unknown as [string, number, string])[2]),
+    ];
+    expect(sentTexts.length).toBeGreaterThan(0);
+    for (const text of sentTexts) {
+      expect(text).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
+      expect(text).not.toMatch(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/);
+    }
+    expect(sentTexts.join("")).toContain("😀");
+  });
+
+  it("does not re-edit messages whose parts did not change", async () => {
+    vi.useFakeTimers();
+
+    const sendText = vi.fn(async () => 10);
+    const editText = vi.fn().mockResolvedValue(undefined);
+    const deleteText = vi.fn().mockResolvedValue(undefined);
+    const streamer = new ToolCallStreamer({
+      throttleMs: 0,
+      sendText,
+      editText,
+      deleteText,
+    });
+
+    streamer.replaceByPrefix("s1", "retry", "same text");
+    await vi.waitFor(() => {
+      expect(sendText).toHaveBeenCalledTimes(1);
+    });
+    expect(editText).not.toHaveBeenCalled();
+
+    streamer.replaceByPrefix("s1", "retry", "same text");
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(sendText).toHaveBeenCalledTimes(1);
+    expect(editText).not.toHaveBeenCalled();
+  });
+
   it("replaces retry text by prefix inside the active stream", async () => {
     vi.useFakeTimers();
 

@@ -76,6 +76,14 @@ function delay(ms: number): Promise<void> {
 
 class TelegramOperationCancelledError extends Error {}
 
+function isHighSurrogate(codeUnit: number): boolean {
+  return codeUnit >= 0xd800 && codeUnit <= 0xdbff;
+}
+
+function isLowSurrogate(codeUnit: number): boolean {
+  return codeUnit >= 0xdc00 && codeUnit <= 0xdfff;
+}
+
 function splitLongText(text: string, limit: number): string[] {
   if (text.length <= limit) {
     return [text];
@@ -88,6 +96,16 @@ function splitLongText(text: string, limit: number): string[] {
     let splitIndex = remaining.lastIndexOf("\n", limit);
     if (splitIndex <= 0 || splitIndex < Math.floor(limit * 0.5)) {
       splitIndex = limit;
+    }
+
+    // Never split a UTF-16 surrogate pair: a lone surrogate makes Telegram
+    // reject the send and kills the whole tool stream.
+    while (
+      splitIndex > 1 &&
+      isHighSurrogate(remaining.charCodeAt(splitIndex - 1)) &&
+      isLowSurrogate(remaining.charCodeAt(splitIndex))
+    ) {
+      splitIndex -= 1;
     }
 
     chunks.push(remaining.slice(0, splitIndex));
@@ -510,6 +528,11 @@ export class ToolCallStreamer {
       const currentMessageId = state.telegramMessageIds[index];
 
       if (currentMessageId) {
+        // Skip unchanged prefix parts: re-editing identical text only burns
+        // rate limit and trips "message is not modified" errors.
+        if (state.lastSentParts[index] === text) {
+          continue;
+        }
         await this.enqueueTelegramOperation(state.sessionId, () =>
           this.editText(state.sessionId, currentMessageId, text),
         );
