@@ -21,10 +21,27 @@ if [ -n "${GH_TOKEN:-}" ]; then
   git config --global --add safe.directory /workspace >/dev/null 2>&1
 fi
 
-(cd /workspace && opencode serve --hostname 0.0.0.0 --port "$PORT") &
-SERVER_PID=$!
-echo "entrypoint: opencode starting (pid=$SERVER_PID), waiting for $OPENCODE_API_URL"
+start_server() {
+  (cd /workspace && opencode serve --hostname 0.0.0.0 --port "$PORT") &
+  SERVER_PID=$!
+  echo "entrypoint: opencode starting (pid=$SERVER_PID), waiting for $OPENCODE_API_URL"
+}
 
+start_bot() {
+  node dist/index.js &
+  BOT_PID=$!
+  echo "entrypoint: bot starting (pid=$BOT_PID)"
+}
+
+trap 'SHUTDOWN=1; kill $SERVER_PID $BOT_PID 2>/dev/null; wait' TERM INT
+
+# Supervise both children: a crash used to take down the whole container
+# (wait -n). Now only the failed child is restarted; the survivor keeps
+# running so chat state and SSE streams are not needlessly dropped.
+SHUTDOWN=""
+RESTARTS=0
+start_server
+# wait for initial readiness before starting the bot (bounded, see below)
 READY_ATTEMPT=0
 for i in $(seq 1 60); do
   READY_ATTEMPT=$i
@@ -40,12 +57,27 @@ else
   echo "entrypoint: FATAL dist/index.js missing, cannot start bot"
   exit 1
 fi
-node dist/index.js &
-BOT_PID=$!
+start_bot
 
-trap 'kill $SERVER_PID $BOT_PID 2>/dev/null; wait' TERM INT
-wait -n
-STATUS=$?
-echo "entrypoint: a child process exited (status=$STATUS), shutting down"
+while [ -z "$SHUTDOWN" ]; do
+  wait -n
+  STATUS=$?
+  if [ -n "$SHUTDOWN" ]; then
+    break
+  fi
+  RESTARTS=$((RESTARTS + 1))
+  if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+    echo "entrypoint: opencode server died (status=$STATUS, restarts=$RESTARTS), restarting it"
+    start_server
+  fi
+  if ! kill -0 "$BOT_PID" 2>/dev/null; then
+    echo "entrypoint: bot died (status=$STATUS, restarts=$RESTARTS), restarting it"
+    start_bot
+  fi
+  sleep 2
+done
+
+echo "entrypoint: shutting down"
 kill $SERVER_PID $BOT_PID 2>/dev/null || true
-exit $STATUS
+wait
+exit 0

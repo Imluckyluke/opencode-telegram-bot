@@ -23,6 +23,7 @@ const mocked = vi.hoisted(() => ({
   } as { id: string; title: string; directory: string } | null,
   healthMock: vi.fn(),
   sessionStatusMock: vi.fn(),
+  sessionGetMock: vi.fn(),
   questionListMock: vi.fn(),
   permissionListMock: vi.fn(),
   setSessionSummaryMock: vi.fn(),
@@ -49,6 +50,8 @@ vi.mock("../../../src/app/stores/settings-store.js", () => ({
 
 vi.mock("../../../src/app/services/session-service.js", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
+  setCurrentSession: vi.fn(),
+  clearSession: vi.fn(),
 }));
 
 vi.mock("../../../src/opencode/client.js", () => ({
@@ -58,6 +61,7 @@ vi.mock("../../../src/opencode/client.js", () => ({
     },
     session: {
       status: mocked.sessionStatusMock,
+      get: mocked.sessionGetMock,
     },
     question: {
       list: mocked.questionListMock,
@@ -147,6 +151,8 @@ describe("attach/service", () => {
       },
       error: null,
     });
+    mocked.sessionGetMock.mockReset();
+    mocked.sessionGetMock.mockResolvedValue({ data: { id: "session-1" }, error: null });
     mocked.questionListMock.mockReset();
     mocked.questionListMock.mockResolvedValue({ data: [], error: null });
     mocked.permissionListMock.mockReset();
@@ -298,6 +304,23 @@ describe("attach/service", () => {
       id: "project-1",
       worktree: "D:\\Projects\\Other",
     };
+
+    const restored = await restoreAttachedCurrentSession({
+      bot: createBot(),
+      chatId: 777,
+      ensureEventSubscription: mocked.ensureEventSubscriptionMock,
+    });
+
+    expect(restored).toBe(false);
+    expect(mocked.ensureEventSubscriptionMock).not.toHaveBeenCalled();
+    expect(attachManager.getSnapshot()).toBeNull();
+  });
+
+  it("drops a stored session that is gone server-side instead of restoring it", async () => {
+    mocked.sessionGetMock.mockResolvedValueOnce({
+      data: null,
+      error: { name: "NotFoundError", data: { message: "Session not found: session-1" } },
+    });
 
     const restored = await restoreAttachedCurrentSession({
       bot: createBot(),

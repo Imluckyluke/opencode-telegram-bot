@@ -1,14 +1,28 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Context } from "grammy";
 import { tierGuardMiddleware } from "../../../src/bot/middleware/tier-guard.js";
 import { t } from "../../../src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
   isAllowedTelegramUserMock: vi.fn(),
+  isAllowedUserMock: vi.fn(),
+  isBotDisabledMock: vi.fn(() => false),
+  isUserLaneContentMock: vi.fn(() => false),
+  processUserLaneMessageMock: vi.fn(),
 }));
 
 vi.mock("../../../src/config.js", () => ({
   isAllowedTelegramUser: mocked.isAllowedTelegramUserMock,
+}));
+
+vi.mock("../../../src/app/stores/settings-store.js", () => ({
+  isAllowedUser: mocked.isAllowedUserMock,
+  isBotDisabled: mocked.isBotDisabledMock,
+}));
+
+vi.mock("../../../src/bot/handlers/user-lane.js", () => ({
+  isUserLaneContent: mocked.isUserLaneContentMock,
+  processUserLaneMessage: mocked.processUserLaneMessageMock,
 }));
 
 function messageContext(text: string): Context {
@@ -30,6 +44,14 @@ function callbackContext(data: string): Context {
 }
 
 describe("bot/middleware/tier-guard", () => {
+  beforeEach(() => {
+    mocked.isAllowedTelegramUserMock.mockReset().mockReturnValue(false);
+    mocked.isAllowedUserMock.mockReset().mockReturnValue(false);
+    mocked.isBotDisabledMock.mockReset().mockReturnValue(false);
+    mocked.isUserLaneContentMock.mockReset().mockReturnValue(false);
+    mocked.processUserLaneMessageMock.mockReset();
+  });
+
   it("lets owners through without checks", async () => {
     mocked.isAllowedTelegramUserMock.mockReturnValue(true);
     const next = vi.fn();
@@ -41,10 +63,22 @@ describe("bot/middleware/tier-guard", () => {
     expect(ctx.reply).not.toHaveBeenCalled();
   });
 
-  it("blocks settings commands for granted users", async () => {
-    mocked.isAllowedTelegramUserMock.mockReturnValue(false);
+  it("routes granted content messages into the user lane", async () => {
+    mocked.isAllowedUserMock.mockReturnValue(true);
+    mocked.isUserLaneContentMock.mockReturnValue(true);
     const next = vi.fn();
-    const ctx = messageContext("/settings");
+    const ctx = messageContext("do the thing");
+
+    await tierGuardMiddleware(ctx, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(mocked.processUserLaneMessageMock).toHaveBeenCalledWith(ctx);
+  });
+
+  it("denies commands for granted users", async () => {
+    mocked.isAllowedUserMock.mockReturnValue(true);
+    const next = vi.fn();
+    const ctx = messageContext("/sessions");
 
     await tierGuardMiddleware(ctx, next);
 
@@ -52,30 +86,10 @@ describe("bot/middleware/tier-guard", () => {
     expect(ctx.reply).toHaveBeenCalledWith(t("tier.blocked"));
   });
 
-  it("allows normal prompts for granted users", async () => {
-    mocked.isAllowedTelegramUserMock.mockReturnValue(false);
+  it("denies callbacks for granted users", async () => {
+    mocked.isAllowedUserMock.mockReturnValue(true);
     const next = vi.fn();
-    const ctx = messageContext("do the thing");
-
-    await tierGuardMiddleware(ctx, next);
-
-    expect(next).toHaveBeenCalledOnce();
-  });
-
-  it("allows /sessions for granted users", async () => {
-    mocked.isAllowedTelegramUserMock.mockReturnValue(false);
-    const next = vi.fn();
-    const ctx = messageContext("/sessions");
-
-    await tierGuardMiddleware(ctx, next);
-
-    expect(next).toHaveBeenCalledOnce();
-  });
-
-  it("blocks settings callbacks for granted users", async () => {
-    mocked.isAllowedTelegramUserMock.mockReturnValue(false);
-    const next = vi.fn();
-    const ctx = callbackContext("settings:tts");
+    const ctx = callbackContext("session:abc");
 
     await tierGuardMiddleware(ctx, next);
 
@@ -86,10 +100,41 @@ describe("bot/middleware/tier-guard", () => {
     });
   });
 
-  it("allows session callbacks for granted users", async () => {
-    mocked.isAllowedTelegramUserMock.mockReturnValue(false);
+  it("denies inline queries for granted users", async () => {
+    mocked.isAllowedUserMock.mockReturnValue(true);
     const next = vi.fn();
-    const ctx = callbackContext("session:abc");
+    const ctx = {
+      from: { id: 999 },
+      inlineQuery: { id: "q", from: { id: 999 }, query: "hi", offset: "" },
+      answerInlineQuery: vi.fn().mockResolvedValue(undefined),
+    } as unknown as Context;
+
+    await tierGuardMiddleware(ctx, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(ctx.answerInlineQuery).toHaveBeenCalledWith([], {
+      cache_time: 0,
+      is_personal: true,
+    });
+  });
+
+  it("blocks everything but /enable when disabled", async () => {
+    mocked.isAllowedTelegramUserMock.mockReturnValue(true);
+    mocked.isBotDisabledMock.mockReturnValue(true);
+    const next = vi.fn();
+    const ctx = messageContext("/status");
+
+    await tierGuardMiddleware(ctx, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(ctx.reply).toHaveBeenCalledWith(t("bot.disabled"));
+  });
+
+  it("lets owner /enable through when disabled", async () => {
+    mocked.isAllowedTelegramUserMock.mockReturnValue(true);
+    mocked.isBotDisabledMock.mockReturnValue(true);
+    const next = vi.fn();
+    const ctx = messageContext("/enable");
 
     await tierGuardMiddleware(ctx, next);
 

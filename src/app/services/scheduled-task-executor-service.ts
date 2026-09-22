@@ -1,4 +1,5 @@
 import { config } from "../../config.js";
+import { isBotDisabled } from "../stores/settings-store.js";
 import { t } from "../../i18n/index.js";
 import { opencodeClient } from "../../opencode/client.js";
 import { logger } from "../../utils/logger.js";
@@ -499,6 +500,17 @@ export async function executeScheduledTask(
   task: ScheduledTask,
 ): Promise<ScheduledTaskExecutionResult> {
   const startedAt = new Date().toISOString();
+  if (isBotDisabled()) {
+    logger.warn(`[Bot] Skipping scheduled task while bot is disabled: task=${task.id}`);
+    return {
+      taskId: task.id,
+      status: "error",
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      resultText: null,
+      errorMessage: "Bot is disabled",
+    };
+  }
   let sessionId: string | null = null;
   let deleteTemporarySession = true;
 

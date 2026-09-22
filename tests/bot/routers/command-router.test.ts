@@ -54,6 +54,17 @@ describe("bot/routers/command-router", () => {
       "commands",
       "skills",
       "mcps",
+      "model",
+      "agent",
+      "variant",
+      "language",
+      "inlinemodel",
+      "allow",
+      "testmodels",
+      "disable",
+      "enable",
+      "deletesessions",
+      "restart",
     ]);
   });
 

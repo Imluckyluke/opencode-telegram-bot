@@ -46,11 +46,17 @@ Languages: English (`en`), العربية (`ar`), Deutsch (`de`), Español (`es`
 - **Context control** — compact context when it gets too large, right from the chat
 - **Input flow control** — when an interactive flow is active, the bot accepts only relevant input to keep context consistent and avoid accidental actions
 - **Git worktree switching** — browse and switch between existing git worktrees for the current repository with `/worktree`
-- **Security** — strict user ID whitelist; no one else can access your bot, even if they find it
-- **Localization** — UI localization is supported for multiple languages (`BOT_LOCALE`)
+- **Security** — strict user ID whitelist (comma-separated); granted users via `/allow` get an isolated personal chat session with no access to settings
+- **Localization** — UI localization is supported for multiple languages (`BOT_LOCALE`, changeable in-chat with `/language`)
 - **Docker support** — run the bot as a container while OpenCode stays on the host; see [Docker Deployment](#docker-deployment)
 - **Interactive file browser** — use `/ls` to browse files and directories inside the current project, open subdirectories, go back, and download files by tapping them
 - **Attach a file to your next prompt** — tap **📎 Attach to next prompt** on a text file in `/ls`, and it is sent to OpenCode together with your next message, once
+- **Inline mode** — ask from any chat with `@bot query`; the answer is streamed into place (enable Inline Mode in @BotFather)
+- **Guest mode** — mention the bot in groups it is not a member of to get in-place answers (enable guest mode in @BotFather)
+- **Fast model for quick answers** — inline/guest/personal-lane runs use a separate model (`/inlinemodel`)
+- **Model health check** — probe free models with `/testmodels` and see which respond
+- **Auto-compact** — optionally compact the session automatically past a context threshold (`AUTO_COMPACT_THRESHOLD_PERCENT`)
+- **Master switch** — `/disable` stops all operations, `/enable` resumes; `/restart` reboots the process; `/deletesessions` wipes all sessions instantly
 
 Planned features currently in development are listed in [Current Task List](PRODUCT.md#current-task-list).
 
@@ -150,6 +156,17 @@ opencode-telegram config
 | `/commands`       | Browse and run custom commands                          |
 | `/skills`         | Browse and run OpenCode skills                          |
 | `/mcps`           | Browse and toggle MCP servers                           |
+| `/model`          | Select model from favorites, providers, or search       |
+| `/agent`          | Select agent (plan/build)                               |
+| `/variant`        | Select model variant                                    |
+| `/language`       | Change bot language                                     |
+| `/inlinemodel`    | Model for inline/guest/personal-lane answers            |
+| `/allow`          | Grant, list, or revoke user access (owner only)         |
+| `/testmodels`     | Probe free models and report results (owner only)       |
+| `/disable`        | Disable all bot operations (owner only)                 |
+| `/enable`         | Re-enable the bot (owner only)                          |
+| `/deletesessions` | Delete all sessions instantly (owner only)              |
+| `/restart`        | Restart the bot process (owner only)                    |
 | `/task`           | Create a scheduled task                                 |
 | `/tasklist`       | Browse and delete scheduled tasks                       |
 | `/opencode_start` | Start the local OpenCode server on the bot machine      |

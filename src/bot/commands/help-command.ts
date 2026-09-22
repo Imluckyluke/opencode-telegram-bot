@@ -24,7 +24,7 @@ const HELP_GROUPS: HelpGroup[] = [
   },
   {
     titleKey: "help.group.system",
-    commands: ["status", "settings", "language", "allow", "testmodels", "ls", "opencode_start", "opencode_stop", "help"],
+    commands: ["status", "settings", "language", "allow", "testmodels", "disable", "enable", "deletesessions", "restart", "ls", "opencode_start", "opencode_stop", "help"],
   },
 ];
 

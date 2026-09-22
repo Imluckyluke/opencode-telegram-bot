@@ -34,6 +34,10 @@ export const ar: I18nDictionary = {
   "cmd.description.inlinemodel": "Model for inline and guest answers",
   "cmd.description.allow": "Grant or revoke bot access",
   "cmd.description.testmodels": "Test free models and report results",
+  "cmd.description.disable": "Disable all bot operations",
+  "cmd.description.enable": "Re-enable the bot",
+  "cmd.description.deletesessions": "Delete all sessions instantly",
+  "cmd.description.restart": "Restart the bot process",
   "cmd.description.open": "إضافة مشروع عبر استعراض المجلدات",
 
   "callback.unknown_command": "الأمر غير معروف",
@@ -215,6 +219,14 @@ export const ar: I18nDictionary = {
   "testmodels.start": "Testing {count} models one by one.",
   "testmodels.header": "Model test results:",
   "testmodels.empty": "No models to test.",
+
+  "bot.disabled": "The bot is disabled.",
+  "bot.disabled_on": "Bot disabled.",
+  "bot.enabled": "Bot enabled.",
+  "bot.already_enabled": "Bot is already enabled.",
+  "deletesessions.started": "Deleting all sessions.",
+  "deletesessions.done": "Done: deleted {deleted}, failed {failed}.",
+  "restart.scheduled": "Restarting.",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
   "inlinemodel.current": "Inline/guest model: {model}",

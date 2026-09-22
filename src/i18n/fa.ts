@@ -68,6 +68,14 @@ export const fa: I18nDictionary = {
   "testmodels.start": "🧪 دارم {count} مدل را یکی‌یکی تست می‌کنم. کمی طول می‌کشد…",
   "testmodels.header": "🧪 نتیجه تست مدل‌ها:",
   "testmodels.empty": "📭 مدلی برای تست نیست. اول در OpenCode مدل به علاقه‌مندی‌ها اضافه کن.",
+
+  "bot.disabled": "⛔ بات خاموش است. مالک با /enable روشنش می‌کند.",
+  "bot.disabled_on": "⛔ بات خاموش شد. همه‌چیز می‌ایستد به‌جز /enable.",
+  "bot.enabled": "✅ بات روشن شد.",
+  "bot.already_enabled": "✅ بات از قبل روشن بود.",
+  "deletesessions.started": "🧹 در حال حذف همه سشن‌ها…",
+  "deletesessions.done": "🧹 تمام شد: {deleted} حذف، {failed} ناموفق. با /new تازه شروع کن.",
+  "restart.scheduled": "🔄 در حال ری‌استارت… یک لحظه صبر کن.",
   "inline.status.title": "📊 وضعیت بات",
   "inline.status.description": "پروژه، گفتگو و مدل جاری",
   "inline.ask.title": "▶ پرسیدن از گفتگوی جاری",
@@ -631,6 +639,10 @@ export const fa: I18nDictionary = {
   "cmd.description.inlinemodel": "مدل جواب‌های اینلاین و گست",
   "cmd.description.allow": "دادن یا گرفتن دسترسی بات",
   "cmd.description.testmodels": "تست مدل‌های رایگان و گزارش نتیجه",
+  "cmd.description.disable": "خاموش کردن همه عملیات بات",
+  "cmd.description.enable": "روشن کردن دوباره بات",
+  "cmd.description.deletesessions": "حذف فوری همه سشن‌ها",
+  "cmd.description.restart": "ری‌استارت پروسس بات",
 
   "tier.blocked": "⚠️ فقط مالک بات می‌تواند از این استفاده کند.",
 

@@ -18,6 +18,8 @@ export interface Settings {
   currentModel?: ModelInfo | undefined;
   inlineModel?: ModelInfo | undefined;
   extraAllowedUserIds?: number[] | undefined;
+  userSessions?: Record<string, SessionInfo> | undefined;
+  botDisabled?: boolean | undefined;
   pinnedMessageId?: number | undefined;
   ttsMode?: "off" | "all" | "auto" | undefined;
   compactOutputMode?: boolean | undefined;

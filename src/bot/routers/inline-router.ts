@@ -17,6 +17,9 @@ import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { isSessionBusy } from "../handlers/prompt.js";
 import {
+  waitForAssistantCompletion,
+} from "../inline/run-waiter.js";
+import {
   buildInlineResults,
   consumePendingInlineQuery,
   extractGuestDocument,
@@ -201,70 +204,6 @@ async function runInlinePrompt(
   return { sessionId: inlineSession.id, directory: inlineSession.directory, startedAt };
 }
 
-type SessionMessageLike = {
-  info: {
-    role?: string;
-    summary?: boolean;
-    time?: {
-      created?: number;
-      completed?: number;
-    };
-  };
-  parts: Array<{ type?: string; text?: string }>;
-};
-
-const INLINE_POLL_INTERVAL_MS = 3000;
-const INLINE_RUN_TIMEOUT_MS = 10 * 60 * 1000;
-const INLINE_EDIT_THROTTLE_MS = 10000;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function readInlineSnapshot(
-  sessionId: string,
-  directory: string,
-  since: number,
-): Promise<{ text: string; completed: boolean } | null> {
-  const { data, error } = await opencodeClient.session.messages({
-    sessionID: sessionId,
-    directory,
-  });
-  if (error || !data) {
-    return null;
-  }
-  // An answer can span several assistant messages (e.g. text plus a table):
-  // concatenate all of them in order instead of keeping only the latest.
-  const collected: Array<{ created: number; text: string; completed: boolean }> = [];
-  for (const message of data as SessionMessageLike[]) {
-    if (message.info.role !== "assistant" || message.info.summary) {
-      continue;
-    }
-    const created = message.info.time?.created ?? 0;
-    if (created < since) {
-      continue;
-    }
-    const text = message.parts
-      .filter((part) => part.type === "text" && typeof part.text === "string")
-      .map((part) => part.text as string)
-      .join("")
-      .trim();
-    if (!text) {
-      continue;
-    }
-    collected.push({ created, text, completed: Boolean(message.info.time?.completed) });
-  }
-  if (collected.length === 0) {
-    return null;
-  }
-  collected.sort((a, b) => a.created - b.created);
-  const last = collected[collected.length - 1] as { text: string; completed: boolean };
-  return {
-    text: collected.map((entry) => entry.text).join("\n\n"),
-    completed: last.completed,
-  };
-}
-
 const INLINE_RICH_BUDGET_CHARS = 30000;
 
 async function editInlineMessage(
@@ -308,19 +247,6 @@ async function editInlineMessage(
   }
 }
 
-async function isRunIdle(sessionId: string, directory: string): Promise<boolean> {
-  try {
-    const { data, error } = await opencodeClient.session.status({ directory });
-    if (error || !data) {
-      return false;
-    }
-    const status = (data as Record<string, { type?: string }>)[sessionId];
-    return !status || status.type !== "busy";
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Streams the run result into the chosen inline message in place, so the
  * answer lands in the same chat without adding the bot anywhere.
@@ -336,47 +262,20 @@ async function streamInlineAnswer(
   query: string,
   includeQuestion = true,
 ): Promise<void> {
-  const deadline = Date.now() + INLINE_RUN_TIMEOUT_MS;
-  let lastSent = "";
-  let lastEditAt = 0;
-  let observedBusy = false;
   logger.info(`[Bot] Streaming inline answer: session=${sessionId}`);
-  for (;;) {
-    await sleep(INLINE_POLL_INTERVAL_MS);
-    const snapshot = await readInlineSnapshot(sessionId, directory, startedAt).catch(() => null);
-    const now = Date.now();
-    if (snapshot && snapshot.text !== lastSent && (snapshot.completed || now - lastEditAt >= INLINE_EDIT_THROTTLE_MS)) {
-      if (await editInlineMessage(api, inlineMessageId, query, snapshot.text, includeQuestion)) {
-        lastSent = snapshot.text;
-        lastEditAt = now;
-      }
-    }
-    if (now > deadline) {
-      logger.warn(`[Bot] Inline answer timed out: session=${sessionId}`);
-      if (!lastSent) {
-        await editInlineMessage(api, inlineMessageId, query, t("inline.interrupted"), includeQuestion);
-      }
-      return;
-    }
-    // A completed message is not the end: the model may continue with tool
-    // calls and more messages (e.g. "let me check the link…"). Only stop
-    // once the session itself goes idle.
-    const busy = !(await isRunIdle(sessionId, directory).catch(() => false));
-    observedBusy = observedBusy || busy;
-    if (!busy && observedBusy) {
-      if (snapshot && snapshot.text !== lastSent) {
-        if (await editInlineMessage(api, inlineMessageId, query, snapshot.text, includeQuestion)) {
-          lastSent = snapshot.text;
-        }
-      }
-      if (lastSent) {
-        logger.info(`[Bot] Inline answer delivered: session=${sessionId}`);
-        return;
-      }
-      // Idle with nothing ever shown: interrupted (abort/error before output).
-      await editInlineMessage(api, inlineMessageId, query, t("inline.interrupted"), includeQuestion);
-      return;
-    }
+  const result = await waitForAssistantCompletion({
+    sessionId,
+    directory,
+    startedAt,
+    onProgress: async (text) =>
+      editInlineMessage(api, inlineMessageId, query, text, includeQuestion),
+  });
+  if (result?.completed) {
+    logger.info(`[Bot] Inline answer delivered: session=${sessionId}`);
+    return;
+  }
+  if (!result) {
+    await editInlineMessage(api, inlineMessageId, query, t("inline.interrupted"), includeQuestion);
   }
 }
 

@@ -28,6 +28,9 @@ import { languageCommand } from "../commands/language-command.js";
 import { inlineModelCommand } from "../commands/inline-model-command.js";
 import { allowCommand } from "../commands/allow-command.js";
 import { testModelsCommand } from "../commands/model-test-command.js";
+import { disableCommand, enableCommand } from "../commands/power-command.js";
+import { deleteSessionsCommand } from "../commands/delete-sessions-command.js";
+import { restartCommand } from "../commands/restart-command.js";
 import { BOT_COMMANDS } from "../commands/definitions.js";
 import { logger } from "../../utils/logger.js";
 import { flushPendingPrompt } from "../handlers/message-merger.js";
@@ -132,6 +135,10 @@ export function registerCommandRouter(bot: Bot<Context>, deps: CommandRouterDeps
   bot.command("inlinemodel", inlineModelCommand);
   bot.command("allow", allowCommand);
   bot.command("testmodels", testModelsCommand);
+  bot.command("disable", disableCommand);
+  bot.command("enable", enableCommand);
+  bot.command("deletesessions", deleteSessionsCommand);
+  bot.command("restart", restartCommand);
   bot.command("settings", settingsCommand);
   bot.command("opencode_start", opencodeStartCommand);
   bot.command("opencode_stop", (ctx) =>

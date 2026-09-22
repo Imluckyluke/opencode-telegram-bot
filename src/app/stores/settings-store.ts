@@ -9,6 +9,7 @@ import type {
   Settings,
 } from "../types/settings.js";
 import type { Locale } from "../../i18n/index.js";
+import { SUPPORTED_LOCALES, isSupportedLocale } from "../../i18n/index.js";
 import { config } from "../../config.js";
 import { getRuntimePaths } from "../../runtime/paths.js";
 import { logger } from "../../utils/logger.js";
@@ -358,6 +359,48 @@ export function isOwnerUser(userId: number | undefined | null): boolean {
   );
 }
 
+export function getUserSession(userId: number): SessionInfo | undefined {
+  return currentSettings.userSessions?.[String(userId)];
+}
+
+export function setUserSession(userId: number, session: SessionInfo): void {
+  currentSettings.userSessions = {
+    ...currentSettings.userSessions,
+    [String(userId)]: session,
+  };
+  void writeSettingsFile(currentSettings);
+}
+
+export function clearUserSession(userId: number): void {
+  if (!currentSettings.userSessions?.[String(userId)]) {
+    return;
+  }
+  const rest = { ...currentSettings.userSessions };
+  delete rest[String(userId)];
+  currentSettings.userSessions = rest;
+  void writeSettingsFile(currentSettings);
+}
+
+/** Drops every per-user lane session mapping. Returns the dropped count. */
+export function clearAllUserSessions(): number {
+  const count = Object.keys(currentSettings.userSessions ?? {}).length;
+  if (count === 0) {
+    return 0;
+  }
+  currentSettings.userSessions = {};
+  void writeSettingsFile(currentSettings);
+  return count;
+}
+
+export function isBotDisabled(): boolean {
+  return currentSettings.botDisabled === true;
+}
+
+export function setBotDisabled(disabled: boolean): void {
+  currentSettings.botDisabled = disabled;
+  void writeSettingsFile(currentSettings);
+}
+
 export function clearCurrentModel(): void {
   currentSettings.currentModel = undefined;
   void writeSettingsFile(currentSettings);
@@ -432,6 +475,7 @@ function applyInitialSettingsPreset(preset: Record<string, unknown>): void {
     "sendDiffFileAttachments",
     "promptQueueEnabled",
     "showBottomKeyboard",
+    "locale",
   ]);
 
   for (const [key, value] of Object.entries(preset)) {
@@ -460,6 +504,15 @@ function applyInitialSettingsPreset(preset: Record<string, unknown>): void {
       }
       if (currentSettings.responseStreamingMode === undefined) {
         currentSettings.responseStreamingMode = value as ResponseStreamingMode;
+      }
+    } else if (key === "locale") {
+      if (typeof value !== "string" || !isSupportedLocale(value)) {
+        throw new Error(
+          `INITIAL_SETTINGS_PRESET: invalid value for "locale"; expected one of ${SUPPORTED_LOCALES.join(", ")}.`,
+        );
+      }
+      if (currentSettings.locale === undefined) {
+        currentSettings.locale = value;
       }
     } else {
       // Boolean settings: compactOutputMode, deleteCompactProgressOnFinish, showThinkingContent, showAssistantRunFooter, pinnedDashboardEnabled, sendDiffFileAttachments, promptQueueEnabled, showBottomKeyboard

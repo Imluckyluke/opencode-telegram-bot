@@ -72,6 +72,14 @@ export const en = {
   "testmodels.header": "🧪 Model test results:",
   "testmodels.empty": "📭 No models to test. Add favorites in OpenCode first.",
 
+  "bot.disabled": "⛔ The bot is disabled. The owner can re-enable it with /enable.",
+  "bot.disabled_on": "⛔ Bot disabled. Everything stops except /enable.",
+  "bot.enabled": "✅ Bot enabled.",
+  "bot.already_enabled": "✅ Bot is already enabled.",
+  "deletesessions.started": "🧹 Deleting all sessions…",
+  "deletesessions.done": "🧹 Done: deleted {deleted}, failed {failed}. Use /new to start fresh.",
+  "restart.scheduled": "🔄 Restarting… back in a moment.",
+
   "inline.status.title": "📊 Bot status",
   "inline.status.description": "Current project, session, and model",
   "inline.ask.title": "▶ Ask current session",
@@ -648,6 +656,10 @@ export const en = {
   "cmd.description.inlinemodel": "Model for inline and guest answers",
   "cmd.description.allow": "Grant or revoke bot access",
   "cmd.description.testmodels": "Test free models and report results",
+  "cmd.description.disable": "Disable all bot operations",
+  "cmd.description.enable": "Re-enable the bot",
+  "cmd.description.deletesessions": "Delete all sessions instantly",
+  "cmd.description.restart": "Restart the bot process",
 
   "tier.blocked": "⚠️ Only the bot owner can use this.",
 
