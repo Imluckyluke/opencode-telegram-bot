@@ -22,6 +22,11 @@ interface PendingAssistantResponse {
 }
 
 class BackgroundSessionTracker {
+  // Dedup structures must stay bounded: a long-lived same-directory bot would
+  // otherwise accumulate entries forever (Sets/Maps only clear on directory switch).
+  private static readonly MAX_TRACKED_IDS = 1000;
+  private static readonly MAX_PENDING_RESPONSES = 500;
+
   private directory: string | null = null;
   private onNotification: NotificationCallback | null = null;
   private sessionTitles = new Map<string, string>();
@@ -54,7 +59,7 @@ class BackgroundSessionTracker {
       return;
     }
     if (muted) {
-      this.mutedSessionIds.add(sessionId);
+      this.trackId(this.mutedSessionIds, sessionId);
     } else {
       this.mutedSessionIds.delete(sessionId);
     }
@@ -103,10 +108,16 @@ class BackgroundSessionTracker {
     const title = info.title?.trim();
     if (title) {
       this.sessionTitles.set(info.id, title);
+      if (this.sessionTitles.size > BackgroundSessionTracker.MAX_TRACKED_IDS) {
+        const oldest = this.sessionTitles.keys().next().value;
+        if (oldest !== undefined) {
+          this.sessionTitles.delete(oldest);
+        }
+      }
     }
 
     if (info.parentID) {
-      this.childSessionIds.add(info.id);
+      this.trackId(this.childSessionIds, info.id);
     }
   }
 
@@ -129,8 +140,8 @@ class BackgroundSessionTracker {
       return;
     }
 
-    this.completedAssistantMessageIds.add(messageId);
-    this.pendingAssistantResponsesBySessionId.set(sessionId, { messageId });
+    this.trackId(this.completedAssistantMessageIds, messageId);
+    this.trackPendingResponse(sessionId, messageId);
   }
 
   private handleSessionIdle(
@@ -177,12 +188,42 @@ class BackgroundSessionTracker {
     }
 
     deliveredRequestIds.add(id);
+    this.trimIdSet(deliveredRequestIds);
     this.emitNotification({
       kind,
       sessionId,
       sessionTitle: this.sessionTitles.get(sessionId),
       requestId: id,
     });
+  }
+
+  private trackId(set: Set<string>, id: string): void {
+    set.add(id);
+    this.trimIdSet(set);
+  }
+
+  private trimIdSet(set: Set<string>): void {
+    while (set.size > BackgroundSessionTracker.MAX_TRACKED_IDS) {
+      const oldest = set.values().next().value;
+      if (oldest === undefined) {
+        break;
+      }
+      set.delete(oldest);
+    }
+  }
+
+  private trackPendingResponse(sessionId: string, messageId: string): void {
+    this.pendingAssistantResponsesBySessionId.set(sessionId, { messageId });
+    while (
+      this.pendingAssistantResponsesBySessionId.size >
+      BackgroundSessionTracker.MAX_PENDING_RESPONSES
+    ) {
+      const oldest = this.pendingAssistantResponsesBySessionId.keys().next().value;
+      if (oldest === undefined) {
+        break;
+      }
+      this.pendingAssistantResponsesBySessionId.delete(oldest);
+    }
   }
 
   private shouldIgnoreSession(sessionId: string, currentSessionId: string | null): boolean {

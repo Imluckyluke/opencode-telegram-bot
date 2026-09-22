@@ -201,7 +201,12 @@ async function runSync(options?: { force?: boolean }): Promise<void> {
   const seenDirectories = new Set<string>();
 
   for (const session of sessions) {
-    const updatedAt = session.time?.updated ?? Date.now();
+    const serverUpdatedAt = typeof session.time?.updated === "number" ? session.time.updated : null;
+    // Directory freshness may fall back to local time, but the incremental
+    // server cursor must only advance on authoritative server timestamps:
+    // mixing local mtimes/Date.now() into it can push the cursor ahead and
+    // make the next sync skip server updates.
+    const updatedAt = serverUpdatedAt ?? Date.now();
     if (upsertDirectory(session.directory, updatedAt)) {
       changed = true;
     }
@@ -210,8 +215,8 @@ async function runSync(options?: { force?: boolean }): Promise<void> {
       seenDirectories.add(worktreeKey(session.directory.trim()));
     }
 
-    if (updatedAt > maxUpdated) {
-      maxUpdated = updatedAt;
+    if (serverUpdatedAt !== null && serverUpdatedAt > maxUpdated) {
+      maxUpdated = serverUpdatedAt;
     }
   }
 
@@ -380,21 +385,11 @@ async function ingestFromSqliteSessionDatabase(): Promise<void> {
     }
 
     let changed = false;
-    let maxUpdated = cacheData.lastSyncedUpdatedAt;
 
     for (const row of rows) {
       if (upsertDirectory(row.worktree, row.lastUpdated)) {
         changed = true;
       }
-
-      if (row.lastUpdated > maxUpdated) {
-        maxUpdated = row.lastUpdated;
-      }
-    }
-
-    if (maxUpdated !== cacheData.lastSyncedUpdatedAt) {
-      cacheData.lastSyncedUpdatedAt = maxUpdated;
-      changed = true;
     }
 
     if (changed) {
@@ -437,7 +432,6 @@ async function ingestFromGlobalSessionStorage(): Promise<void> {
         .slice(0, STORAGE_FALLBACK_SCAN_LIMIT);
 
       let changed = false;
-      let maxUpdated = cacheData.lastSyncedUpdatedAt;
 
       for (const file of sorted) {
         try {
@@ -455,18 +449,9 @@ async function ingestFromGlobalSessionStorage(): Promise<void> {
           if (upsertDirectory(session.directory, updated)) {
             changed = true;
           }
-
-          if (updated > maxUpdated) {
-            maxUpdated = updated;
-          }
         } catch {
           // Ignore malformed session files.
         }
-      }
-
-      if (maxUpdated !== cacheData.lastSyncedUpdatedAt) {
-        cacheData.lastSyncedUpdatedAt = maxUpdated;
-        changed = true;
       }
 
       if (changed) {
@@ -522,7 +507,9 @@ export async function syncSessionDirectoryCache(options?: { force?: boolean }): 
         logger.warn("[SessionCache] Failed to sync sessions cache", error);
       }
 
-      lastSyncAttemptAt = 0;
+      // Failed attempts share the normal cooldown: a persistently failing
+      // server must not be hammered with a full list on every call.
+      lastSyncAttemptAt = Date.now();
     })
     .finally(() => {
       syncInFlight = null;
@@ -555,10 +542,6 @@ export async function upsertSessionDirectory(
 
   if (!upsertDirectory(worktree, lastUpdated)) {
     return;
-  }
-
-  if (lastUpdated > cacheData.lastSyncedUpdatedAt) {
-    cacheData.lastSyncedUpdatedAt = lastUpdated;
   }
 
   await queuePersist();

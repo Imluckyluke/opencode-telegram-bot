@@ -211,4 +211,40 @@ describe("session-cache-service", () => {
     const directories = await getCachedSessionDirectories();
     expect(directories).toEqual([{ worktree: "D:/repo-a", lastUpdated: 1_700_000_000_900 }]);
   });
+
+  it("keeps local upserts out of the incremental server cursor", async () => {
+    sessionListMock.mockResolvedValueOnce({
+      data: [createSession("D:/repo-a", 1_700_000_000_200)],
+      error: null,
+    });
+
+    await warmupSessionDirectoryCache();
+
+    // Local activity (no server timestamp) must not push the server cursor ahead.
+    await upsertSessionDirectory("D:/repo-local", 1_800_000_000_000);
+
+    // Reset in-memory state; cache persists in settings.json
+    __resetSessionDirectoryCacheForTests();
+
+    sessionListMock.mockResolvedValueOnce({ data: [], error: null });
+
+    await syncSessionDirectoryCache();
+
+    expect(sessionListMock).toHaveBeenLastCalledWith({
+      limit: 1000,
+      start: 1_700_000_000_200 - 60_000,
+    });
+  });
+
+  it("backs off after a failed sync instead of retrying immediately", async () => {
+    sessionListMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+
+    await syncSessionDirectoryCache();
+
+    sessionListMock.mockResolvedValueOnce({ data: [], error: null });
+
+    await syncSessionDirectoryCache();
+
+    expect(sessionListMock).toHaveBeenCalledTimes(1);
+  });
 });
