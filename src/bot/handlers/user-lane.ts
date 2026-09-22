@@ -134,7 +134,19 @@ async function getOrCreateUserSession(
       if (!error) {
         return mapped;
       }
-    } catch {
+      const message = error instanceof Error ? error.message : String(error ?? "");
+      if (!message.includes("Session not found")) {
+        // Transient failure (network, auth, …): keep the stored session
+        // instead of spamming fresh sessions on every message.
+        logger.debug(`[UserLane] Could not verify user session, keeping it: user=${userId}`);
+        return mapped;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error ?? "");
+      if (!message.includes("Session not found")) {
+        logger.debug(`[UserLane] Could not verify user session, keeping it: user=${userId}`);
+        return mapped;
+      }
       // Fall through to recreate below.
     }
     logger.warn(`[UserLane] Stored user session is gone, recreating: user=${userId}`);

@@ -23,6 +23,7 @@ const mocked = vi.hoisted(() => ({
     directory: "D:\\Projects\\Repo",
   } as { id: string; title: string; directory: string } | null,
   sessionStatusMock: vi.fn(),
+  sessionGetMock: vi.fn(),
   sessionPromptMock: vi.fn(),
   sessionPromptAsyncMock: vi.fn(),
   sessionCreateMock: vi.fn(),
@@ -38,6 +39,7 @@ vi.mock("../../../src/opencode/client.js", () => ({
   opencodeClient: {
     session: {
       status: mocked.sessionStatusMock,
+      get: mocked.sessionGetMock,
       prompt: mocked.sessionPromptMock,
       promptAsync: mocked.sessionPromptAsyncMock,
       create: mocked.sessionCreateMock,
@@ -212,6 +214,7 @@ describe("bot/handlers/prompt", () => {
       directory: "D:\\Projects\\Repo",
     };
     mocked.sessionStatusMock.mockReset();
+    mocked.sessionGetMock.mockReset();
     mocked.sessionPromptMock.mockReset();
     mocked.sessionPromptAsyncMock.mockReset();
     mocked.sessionCreateMock.mockReset();
@@ -233,6 +236,10 @@ describe("bot/handlers/prompt", () => {
       data: {
         "session-1": { type: "idle" },
       },
+      error: null,
+    });
+    mocked.sessionGetMock.mockResolvedValue({
+      data: { id: "session-1", title: "Session" },
       error: null,
     });
     mocked.sessionPromptMock.mockResolvedValue({ data: {}, error: null });
@@ -287,6 +294,10 @@ describe("bot/handlers/prompt", () => {
 
   it("recreates the session when the stored one is gone server-side", async () => {
     mocked.sessionStatusMock.mockResolvedValue({ data: {}, error: null });
+    mocked.sessionGetMock.mockResolvedValue({
+      data: null,
+      error: new Error("Session not found: session-1"),
+    });
     mocked.sessionCreateMock.mockResolvedValue({
       data: { id: "session-2", title: "Fresh" },
       error: null,
@@ -307,6 +318,41 @@ describe("bot/handlers/prompt", () => {
         },
       }),
     );
+  });
+
+  it("reuses the session when status omits it but session.get succeeds (idle sessions may be absent)", async () => {
+    mocked.sessionStatusMock.mockResolvedValue({ data: {}, error: null });
+    mocked.sessionGetMock.mockResolvedValue({
+      data: { id: "session-1", title: "Session" },
+      error: null,
+    });
+
+    const handled = await processUserPrompt(createContext(), "Review README", createDeps());
+
+    expect(handled).toBe(true);
+    expect(mocked.sessionCreateMock).not.toHaveBeenCalled();
+    expect(mocked.attachToSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        session: {
+          id: "session-1",
+          title: "Session",
+          directory: "D:\\Projects\\Repo",
+        },
+      }),
+    );
+  });
+
+  it("keeps the session on transient session.get errors instead of recreating", async () => {
+    mocked.sessionStatusMock.mockResolvedValue({ data: {}, error: null });
+    mocked.sessionGetMock.mockResolvedValue({
+      data: null,
+      error: new Error("network down"),
+    });
+
+    const handled = await processUserPrompt(createContext(), "Review README", createDeps());
+
+    expect(handled).toBe(true);
+    expect(mocked.sessionCreateMock).not.toHaveBeenCalled();
   });
 
   it("still notifies the user when promptAsync reports a real start error", async () => {

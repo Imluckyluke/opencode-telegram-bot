@@ -80,34 +80,67 @@ export function consumePromptResponseMode(sessionId: string): PromptResponseMode
   return responseMode;
 }
 
-async function checkSessionLiveness(
-  sessionId: string,
-  directory: string,
-): Promise<{ exists: boolean; busy: boolean }> {
+function isSessionNotFoundError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return message.includes("Session not found");
+}
+
+async function checkSessionBusy(sessionId: string, directory: string): Promise<boolean> {
   try {
     const { data, error } = await opencodeClient.session.status({ directory });
 
     if (error || !data) {
       logger.warn("[Bot] Failed to check session status before prompt:", error);
-      return { exists: true, busy: false };
+      return false;
     }
 
     const sessionStatus = (data as Record<string, { type?: string }>)[sessionId];
     if (!sessionStatus) {
-      return { exists: false, busy: false };
+      return false;
     }
 
     logger.debug(`[Bot] Current session status before prompt: ${sessionStatus.type || "unknown"}`);
-    return { exists: true, busy: sessionStatus.type === "busy" };
+    return sessionStatus.type === "busy";
   } catch (err) {
     logger.warn("[Bot] Error checking session status before prompt:", err);
-    return { exists: true, busy: false };
+    return false;
+  }
+}
+
+async function checkSessionLiveness(
+  sessionId: string,
+  directory: string,
+): Promise<{ exists: boolean; busy: boolean }> {
+  const busy = await checkSessionBusy(sessionId, directory);
+
+  // NOTE: a missing entry in session.status does NOT mean the session is
+  // gone (idle sessions may be absent from the map, see isRunIdle which
+  // treats missing as idle). Verify existence with session.get and only
+  // recreate on a positive "Session not found".
+  try {
+    const { error } = await opencodeClient.session.get({
+      sessionID: sessionId,
+      directory,
+    });
+    if (!error) {
+      return { exists: true, busy };
+    }
+    if (isSessionNotFoundError(error)) {
+      return { exists: false, busy: false };
+    }
+    logger.warn("[Bot] Could not verify session existence, keeping it:", error);
+    return { exists: true, busy };
+  } catch (err) {
+    if (isSessionNotFoundError(err)) {
+      return { exists: false, busy: false };
+    }
+    logger.warn("[Bot] Error verifying session existence, keeping it:", err);
+    return { exists: true, busy };
   }
 }
 
 export async function isSessionBusy(sessionId: string, directory: string): Promise<boolean> {
-  const state = await checkSessionLiveness(sessionId, directory);
-  return state.busy;
+  return checkSessionBusy(sessionId, directory);
 }
 
 async function resetMismatchedSessionContext(): Promise<void> {
