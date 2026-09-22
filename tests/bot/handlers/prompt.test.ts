@@ -66,6 +66,9 @@ vi.mock("../../../src/app/stores/settings-store.js", () => ({
 
 vi.mock("../../../src/app/services/agent-context-service.js", () => ({
   withAgentContext: (text: string) => text,
+  buildDefaultContextNote: () => "",
+  stripAgentContext: (text: string) => text,
+  DEFAULT_AGENT_CONTEXT_NOTE: "",
 }));
 
 vi.mock("../../../src/app/services/agent-selection-service.js", () => ({
@@ -97,6 +100,7 @@ vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
     initialize: vi.fn(),
     clearContext: vi.fn(),
     updateAgent: vi.fn(),
+    getContextInfo: vi.fn(() => null),
   },
 }));
 
@@ -473,7 +477,7 @@ describe("bot/handlers/prompt", () => {
     );
   });
 
-  it("does not register suppression entry for file-only prompts", async () => {
+  it("registers suppression entry with placeholder text for file-only prompts", async () => {
     const handled = await processUserPrompt(createContext(), "", createDeps(), [
       {
         type: "file",
@@ -483,7 +487,9 @@ describe("bot/handlers/prompt", () => {
     ]);
 
     expect(handled).toBe(true);
-    expect(mocked.suppressionRegisterMock).not.toHaveBeenCalled();
+    // The "See attached file" placeholder is sent as the prompt text and echoes
+    // back over SSE, so it must be suppressed like any other sent text.
+    expect(mocked.suppressionRegisterMock).toHaveBeenCalledWith("session-1", "See attached file");
   });
 
   it("keeps text prompts text-only when TTS mode is auto", async () => {

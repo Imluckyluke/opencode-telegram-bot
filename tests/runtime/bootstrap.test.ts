@@ -95,19 +95,18 @@ describe("runtime/bootstrap", () => {
       ENV_EXAMPLE_CONTENT,
     );
 
-    expect(updated).toContain("# Telegram Bot Token (from @BotFather)");
+    expect(updated).toContain("# Copy to Railway Variables (do NOT commit real secrets).");
     expect(updated).toContain("TELEGRAM_BOT_TOKEN=token:value");
     expect(updated).toContain("TELEGRAM_ALLOWED_USER_ID=42");
-    expect(updated).toContain("# Telegram Proxy URL (optional)");
-    expect(updated).toContain("# OPENCODE_API_URL=http://localhost:4096");
+    expect(updated).toContain("# TELEGRAM_PROXY_URL=");
     expect(updated).toContain("OPENCODE_SERVER_USERNAME=opencode");
-    expect(updated).toContain("# OPENCODE_SERVER_PASSWORD=");
+    expect(updated).toContain("OPENCODE_SERVER_PASSWORD=");
     expect(updated).toContain("BOT_LOCALE=ru");
 
-    expect(updated.indexOf("# Telegram Bot Token (from @BotFather)")).toBeLessThan(
+    expect(updated.indexOf("# Copy to Railway Variables (do NOT commit real secrets).")).toBeLessThan(
       updated.indexOf("TELEGRAM_BOT_TOKEN=token:value"),
     );
-    expect(updated.indexOf("# Bot locale: supported locale code (default: en)")).toBeLessThan(
+    expect(updated.indexOf("# Supported locales: en, ar, de, es, fa, fr, id, it, ko, pt, ru, tr, zh")).toBeLessThan(
       updated.indexOf("BOT_LOCALE=ru"),
     );
   });
@@ -141,6 +140,10 @@ describe("runtime/bootstrap", () => {
   });
 
   it("keeps optional template placeholders when wizard clears previous optional values", () => {
+    // OPENCODE_SERVER_PASSWORD is an active (uncommented) template line: a cleared
+    // wizard value restores the empty default and drops the stale secret.
+    // OPENCODE_API_URL is no longer a template key (Railway derives it from PORT),
+    // so a pre-existing value is preserved as a custom assignment, never dropped.
     const existingContent = [
       "OPENCODE_API_URL=https://example.com",
       "OPENCODE_SERVER_PASSWORD=old-password",
@@ -160,10 +163,9 @@ describe("runtime/bootstrap", () => {
       ENV_EXAMPLE_CONTENT,
     );
 
-    expect(updated).toContain("# OPENCODE_API_URL=http://localhost:4096");
-    expect(updated).toContain("# OPENCODE_SERVER_PASSWORD=");
-    expect(updated).not.toContain("OPENCODE_API_URL=https://example.com");
+    expect(updated).toContain("OPENCODE_SERVER_PASSWORD=");
     expect(updated).not.toContain("OPENCODE_SERVER_PASSWORD=old-password");
+    expect(updated).toContain("OPENCODE_API_URL=https://example.com");
   });
 
   it("appends custom existing keys after the template", () => {

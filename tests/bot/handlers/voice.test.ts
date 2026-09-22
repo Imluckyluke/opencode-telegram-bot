@@ -191,7 +191,7 @@ describe("bot/handlers/voice-handler", () => {
     expect(processPromptMock).not.toHaveBeenCalled();
     expect(promptQueue.list()).toEqual([
       expect.objectContaining({
-        text: "run tests",
+        text: markTranscribedAudio("run tests"),
         displayText: "run tests",
         responseMode: "text_only",
       }),
@@ -273,13 +273,13 @@ describe("bot/handlers/voice-handler", () => {
 
     await handleVoiceMessage(ctx, deps);
 
-    expect(processPromptMock).toHaveBeenCalledWith(ctx, "run tests", deps, [], {
+    expect(processPromptMock).toHaveBeenCalledWith(ctx, markTranscribedAudio("run tests"), deps, [], {
       responseMode: "text_and_tts",
     });
   });
 
   it.each(["", "false", "0", "   "])(
-    "does not add STT note when STT_NOTE_PROMPT is %j",
+    "does not add a custom STT note when STT_NOTE_PROMPT is %j (default transcription marker still applies)",
     async (notePrompt) => {
       vi.stubEnv("STT_NOTE_PROMPT", notePrompt);
 
@@ -290,10 +290,13 @@ describe("bot/handlers/voice-handler", () => {
 
       await handleVoiceMessage(ctx, deps);
 
-      expect(processPromptMock).toHaveBeenCalledWith(ctx, "run tests", deps, [], {
+      expect(processPromptMock).toHaveBeenCalledWith(ctx, markTranscribedAudio("run tests"), deps, [], {
         responseMode: "text_only",
       });
-      expect(logger.debug).not.toHaveBeenCalled();
+      expect(logger.debug).not.toHaveBeenCalledWith(
+        expect.stringContaining("[Voice] Added STT note to LLM prompt:"),
+        expect.anything(),
+      );
     },
   );
 
@@ -318,7 +321,7 @@ describe("bot/handlers/voice-handler", () => {
     expect(String(url)).toBe(
       "https://api.telegram.org/file/bottest-telegram-token/voice/file_123.oga",
     );
-    expect(processPromptMock).toHaveBeenCalledWith(ctx, "hello", deps, [], {
+    expect(processPromptMock).toHaveBeenCalledWith(ctx, markTranscribedAudio("hello"), deps, [], {
       responseMode: "text_only",
     });
   });

@@ -32,6 +32,7 @@ const mocked = vi.hoisted(() => ({
     },
     telegram: {
       allowedUserId: 123,
+      allowedUserIds: [123],
     },
   },
 }));
@@ -61,6 +62,7 @@ vi.mock("../../src/opencode/ready-refresh.js", () => ({
 vi.mock("../../src/app/stores/settings-store.js", () => ({
   flushSettings: mocked.flushSettingsMock,
   loadSettings: mocked.loadSettingsMock,
+  getPersistedLocale: () => null,
 }));
 
 vi.mock("../../src/app/services/scheduled-task-runtime-service.js", () => ({

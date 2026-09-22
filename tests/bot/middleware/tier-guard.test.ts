@@ -13,6 +13,13 @@ const mocked = vi.hoisted(() => ({
 
 vi.mock("../../../src/config.js", () => ({
   isAllowedTelegramUser: mocked.isAllowedTelegramUserMock,
+  config: {
+    telegram: { allowedUserIds: [] },
+    opencode: { apiUrl: "http://localhost:4096", username: "opencode", password: "" },
+  },
+  buildTelegramConfig: vi.fn(),
+  parseInitialSettingsPreset: vi.fn(() => ({})),
+  DEFAULT_AGENT_CONTEXT_NOTE: "",
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({

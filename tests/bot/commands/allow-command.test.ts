@@ -12,6 +12,13 @@ const mocked = vi.hoisted(() => ({
 
 vi.mock("../../../src/config.js", () => ({
   isAllowedTelegramUser: mocked.isAllowedTelegramUserMock,
+  config: {
+    telegram: { allowedUserIds: [] },
+    opencode: { apiUrl: "http://localhost:4096", username: "opencode", password: "" },
+  },
+  buildTelegramConfig: vi.fn(),
+  parseInitialSettingsPreset: vi.fn(() => ({})),
+  DEFAULT_AGENT_CONTEXT_NOTE: "",
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
@@ -35,7 +42,8 @@ function createContext(text: string, replyFrom?: { id: number }): Context {
 
 describe("bot/commands/allow-command", () => {
   beforeEach(() => {
-    mocked.isAllowedTelegramUserMock.mockReset().mockReturnValue(true);
+    // Owner is caller 111; grant targets (222/333) are not env-listed owners.
+    mocked.isAllowedTelegramUserMock.mockReset().mockImplementation((id: number) => id === 111);
     mocked.getExtraAllowedUserIdsMock.mockReset().mockReturnValue([]);
     mocked.addExtraAllowedUserIdMock.mockReset().mockReturnValue(true);
     mocked.removeExtraAllowedUserIdMock.mockReset().mockReturnValue(true);
