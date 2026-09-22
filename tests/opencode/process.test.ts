@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import * as path from "node:path";
 import * as fs from "node:fs";
@@ -8,7 +8,20 @@ import {
   createOpencodeServeSpawnCommand,
   findUnixListeningPidInSs,
   findWindowsListeningPidInNetstat,
+  resolveLocalOpencodeTarget,
+  startLocalOpencodeServer,
+  __resetTrackedServersForTests,
 } from "../../src/opencode/process.js";
+
+const spawnMock = vi.hoisted(() => vi.fn());
+
+vi.mock("node:child_process", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  return {
+    ...actual,
+    spawn: spawnMock,
+  };
+});
 
 describe("opencode/process", () => {
   it("matches the exact local port on Windows netstat output", async () => {
@@ -133,5 +146,63 @@ describe("opencode/process", () => {
       process.env.PATH = originalPath;
       fs.rmSync(tempRoot, { recursive: true, force: true });
     }
+  });
+
+  describe("resolveLocalOpencodeTarget", () => {
+    it("accepts valid local ports", () => {
+      expect(resolveLocalOpencodeTarget("http://localhost:4096")).toEqual({
+        host: "localhost",
+        port: 4096,
+      });
+    });
+
+    it("rejects out-of-range ports", () => {
+      expect(resolveLocalOpencodeTarget("http://localhost:99999")).toBeNull();
+      expect(resolveLocalOpencodeTarget("http://localhost:0")).toBeNull();
+    });
+
+    it("rejects non-local hosts", () => {
+      expect(resolveLocalOpencodeTarget("http://example.com:4096")).toBeNull();
+    });
+  });
+
+  describe("startLocalOpencodeServer", () => {
+    beforeEach(() => {
+      spawnMock.mockReset();
+      __resetTrackedServersForTests();
+    });
+
+    function fakeChild(pid: number | undefined) {
+      return { pid, once: vi.fn(), unref: vi.fn() };
+    }
+
+    it("reuses the tracked child while it is still alive", () => {
+      spawnMock.mockReturnValue(fakeChild(process.pid));
+
+      const first = startLocalOpencodeServer({ host: "localhost", port: 4096 });
+      const second = startLocalOpencodeServer({ host: "localhost", port: 4096 });
+
+      expect(spawnMock).toHaveBeenCalledTimes(1);
+      expect(second).toBe(first);
+    });
+
+    it("spawns again after the tracked child died", () => {
+      spawnMock.mockReturnValueOnce(fakeChild(999999999)).mockReturnValue(fakeChild(process.pid));
+
+      startLocalOpencodeServer({ host: "localhost", port: 4096 });
+      const second = startLocalOpencodeServer({ host: "localhost", port: 4096 });
+
+      expect(spawnMock).toHaveBeenCalledTimes(2);
+      expect(second).not.toBeUndefined();
+    });
+
+    it("tracks ports independently", () => {
+      spawnMock.mockReturnValue(fakeChild(process.pid));
+
+      startLocalOpencodeServer({ host: "localhost", port: 4096 });
+      startLocalOpencodeServer({ host: "localhost", port: 4097 });
+
+      expect(spawnMock).toHaveBeenCalledTimes(2);
+    });
   });
 });

@@ -5,7 +5,12 @@ import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
 const DEFAULT_OPENCODE_PORT = 4096;
+const MAX_TCP_PORT = 65535;
 const PROCESS_EXIT_POLL_MS = 100;
+
+// Children spawned by this process, keyed by port so repeated restarts reuse
+// the running server instead of orphaning processes on the same port.
+const trackedServers = new Map<number, ChildProcess>();
 
 export interface LocalOpencodeTarget {
   host: string;
@@ -32,7 +37,7 @@ export function resolveLocalOpencodeTarget(apiUrl: string): LocalOpencodeTarget 
 
     const port = parsedUrl.port ? Number.parseInt(parsedUrl.port, 10) : DEFAULT_OPENCODE_PORT;
 
-    if (!Number.isInteger(port) || port <= 0) {
+    if (!Number.isInteger(port) || port <= 0 || port > MAX_TCP_PORT) {
       return null;
     }
 
@@ -71,8 +76,9 @@ function resolveWindowsOpencodeExe(): string {
       return candidateExe;
     }
 
-    // Found the shim but not the exe where it usually lives. Stop searching.
-    break;
+    // Found the shim but not the exe where it usually lives. Keep searching:
+    // a later PATH entry may hold a directly usable opencode.exe.
+    continue;
   }
 
   return "";
@@ -111,13 +117,30 @@ export function createOpencodeServeSpawnCommand(
 }
 
 export function startLocalOpencodeServer(target: LocalOpencodeTarget): ChildProcess {
+  // One tracked server per port: health-check failures must reuse the running
+  // child instead of piling up orphans that fight over the same port.
+  const previous = trackedServers.get(target.port);
+  if (previous) {
+    if (previous.pid !== undefined && isProcessAlive(previous.pid)) {
+      return previous;
+    }
+    trackedServers.delete(target.port);
+  }
+
   const spawnCommand = createOpencodeServeSpawnCommand(target);
 
-  return spawn(spawnCommand.command, spawnCommand.args, {
+  const child = spawn(spawnCommand.command, spawnCommand.args, {
     detached: true,
     stdio: "ignore",
     windowsHide: spawnCommand.windowsHide,
   });
+  trackedServers.set(target.port, child);
+  return child;
+}
+
+/** Forgets tracked children without killing them (tests only). */
+export function __resetTrackedServersForTests(): void {
+  trackedServers.clear();
 }
 
 function parsePid(value: string): number | null {
