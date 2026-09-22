@@ -94,7 +94,29 @@ describe("app/managers/prompt-queue-manager", () => {
       photos: [photo],
       displayText: "[Attachment]",
       mediaBytes: 0,
+      attempts: 0,
     });
+  });
+
+  it("requeues a failed item at the front with a bounded attempt budget", () => {
+    promptQueue.add(prompt("first"));
+    promptQueue.add(prompt("second"));
+
+    const taken = promptQueue.takeNext();
+    expect(taken?.text).toBe("first");
+
+    expect(promptQueue.requeueFront(taken!)).toBe(true);
+    expect(promptQueue.list().map((item) => item.text)).toEqual(["first", "second"]);
+    expect(promptQueue.mediaSize()).toBe(0);
+
+    // Attempts 2 and 3 are accepted, the 4th take exceeds the budget.
+    const second = promptQueue.takeNext();
+    expect(promptQueue.requeueFront(second!)).toBe(true);
+    const third = promptQueue.takeNext();
+    expect(promptQueue.requeueFront(third!)).toBe(true);
+    const fourth = promptQueue.takeNext();
+    expect(promptQueue.requeueFront(fourth!)).toBe(false);
+    expect(promptQueue.size()).toBe(1);
   });
 
   it("caps aggregate raw media bytes and releases them when an item is dequeued", () => {

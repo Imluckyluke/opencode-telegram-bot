@@ -3,6 +3,7 @@ import {
   MAX_QUEUED_PROMPTS,
   MAX_QUEUED_MEDIA_BYTES,
   promptQueue,
+  type QueuedPrompt,
   type QueuedPromptInput,
 } from "../../app/managers/prompt-queue-manager.js";
 import type { IncomingPrompt } from "../../app/types/prompt.js";
@@ -192,13 +193,29 @@ export async function dispatchNextQueuedPrompt(): Promise<void> {
       });
       if (!dispatched) {
         logger.warn(`[PromptQueue] Queued prompt was not dispatched: id=${item.id}`);
+        await requeueOrDrop(ctx, item);
       }
     } catch (err) {
       logger.error(`[PromptQueue] Failed to dispatch queued prompt: id=${item.id}`, err);
+      await requeueOrDrop(ctx, item);
     }
   } finally {
     dispatchInFlight = false;
   }
+}
+
+/**
+ * Returns a failed item to the front of the queue. When the attempt budget is
+ * exhausted the item is dropped with a user-visible notice instead of being
+ * retried (and re-echoed) forever.
+ */
+async function requeueOrDrop(ctx: Context, item: QueuedPrompt): Promise<void> {
+  if (promptQueue.requeueFront(item)) {
+    return;
+  }
+
+  logger.error(`[PromptQueue] Dropping queued prompt after repeated failures: id=${item.id}`);
+  await replyWithKeyboard(ctx, t("error.generic"));
 }
 
 async function replyWithKeyboard(ctx: Context, text: string): Promise<void> {

@@ -214,6 +214,7 @@ describe("bot/handlers/prompt-queue-dispatch", () => {
           photos: [],
           displayText: "release screenshot",
           mediaBytes: 0,
+          attempts: 0,
         },
         DEPS,
         {},
@@ -270,13 +271,35 @@ describe("bot/handlers/prompt-queue-dispatch", () => {
       ]);
     });
 
-    it("does not requeue a prompt that could not be dispatched", async () => {
-      processUserPromptMock.mockResolvedValue(false);
+    it("requeues a prompt that could not be dispatched and retries it next", async () => {
+      processUserPromptMock.mockResolvedValueOnce(false).mockResolvedValue(true);
       await tryEnqueuePrompt(makeContext(), "first");
 
       await dispatchNextQueuedPrompt();
 
+      expect(promptQueue.size()).toBe(1);
+
+      await dispatchNextQueuedPrompt();
+
+      expect(processUserPromptMock).toHaveBeenCalledTimes(2);
       expect(promptQueue.size()).toBe(0);
+    });
+
+    it("drops a prompt after repeated dispatch failures and notifies the user", async () => {
+      processUserPromptMock.mockResolvedValue(false);
+      const ctx = makeContext();
+      await tryEnqueuePrompt(ctx, "first");
+
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        await dispatchNextQueuedPrompt();
+      }
+
+      expect(processUserPromptMock).toHaveBeenCalledTimes(4);
+      expect(promptQueue.size()).toBe(0);
+      expect(ctx.reply).toHaveBeenCalledWith(
+        expect.stringContaining("Something went wrong"),
+        expect.anything(),
+      );
     });
 
     it("still sends the prompt when the echo fails", async () => {

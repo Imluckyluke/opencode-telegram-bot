@@ -4,12 +4,15 @@ import type { IncomingPrompt } from "../types/prompt.js";
 export const MAX_QUEUED_PROMPTS = 5;
 /** Maximum raw Telegram media bytes retained by all queued prompts. */
 export const MAX_QUEUED_MEDIA_BYTES = 20 * 1024 * 1024;
+/** Maximum dispatch attempts for one queued prompt before it is dropped. */
+export const MAX_DISPATCH_ATTEMPTS = 3;
 
 export interface QueuedPrompt extends IncomingPrompt {
   id: string;
   displayText: string;
   responseMode?: "text_only" | "text_and_tts";
   mediaBytes: number;
+  attempts: number;
 }
 
 export interface QueuedPromptInput extends IncomingPrompt {
@@ -50,6 +53,7 @@ class PromptQueueManager {
       photos: [...input.photos],
       displayText,
       mediaBytes,
+      attempts: 0,
       ...(input.responseMode ? { responseMode: input.responseMode } : {}),
     };
     this.items.push(item);
@@ -86,6 +90,25 @@ class PromptQueueManager {
       logger.debug(`[PromptQueue] Prompt taken: id=${item.id}, size=${this.items.length}`);
     }
     return item;
+  }
+
+  /**
+   * Returns a failed item to the front of the queue for another attempt.
+   * Returns false when the attempt budget is exhausted: the caller must drop
+   * the item (and tell the user) instead of retrying forever.
+   */
+  requeueFront(item: QueuedPrompt): boolean {
+    const attempts = item.attempts + 1;
+    if (attempts > MAX_DISPATCH_ATTEMPTS) {
+      return false;
+    }
+
+    this.items.unshift({ ...item, fileParts: [...item.fileParts], photos: [...item.photos], attempts });
+    this.queuedMediaBytes += item.mediaBytes;
+    logger.debug(
+      `[PromptQueue] Prompt requeued: id=${item.id}, attempt=${attempts}, size=${this.items.length}`,
+    );
+    return true;
   }
 
   size(): number {
