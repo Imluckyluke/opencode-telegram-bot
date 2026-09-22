@@ -456,4 +456,26 @@ describe("opencode/events", () => {
 
     expect(callback).not.toHaveBeenCalled();
   });
+
+  it("closes the stream generator when listening stops", async () => {
+    const returnSpy = vi.fn(async () => ({ done: true as const, value: undefined }));
+    const stream = {
+      next: () => new Promise<IteratorResult<unknown>>(() => undefined),
+      return: returnSpy,
+      throw: (error: unknown) => Promise.reject(error),
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+    };
+    subscribeMock.mockResolvedValueOnce({ stream });
+
+    const subscription = subscribeToEvents("D:/repo", vi.fn());
+    await flushImmediate();
+    await flushImmediate();
+
+    stopEventListening();
+    await subscription;
+
+    expect(returnSpy).toHaveBeenCalledTimes(1);
+  });
 });

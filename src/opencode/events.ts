@@ -40,6 +40,26 @@ type StreamReadResult =
   | { type: "aborted" }
   | { type: "timeout" };
 
+/**
+ * Closes the active SSE generator so the underlying HTTP connection is
+ * released promptly. Aborting the controller alone only unblocks readers;
+ * without return() the server side stays open until it times out on its own.
+ */
+function closeActiveStream(): void {
+  const stream = eventStream;
+  eventStream = null;
+  if (!stream) {
+    return;
+  }
+
+  try {
+    const result = stream.return?.(undefined);
+    void result?.catch(() => undefined);
+  } catch {
+    // Generator already finished; nothing to release.
+  }
+}
+
 function getReconnectDelayMs(attempt: number): number {
   const exponentialDelay = RECONNECT_BASE_DELAY_MS * Math.pow(2, Math.max(0, attempt - 1));
   return Math.min(exponentialDelay, RECONNECT_MAX_DELAY_MS);
@@ -212,6 +232,7 @@ export async function subscribeToEvents(directory: string, callback: EventCallba
     logger.info(`Stopping event listener for ${activeDirectory}, starting for ${directory}`);
     streamAbortController?.abort();
     streamAbortController = null;
+    closeActiveStream();
     isListening = false;
     activeDirectory = null;
   }
@@ -420,7 +441,7 @@ export async function subscribeToEvents(directory: string, callback: EventCallba
       }
 
       streamAbortController = null;
-      eventStream = null;
+      closeActiveStream();
       eventCallback = null;
       isListening = false;
       activeDirectory = null;
@@ -432,9 +453,9 @@ export function stopEventListening(): void {
   listenerGeneration++;
   streamAbortController?.abort();
   streamAbortController = null;
+  closeActiveStream();
   isListening = false;
   eventCallback = null;
-  eventStream = null;
   activeDirectory = null;
   logger.info("Event listener stopped");
 }
