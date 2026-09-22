@@ -7,10 +7,10 @@ export async function authMiddleware(ctx: Context, next: NextFunction): Promise<
   const userId = ctx.from?.id;
   // Guest-mode summons arrive without membership: the authorizing party is
   // the caller, not the message sender.
-  const guestCallerId = ctx.update.guest_message?.guest_bot_caller_user?.id;
+  const guestCallerId = ctx.update?.guest_message?.guest_bot_caller_user?.id;
 
   logger.debug(
-    `[Auth] Checking access: userId=${userId}, guestCallerId=${guestCallerId}, allowedUserIds=${config.telegram.allowedUserIds.join(",")}, hasCallbackQuery=${!!ctx.callbackQuery}, hasMessage=${!!ctx.message}`,
+    `[Auth] Checking access: userId=${userId}, guestCallerId=${guestCallerId}, allowedUserCount=${config.telegram.allowedUserIds?.length ?? 0}, hasCallbackQuery=${!!ctx.callbackQuery}, hasMessage=${!!ctx.message}`,
   );
 
   if (isAllowedUser(userId) || isAllowedUser(guestCallerId)) {
@@ -24,7 +24,7 @@ export async function authMiddleware(ctx: Context, next: NextFunction): Promise<
     // Only do this if the chat is NOT an authorized chat
     // (to avoid resetting commands when forwarded messages are received).
     // Skipped for guest updates: the bot cannot manage group command lists.
-    if (!ctx.update.guest_message && ctx.chat?.id && !isAllowedUser(ctx.chat.id)) {
+    if (!ctx.update?.guest_message && ctx.chat?.id && !isAllowedUser(ctx.chat.id)) {
       try {
         // Set empty commands for this specific chat (more reliable than deleteMyCommands)
         await ctx.api.setMyCommands([], {

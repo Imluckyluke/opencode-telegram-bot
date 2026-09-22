@@ -72,7 +72,7 @@ export async function ensureCommandsInitialized(
 
   // Guest-mode updates come from chats the bot is not a member of, where it
   // cannot manage the command list.
-  if (ctx.update.guest_message) {
+  if (ctx.update?.guest_message) {
     await next();
     return;
   }

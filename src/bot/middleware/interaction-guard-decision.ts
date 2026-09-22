@@ -57,7 +57,7 @@ function classifyIncomingInput(ctx: Context): {
   // Inline mode updates carry no message/callback semantics of their own:
   // answering is read-only and chosen runs enforce busy/interaction rules
   // themselves in the inline router. Guest-mode summons behave the same way.
-  if (ctx.inlineQuery || ctx.chosenInlineResult || ctx.update.guest_message) {
+  if (ctx.inlineQuery || ctx.chosenInlineResult || ctx.update?.guest_message) {
     return { inputType: "inline" };
   }
 

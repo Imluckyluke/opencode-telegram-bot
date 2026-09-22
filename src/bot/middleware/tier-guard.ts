@@ -17,12 +17,22 @@ import { logger } from "../../utils/logger.js";
  */
 export async function tierGuardMiddleware(ctx: Context, next: NextFunction): Promise<void> {
   const userId = ctx.from?.id;
-  if (typeof userId !== "number") {
+  // Guest-mode summons carry the authorizing party in the server-set
+  // guest_bot_caller_user field (see authMiddleware). The guard must judge
+  // the caller, not just ctx.from, otherwise owner kill-switch checks and
+  // the granted-user guest denial below would look at the wrong identity.
+  const guestMessage = (
+    ctx.update as unknown as {
+      guest_message?: { guest_bot_caller_user?: { id?: number } };
+    } | undefined
+  )?.guest_message;
+  const guestCallerId = guestMessage?.guest_bot_caller_user?.id;
+  if (typeof userId !== "number" && typeof guestCallerId !== "number") {
     await next();
     return;
   }
 
-  const owner = isAllowedTelegramUser(userId);
+  const owner = isAllowedTelegramUser(userId) || isAllowedTelegramUser(guestCallerId);
   const command = ctx.message?.text ? normalizeCommand(ctx.message.text) : null;
   if (isBotDisabled() && !(owner && command === "enable")) {
     logger.debug(`[TierGuard] Bot disabled, ignoring update from userId=${userId}`);
@@ -38,6 +48,17 @@ export async function tierGuardMiddleware(ctx: Context, next: NextFunction): Pro
 
   if (owner) {
     await next();
+    return;
+  }
+
+  if (guestMessage) {
+    // Guest summons are denied for everyone below owner tier (granted users
+    // are restricted to their personal lane). Owners already returned above,
+    // so guest mode keeps working for them. Silent drop: there is no DM chat
+    // to notify and the inline/guest handler stays authoritative.
+    logger.debug(
+      `[TierGuard] Denied guest summons for non-owner userId=${userId}, guestCallerId=${guestCallerId}`,
+    );
     return;
   }
 
