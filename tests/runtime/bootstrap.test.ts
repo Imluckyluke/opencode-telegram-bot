@@ -47,6 +47,29 @@ describe("runtime/bootstrap", () => {
     expect(result.reason).toContain("TELEGRAM_ALLOWED_USER_ID");
   });
 
+  it("accepts comma-separated user ids like the runtime whitelist", () => {
+    const result = validateRuntimeEnvValues({
+      TELEGRAM_BOT_TOKEN: "123456:abcdef",
+      TELEGRAM_ALLOWED_USER_ID: "123456789, 987654321",
+      OPENCODE_MODEL_PROVIDER: "opencode",
+      OPENCODE_MODEL_ID: "big-pickle",
+    });
+
+    expect(result).toEqual({ isValid: true });
+  });
+
+  it("rejects partially invalid user id lists", () => {
+    const result = validateRuntimeEnvValues({
+      TELEGRAM_BOT_TOKEN: "123456:abcdef",
+      TELEGRAM_ALLOWED_USER_ID: "123456789, abc",
+      OPENCODE_MODEL_PROVIDER: "opencode",
+      OPENCODE_MODEL_ID: "big-pickle",
+    });
+
+    expect(result.isValid).toBe(false);
+    expect(result.reason).toContain("TELEGRAM_ALLOWED_USER_ID");
+  });
+
   it("falls back to flat updates when template is unavailable", () => {
     const existingContent = [
       "CUSTOM_FLAG=enabled",

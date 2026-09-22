@@ -45,6 +45,7 @@ vi.mock("../../src/bot/index.js", () => ({
 
 vi.mock("../../src/config.js", () => ({
   config: mocked.config,
+  configLoadWarnings: [],
 }));
 
 vi.mock("../../src/opencode/auto-restart.js", () => ({

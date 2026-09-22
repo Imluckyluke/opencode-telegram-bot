@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import { cleanupBotRuntime, createBot, restoreFollowedSessionOnPollingStart } from "../../bot/index.js";
 import { createScheduledTaskDeliverySender } from "../../bot/messages/scheduled-task-delivery.js";
-import { config } from "../../config.js";
+import { config, configLoadWarnings } from "../../config.js";
 import { opencodeAutoRestartService } from "../../opencode/auto-restart.js";
 import {
   notifyOpencodeReadyIfHealthy,
@@ -142,6 +142,9 @@ export async function startBotApp(): Promise<void> {
     logger.info(`Logs are written to ${logFilePath}`);
   }
   logger.info(`Allowed User IDs: ${(config.telegram.allowedUserIds ?? []).join(",")}`);
+  for (const warning of configLoadWarnings) {
+    logger.warn(`[Config] ${warning}`);
+  }
   logger.debug(`[Runtime] Application start mode: ${mode}`);
 
   let serviceStateCleared = false;

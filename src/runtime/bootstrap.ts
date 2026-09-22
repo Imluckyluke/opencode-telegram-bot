@@ -71,6 +71,18 @@ function isPositiveInteger(value: string): boolean {
   return /^[1-9]\d*$/.test(value);
 }
 
+/**
+ * One or more comma-separated positive numeric Telegram user IDs, e.g. "123" or "123,456".
+ * Mirrors parseAllowedUserIds() in config.ts, which is the runtime source of truth.
+ */
+function isValidAllowedUserIds(value: string): boolean {
+  const parts = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  return parts.length > 0 && parts.every((part) => isPositiveInteger(part));
+}
+
 function isValidHttpUrl(value: string): boolean {
   try {
     const parsed = new URL(value);
@@ -85,7 +97,7 @@ export function validateRuntimeEnvValues(values: Record<string, string>): EnvVal
     return { isValid: false, reason: "Missing TELEGRAM_BOT_TOKEN" };
   }
 
-  if (!isPositiveInteger(values.TELEGRAM_ALLOWED_USER_ID || "")) {
+  if (!isValidAllowedUserIds(values.TELEGRAM_ALLOWED_USER_ID || "")) {
     return { isValid: false, reason: "Invalid TELEGRAM_ALLOWED_USER_ID" };
   }
 
@@ -468,7 +480,7 @@ async function askAllowedUserId(): Promise<string> {
   for (;;) {
     const allowedUserId = await askVisible(t("runtime.wizard.ask_user_id"));
 
-    if (!isPositiveInteger(allowedUserId)) {
+    if (!isValidAllowedUserIds(allowedUserId)) {
       process.stdout.write(t("runtime.wizard.user_id_invalid"));
       continue;
     }

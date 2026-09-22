@@ -6,6 +6,19 @@ import { buildDefaultContextNote, DEFAULT_AGENT_CONTEXT_NOTE } from "./app/servi
 const runtimePaths = getRuntimePaths();
 dotenv.config({ path: runtimePaths.envFilePath, quiet: true });
 
+/**
+ * Non-fatal environment issues collected while loading config. Silent fallbacks
+ * hide typos (e.g. SESSIONS_LIST_LIMIT=abc runs with 10 and never says so), so
+ * every fallback records a warning here and startBotApp surfaces them at startup.
+ */
+export const configLoadWarnings: string[] = [];
+
+function warnInvalidEnvVar(key: string, rawValue: string, fallbackDescription: string): void {
+  configLoadWarnings.push(
+    `Invalid ${key} value ${JSON.stringify(rawValue)}; using ${fallbackDescription}.`,
+  );
+}
+
 export type MessageFormatMode = "raw" | "markdown";
 export type TtsProvider = "openai" | "google" | "elevenlabs" | "edge";
 export type SttRequestFormat = "multipart" | "json";
@@ -40,6 +53,7 @@ function getOptionalPositiveIntEnvVar(key: string, defaultValue: number): number
 
   const parsedValue = Number.parseInt(value, 10);
   if (Number.isNaN(parsedValue) || parsedValue <= 0) {
+    warnInvalidEnvVar(key, value, `default ${defaultValue}`);
     return defaultValue;
   }
 
@@ -56,6 +70,7 @@ function getOptionalNonNegativeIntEnvVar(key: string, defaultValue: number): num
 
   const parsedValue = Number.parseInt(value, 10);
   if (Number.isNaN(parsedValue) || parsedValue < 0) {
+    warnInvalidEnvVar(key, value, `default ${defaultValue}`);
     return defaultValue;
   }
 
@@ -64,7 +79,11 @@ function getOptionalNonNegativeIntEnvVar(key: string, defaultValue: number): num
 
 function getOptionalLocaleEnvVar(key: string, defaultValue: Locale): Locale {
   const value = getEnvVar(key, false);
-  return normalizeLocale(value, defaultValue);
+  const normalized = normalizeLocale(value, defaultValue);
+  if (value && value.trim() !== "" && normalized === defaultValue && value.trim() !== defaultValue) {
+    warnInvalidEnvVar(key, value, `default "${defaultValue}"`);
+  }
+  return normalized;
 }
 
 function getOptionalBooleanEnvVar(key: string, defaultValue: boolean): boolean {
@@ -84,6 +103,7 @@ function getOptionalBooleanEnvVar(key: string, defaultValue: boolean): boolean {
     return false;
   }
 
+  warnInvalidEnvVar(key, value, `default ${defaultValue}`);
   return defaultValue;
 }
 
@@ -102,6 +122,7 @@ function getOptionalMessageFormatModeEnvVar(
     return normalized;
   }
 
+  warnInvalidEnvVar(key, value, `default "${defaultValue}"`);
   return defaultValue;
 }
 
@@ -136,6 +157,7 @@ function getOptionalTtsProviderEnvVar(key: string, defaultValue: TtsProvider): T
     return normalized as TtsProvider;
   }
 
+  warnInvalidEnvVar(key, value, `default "${defaultValue}"`);
   return defaultValue;
 }
 
@@ -170,6 +192,7 @@ function getOptionalSttRequestFormatEnvVar(
     return normalized as SttRequestFormat;
   }
 
+  warnInvalidEnvVar(key, value, `default "${defaultValue}"`);
   return defaultValue;
 }
 
@@ -182,10 +205,10 @@ export function buildTelegramConfig(): {
   proxySecret: string;
   forceIpv4: boolean;
 } {
-  const proxyUrl = getEnvVar("TELEGRAM_PROXY_URL", false);
+  const proxyUrl = getEnvVar("TELEGRAM_PROXY_URL", false).trim();
   // grammY rejects an apiRoot ending with `/`, so normalize once at config
   // load instead of leaking the concern into every consumer.
-  const apiRoot = getEnvVar("TELEGRAM_API_ROOT", false).replace(/\/+$/, "");
+  const apiRoot = getEnvVar("TELEGRAM_API_ROOT", false).trim().replace(/\/+$/, "");
   const proxySecret = getEnvVar("TELEGRAM_PROXY_SECRET", false);
   const forceIpv4 = getOptionalBooleanEnvVar("TELEGRAM_FORCE_IPV4", false);
 
@@ -241,10 +264,49 @@ export function isAllowedTelegramUser(userId: number | undefined | null): boolea
   return typeof userId === "number" && config.telegram.allowedUserIds.includes(userId);
 }
 
+function getOpencodeApiUrl(): string {
+  return parseOpencodeApiUrl(getEnvVar("OPENCODE_API_URL", false).trim() || "http://localhost:4096");
+}
+
+/** Validates a user-supplied OpenCode server URL (pure, exported for tests). */
+export function parseOpencodeApiUrl(raw: string): string {
+  let protocol: string;
+  try {
+    protocol = new URL(raw).protocol;
+  } catch {
+    throw new Error(
+      `Invalid OPENCODE_API_URL: ${JSON.stringify(raw)}. It must be an http(s) URL, e.g. "http://localhost:4096".`,
+    );
+  }
+
+  if (protocol !== "http:" && protocol !== "https:") {
+    throw new Error(
+      `Invalid OPENCODE_API_URL: ${JSON.stringify(raw)}. It must be an http(s) URL, e.g. "http://localhost:4096".`,
+    );
+  }
+
+  return raw;
+}
+
+function getAutoCompactThresholdPercent(): number {
+  // Documented range is 1-100 (0 disables): clamp absurd values with a warning
+  // instead of running with a meaningless threshold.
+  const value = getOptionalNonNegativeIntEnvVar("AUTO_COMPACT_THRESHOLD_PERCENT", 0);
+  if (value > 100) {
+    warnInvalidEnvVar(
+      "AUTO_COMPACT_THRESHOLD_PERCENT",
+      String(value),
+      "100 (maximum allowed percent)",
+    );
+    return 100;
+  }
+  return value;
+}
+
 export const config = {
   telegram: buildTelegramConfig(),
   opencode: {
-    apiUrl: getEnvVar("OPENCODE_API_URL", false) || "http://localhost:4096",
+    apiUrl: getOpencodeApiUrl(),
     username: getEnvVar("OPENCODE_SERVER_USERNAME", false) || "opencode",
     password: getEnvVar("OPENCODE_SERVER_PASSWORD", false),
     autoRestartEnabled: getOptionalBooleanEnvVar("OPENCODE_AUTO_RESTART_ENABLED", false),
@@ -278,10 +340,7 @@ export const config = {
       false,
     ),
     bashToolDisplayMaxLength: getOptionalPositiveIntEnvVar("BASH_TOOL_DISPLAY_MAX_LENGTH", 128),
-    autoCompactThresholdPercent: getOptionalNonNegativeIntEnvVar(
-      "AUTO_COMPACT_THRESHOLD_PERCENT",
-      0,
-    ),
+    autoCompactThresholdPercent: getAutoCompactThresholdPercent(),
     locale: getOptionalLocaleEnvVar("BOT_LOCALE", "en"),
     trackBackgroundSessions: getOptionalBooleanEnvVar("TRACK_BACKGROUND_SESSIONS", true),
     messageFormatMode: getOptionalMessageFormatModeEnvVar("MESSAGE_FORMAT_MODE", "markdown"),

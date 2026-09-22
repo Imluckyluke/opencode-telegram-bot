@@ -473,3 +473,66 @@ describe("config telegram reverse-proxy", () => {
     expect(() => buildTelegramConfig()).toThrow(/TELEGRAM_PROXY_SECRET requires TELEGRAM_API_ROOT/);
   });
 });
+
+describe("config invalid value warnings", () => {
+  beforeEach(() => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "test-telegram-token");
+    vi.stubEnv("TELEGRAM_ALLOWED_USER_ID", "123456789");
+    vi.stubEnv("OPENCODE_MODEL_PROVIDER", "test-provider");
+    vi.stubEnv("OPENCODE_MODEL_ID", "test-model");
+  });
+
+  it("records a warning when an int env var is malformed", async () => {
+    vi.stubEnv("SESSIONS_LIST_LIMIT", "banana");
+
+    const module = await loadConfigModule();
+
+    expect(module.config.bot.sessionsListLimit).toBe(10);
+    expect(module.configLoadWarnings).toEqual(
+      expect.arrayContaining([expect.stringContaining("SESSIONS_LIST_LIMIT")]),
+    );
+  });
+
+  it("records a warning when a boolean env var is malformed", async () => {
+    vi.stubEnv("TRACK_BACKGROUND_SESSIONS", "banana");
+
+    const module = await loadConfigModule();
+
+    expect(module.config.bot.trackBackgroundSessions).toBe(true);
+    expect(module.configLoadWarnings).toEqual(
+      expect.arrayContaining([expect.stringContaining("TRACK_BACKGROUND_SESSIONS")]),
+    );
+  });
+
+  it("records no warnings for valid values", async () => {
+    vi.stubEnv("SESSIONS_LIST_LIMIT", "25");
+    vi.stubEnv("TRACK_BACKGROUND_SESSIONS", "off");
+
+    const module = await loadConfigModule();
+
+    expect(module.config.bot.sessionsListLimit).toBe(25);
+    expect(module.config.bot.trackBackgroundSessions).toBe(false);
+    expect(module.configLoadWarnings).toEqual([]);
+  });
+
+  it("clamps AUTO_COMPACT_THRESHOLD_PERCENT to 100 with a warning", async () => {
+    vi.stubEnv("AUTO_COMPACT_THRESHOLD_PERCENT", "999");
+
+    const module = await loadConfigModule();
+
+    expect(module.config.bot.autoCompactThresholdPercent).toBe(100);
+    expect(module.configLoadWarnings).toEqual(
+      expect.arrayContaining([expect.stringContaining("AUTO_COMPACT_THRESHOLD_PERCENT")]),
+    );
+  });
+
+  it("rejects non-http OPENCODE_API_URL values", async () => {
+    const { parseOpencodeApiUrl } = await loadConfigModule();
+
+    expect(() => parseOpencodeApiUrl("not-a-url")).toThrow(/Invalid OPENCODE_API_URL/);
+    expect(() => parseOpencodeApiUrl("ftp://host:21/x")).toThrow(/Invalid OPENCODE_API_URL/);
+    expect(parseOpencodeApiUrl("https://opencode.example.com:8443/api")).toBe(
+      "https://opencode.example.com:8443/api",
+    );
+  });
+});
