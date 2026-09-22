@@ -201,6 +201,17 @@ export async function handleDocumentMessage(
 
           try {
             const result = await extractDocument(downloadedFile.buffer, mimeType, filename);
+            // Extracted text goes straight into the prompt: apply the same text
+            // cap as direct text files instead of sending megabytes to the model.
+            if (result.text.length > config.files.maxFileSizeKb * 1024) {
+              logger.warn(
+                `[Document] Extracted text too large: ${filename} (${result.text.length} chars)`,
+              );
+              await ctx.reply(
+                t("bot.text_file_too_large", { maxSizeKb: String(config.files.maxFileSizeKb) }),
+              );
+              return;
+            }
             const promptWithFile = `--- Content of ${filename} ---\n${result.text}\n--- End of file ---\n\n${caption}`;
             logger.info(
               `[Document] Sending extracted document text from ${filename} (${result.text.length} chars) as prompt`,

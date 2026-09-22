@@ -2,6 +2,7 @@ import { Context, InputFile } from "grammy";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { formatFileSize } from "../../app/services/file-download-service.js";
+import { isWithinProjectRootSafe } from "../../app/services/file-browser-service.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 
@@ -22,6 +23,13 @@ export async function sendDownloadedFile(
   options?: { announce?: boolean },
 ): Promise<boolean> {
   try {
+    // Defense in depth: callers check project membership, but this resolves
+    // symlinks again so a link escaping the project can never be exfiltrated.
+    if (!(await isWithinProjectRootSafe(filePath))) {
+      await ctx.reply(`❌ ${t("ls.access_denied")}`);
+      return false;
+    }
+
     const stat = await fs.stat(filePath).catch(() => null);
     if (!stat) {
       await ctx.reply(`❌ ${t("commands.download.not_found")}: <code>${escapeHtml(filePath)}</code>`, {

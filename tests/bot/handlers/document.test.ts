@@ -495,6 +495,31 @@ describe("bot/handlers/document", () => {
       );
     });
 
+    it("rejects extracted text larger than the text file limit", async () => {
+      const { ctx, replyMock } = createDocumentContext({
+        document: {
+          file_id: "pdf-file-id",
+          file_unique_id: "pdf-unique-id",
+          file_name: "huge.pdf",
+          mime_type: "application/pdf",
+          file_size: 5000,
+        },
+      });
+      const { deps, processPromptMock } = createDocumentDeps({
+        getModelCapabilities: vi.fn().mockResolvedValue({
+          input: { pdf: false },
+        }),
+      });
+
+      const { extractDocument: extractDoc } = await import("../../../src/app/services/document-extractor-service.js");
+      vi.mocked(extractDoc).mockResolvedValue({ text: "x".repeat(200 * 1024) });
+
+      await handleDocumentMessage(ctx, deps);
+
+      expect(replyMock).toHaveBeenCalledWith(t("bot.text_file_too_large", { maxSizeKb: "100" }));
+      expect(processPromptMock).not.toHaveBeenCalled();
+    });
+
     it("extracts DOCX when model does not support PDF input", async () => {
       const { ctx } = createDocumentContext({
         document: {
