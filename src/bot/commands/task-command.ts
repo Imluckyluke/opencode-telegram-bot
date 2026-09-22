@@ -228,9 +228,26 @@ function parseCronMinuteNumber(value: string): number {
   return parsedValue;
 }
 
+const MAX_SCHEDULE_AHEAD_MS = 366 * 24 * 60 * 60 * 1000;
+
 function validateParsedSchedule(parsedSchedule: ParsedTaskSchedule): void {
   if (parsedSchedule.kind === "cron") {
     validateCronMinutesFrequency(parsedSchedule.cron);
+  }
+
+  // The schedule comes from an LLM: shape is validated by the parser, but a
+  // skewed timestamp (wrong year, timezone confusion) would otherwise silently
+  // delay the first run for months or fire it immediately without warning.
+  const nextRunAtMs = Date.parse(parsedSchedule.nextRunAt);
+  if (Number.isNaN(nextRunAtMs) || nextRunAtMs - Date.now() > MAX_SCHEDULE_AHEAD_MS) {
+    throw new Error("Schedule time is more than a year in the future");
+  }
+
+  if (parsedSchedule.kind === "once") {
+    const runAtMs = Date.parse(parsedSchedule.runAt);
+    if (Number.isNaN(runAtMs) || runAtMs - Date.now() > MAX_SCHEDULE_AHEAD_MS) {
+      throw new Error("Schedule time is more than a year in the future");
+    }
   }
 }
 

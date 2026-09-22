@@ -205,7 +205,8 @@ export async function handleTaskCallback(ctx: Context): Promise<boolean> {
     return false;
   }
 
-  const flowState = taskCreationManager.getState();
+  try {
+    const flowState = taskCreationManager.getState();
   const interactionState = interactionManager.getSnapshot();
   const callbackMessageId = getCallbackMessageId(ctx);
 
@@ -260,7 +261,12 @@ export async function handleTaskCallback(ctx: Context): Promise<boolean> {
   });
   taskCreationManager.setScheduleRequestMessageId(message.message_id);
 
-  return true;
+    return true;
+  } catch (error) {
+    logger.error("[Task] Failed to handle task callback", error);
+    await ctx.answerCallbackQuery({ text: t("callback.processing_error") }).catch(() => {});
+    return true;
+  }
 }
 
 export async function handleTaskListCallback(ctx: Context): Promise<boolean> {

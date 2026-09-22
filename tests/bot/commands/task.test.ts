@@ -372,4 +372,27 @@ describe("bot/commands/task", () => {
     expect(errorCall[1]).toEqual(expect.objectContaining({ reply_markup: expect.any(Object) }));
     expect(taskCreationManager.isWaitingForSchedule()).toBe(true);
   });
+
+  it("rejects parser timestamps more than a year in the future", async () => {
+    await taskCommand(createCommandContext() as never);
+    mocked.parseTaskScheduleMock.mockResolvedValue({
+      kind: "once",
+      runAt: "2030-01-01T12:00:00.000Z",
+      timezone: "UTC",
+      summary: "Far future",
+      nextRunAt: "2030-01-01T12:00:00.000Z",
+    });
+
+    const ctx = createTextContext("in four years", [201, 202]);
+    const handled = await handleTaskTextInput(ctx);
+
+    expect(handled).toBe(true);
+    expect(mocked.tryAddScheduledTaskMock).not.toHaveBeenCalled();
+    const errorCall = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[1] as [
+      string,
+      { reply_markup: unknown },
+    ];
+    expect(errorCall[0]).toContain("more than a year in the future");
+    expect(taskCreationManager.isWaitingForSchedule()).toBe(true);
+  });
 });
