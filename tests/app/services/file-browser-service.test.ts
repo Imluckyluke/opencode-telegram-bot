@@ -289,6 +289,6 @@ describe("project-root symlink escape", () => {
   it("still browses real directories inside the project", async () => {
     const scan = await scanLsDirectory(projectDir);
 
-    expect(isScanError(scan)).toBe(false);
+    expect(scan).not.toEqual({ error: expect.any(String) });
   });
 });

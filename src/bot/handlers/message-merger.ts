@@ -4,6 +4,9 @@ import { processUserPrompt, type ProcessPromptDeps } from "./prompt.js";
 import { logger } from "../../utils/logger.js";
 
 const TELEGRAM_SPLIT_CHUNK_MIN_LENGTH = 4000;
+// Telegram delivers a single message update with at most this many characters;
+// longer texts arrive as consecutive updates split on exact boundaries.
+const TELEGRAM_MAX_MESSAGE_LENGTH = 4096;
 
 interface PendingPrompt {
   inputs: IncomingPrompt[];
@@ -96,8 +99,20 @@ export function __resetMessageMergerForTests(): void {
 }
 
 function mergeIncomingPrompts(inputs: IncomingPrompt[]): IncomingPrompt {
+  // A preceding chunk that fills a whole Telegram update is an incomplete
+  // split piece: rejoin it exactly so words and code are not corrupted with an
+  // injected blank line. Shorter chunks are separate messages: keep the blank
+  // line between them.
+  let text = "";
+  for (const [index, input] of inputs.entries()) {
+    if (index > 0) {
+      text += inputs[index - 1]!.text.length >= TELEGRAM_MAX_MESSAGE_LENGTH ? "" : "\n\n";
+    }
+    text += input.text;
+  }
+
   return {
-    text: inputs.map((input) => input.text).join("\n\n"),
+    text,
     fileParts: inputs.flatMap((input) => input.fileParts),
     photos: inputs.flatMap((input) => input.photos),
   };

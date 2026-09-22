@@ -196,6 +196,29 @@ describe("message-merger", () => {
     expect(processUserPromptMock).toHaveBeenCalledWith(ctx2, `${LARGE_TEXT}\n\nsecond`, DEPS);
   });
 
+  it("rejoins full-size Telegram split chunks without injecting blank lines", () => {
+    const ctx = makeContext(1);
+
+    const first = "a".repeat(4096);
+    const second = "b".repeat(4096);
+    queuePromptForMerging(ctx, first, DEPS, 1500);
+    queuePromptForMerging(ctx, second, DEPS, 1500);
+    vi.advanceTimersByTime(1500);
+
+    expect(processUserPromptMock).toHaveBeenCalledTimes(1);
+    expect(processUserPromptMock).toHaveBeenCalledWith(ctx, `${first}${second}`, DEPS);
+  });
+
+  it("keeps the blank line between a long message and a short follow-up", () => {
+    const ctx = makeContext(1);
+
+    queuePromptForMerging(ctx, LARGE_TEXT, DEPS, 1500);
+    queuePromptForMerging(ctx, "tail", DEPS, 1500);
+    vi.advanceTimersByTime(1500);
+
+    expect(processUserPromptMock).toHaveBeenCalledWith(ctx, `${LARGE_TEXT}\n\ntail`, DEPS);
+  });
+
   it("logs rejected immediate prompt processing", async () => {
     const error = new Error("prompt failed");
     processUserPromptMock.mockRejectedValueOnce(error);
