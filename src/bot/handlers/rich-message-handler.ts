@@ -11,6 +11,7 @@ import {
   type TelegramPhotoInput,
 } from "../../app/types/prompt.js";
 import { t } from "../../i18n/index.js";
+import { logger } from "../../utils/logger.js";
 
 const incomingPromptKey: unique symbol = Symbol("incomingPrompt");
 
@@ -178,14 +179,20 @@ function renderBlock(block: RichBlock, state: ConversionState): string {
     case "map":
       state.skippedMediaCount += 1;
       return block.caption ? renderCaption(block.caption) : "";
-    default:
-      return assertNever(block);
+    default: {
+      const exhaustiveCheck: never = block;
+      return skipUnknownValue("block", exhaustiveCheck);
+    }
   }
 }
 
 function renderRichText(text: RichText): string {
   if (typeof text === "string") {
-    return escapeMarkdownText(text);
+    // Lossless: this text flows into the LLM prompt, so MarkdownV2-style
+    // backslash escaping would pollute it (e.g. "a < b" became "a \< b").
+    // Structural escapes (links, tables, code) stay where markdown syntax
+    // requires them.
+    return text;
   }
   if (Array.isArray(text)) {
     return text.map(renderRichText).join("");
@@ -211,7 +218,7 @@ function renderRichText(text: RichText): string {
     case "code":
       return renderInlineCode(plainRichText(text.text));
     case "custom_emoji":
-      return escapeMarkdownText(text.alternative_text);
+      return text.alternative_text;
     case "mathematical_expression":
       return `$${text.expression}$`;
     case "url":
@@ -236,8 +243,10 @@ function renderRichText(text: RichText): string {
     case "cashtag":
     case "bot_command":
       return renderRichText(text.text);
-    default:
-      return assertNever(text);
+    default: {
+      const exhaustiveCheck: never = text;
+      return skipUnknownValue("rich text", exhaustiveCheck);
+    }
   }
 }
 
@@ -279,8 +288,10 @@ function plainRichText(text: RichText): string {
     case "bot_command":
     case "anchor_link":
       return plainRichText(text.text);
-    default:
-      return assertNever(text);
+    default: {
+      const exhaustiveCheck: never = text;
+      return skipUnknownValue("rich text", exhaustiveCheck);
+    }
   }
 }
 
@@ -334,10 +345,6 @@ function renderInlineCode(text: string): string {
   return `${fence}${text}${fence}`;
 }
 
-function escapeMarkdownText(text: string): string {
-  return text.replace(/([\\`*_[\]<>])/g, "\\$1");
-}
-
 function escapeTableCell(text: string): string {
   return text.replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>");
 }
@@ -358,6 +365,17 @@ function escapeHtmlAttribute(text: string): string {
     .replace(/>/g, "&gt;");
 }
 
-function assertNever(value: never): never {
-  throw new Error(`Unsupported rich message value: ${JSON.stringify(value)}`);
+/**
+ * Future Telegram block/text variants must not discard the whole user message:
+ * skip the unknown span with a warning so the rest still reaches the agent.
+ * Callers pass through a `never` binding so exhaustiveness is still checked at
+ * compile time when grammy adds new variants.
+ */
+function skipUnknownValue(kind: string, value: unknown): string {
+  const valueType =
+    typeof value === "object" && value !== null
+      ? (value as { type?: unknown }).type
+      : typeof value;
+  logger.warn(`[Bot] Skipping unknown rich message ${kind}: type=${String(valueType)}`);
+  return "";
 }

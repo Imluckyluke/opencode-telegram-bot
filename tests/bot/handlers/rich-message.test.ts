@@ -172,4 +172,33 @@ describe("bot/handlers/rich-message-handler", () => {
       { type: "bot_command", offset: 0, length: "/status".length },
     ]);
   });
+
+  it("keeps plain text lossless instead of backslash-escaping it", () => {
+    const result = convertRichMessage([
+      { type: "paragraph", text: "a < b && c > d (see this_file-name.md)" },
+    ]);
+
+    expect(result.text).toBe("a < b && c > d (see this_file-name.md)");
+  });
+
+  it("skips unknown future blocks instead of discarding the message", () => {
+    const result = convertRichMessage([
+      { type: "paragraph", text: "before" },
+      { type: "future_block", exploded: true } as unknown as RichBlock,
+      { type: "paragraph", text: "after" },
+    ]);
+
+    expect(result.text).toBe("before\n\nafter");
+  });
+
+  it("skips unknown future inline formatting instead of throwing", () => {
+    const result = convertRichMessage([
+      {
+        type: "paragraph",
+        text: [{ type: "future_format", text: "kept?" }, " yes"],
+      },
+    ]);
+
+    expect(result.text).toBe("yes");
+  });
 });
