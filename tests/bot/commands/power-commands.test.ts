@@ -56,7 +56,7 @@ function createContext(): Context {
   return {
     from: { id: 111 },
     chat: { id: 111 },
-    reply: vi.fn().mockResolvedValue(undefined),
+    reply: vi.fn().mockResolvedValue({ message_id: 7 }),
     api: { editMessageText: vi.fn().mockResolvedValue(undefined) },
   } as unknown as Context;
 }
@@ -129,6 +129,19 @@ describe("bot/commands/delete-sessions-command", () => {
     expect(ctx.api.editMessageText).toHaveBeenCalledWith(
       111,
       expect.any(Number),
+      t("deletesessions.done", { deleted: 2, failed: 0 }),
+    );
+  });
+
+  it("falls back to a fresh message when the status notice fails to send", async () => {
+    const ctx = createContext();
+    (ctx.reply as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(undefined);
+
+    await deleteSessionsCommand(ctx as never);
+
+    expect(mocked.sessionDeleteMock).toHaveBeenCalledTimes(2);
+    expect(ctx.api.editMessageText).not.toHaveBeenCalled();
+    expect(ctx.reply).toHaveBeenCalledWith(
       t("deletesessions.done", { deleted: 2, failed: 0 }),
     );
   });

@@ -50,7 +50,7 @@ export async function deleteSessionsCommand(ctx: CommandContext<Context>): Promi
     return;
   }
 
-  const statusMessage = await ctx.reply(t("deletesessions.started"));
+  const statusMessage = await ctx.reply(t("deletesessions.started")).catch(() => undefined);
   let deleted = 0;
   let failed = 0;
   try {
@@ -73,11 +73,14 @@ export async function deleteSessionsCommand(ctx: CommandContext<Context>): Promi
   logger.warn(
     `[Bot] Sessions wiped by owner: deleted=${deleted}, failed=${failed}, userSessions=${droppedUserSessions}`,
   );
-  await ctx.api
-    .editMessageText(
-      ctx.chat!.id,
-      statusMessage.message_id,
-      t("deletesessions.done", { deleted, failed }),
-    )
-    .catch(() => {});
+  const doneText = t("deletesessions.done", { deleted, failed });
+  if (statusMessage && typeof statusMessage.message_id === "number") {
+    await ctx.api
+      .editMessageText(ctx.chat!.id, statusMessage.message_id, doneText)
+      .catch(() => {});
+  } else {
+    // The "started" notice never went out (send failed): deliver the result
+    // as a fresh message instead of crashing after the wipe already ran.
+    await ctx.reply(doneText).catch(() => {});
+  }
 }
