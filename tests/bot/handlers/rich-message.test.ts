@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Context } from "grammy";
-import type { RichBlock } from "grammy/types";
+import type { RichBlock, RichText } from "grammy/types";
 import {
   convertRichMessage,
   getIncomingPrompt,
@@ -195,7 +195,10 @@ describe("bot/handlers/rich-message-handler", () => {
     const result = convertRichMessage([
       {
         type: "paragraph",
-        text: [{ type: "future_format", text: "kept?" }, " yes"],
+        text: [
+          { type: "future_format", text: "kept?" } as unknown as RichText,
+          " yes",
+        ],
       },
     ]);
 

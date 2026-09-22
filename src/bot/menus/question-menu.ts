@@ -10,9 +10,13 @@ import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { t } from "../../i18n/index.js";
 import { editRenderedBotPart, sendRenderedBotPart } from "../messages/telegram-text.js";
 import type { TelegramRenderedPart, TelegramRichBlock } from "../render/types.js";
+import { truncateTextSafe } from "../render/text-splitter.js";
 
 const MAX_BUTTON_LENGTH = 60;
-const TELEGRAM_MESSAGE_LIMIT = 4096;
+// Question cards go out as native rich blocks (up to ~32k chars), with the
+// plain fallback chunked downstream: budgeting segments at the 4k text limit
+// truncated long questions ~8x more aggressively than necessary.
+const QUESTION_RICH_TEXT_LIMIT = 32000;
 const TRUNCATION_SUFFIX = "…";
 const QUESTION_EMOJI = "❓";
 
@@ -381,7 +385,7 @@ function formatQuestionDetailsPart(question: {
 
   const visibleSegments = truncateQuestionSegments(
     segments.filter((segment) => segmentLength(segment) > 0),
-    TELEGRAM_MESSAGE_LIMIT,
+    QUESTION_RICH_TEXT_LIMIT,
   );
 
   return {
@@ -433,10 +437,10 @@ function buildQuestionKeyboard(
 }
 
 function formatButtonText(label: string, icon: string): string {
-  let text = `${icon}${label}`;
+  const text = `${icon}${label}`;
 
   if (text.length > MAX_BUTTON_LENGTH) {
-    text = text.substring(0, MAX_BUTTON_LENGTH - 3) + "...";
+    return `${truncateTextSafe(text, MAX_BUTTON_LENGTH - 3)}...`;
   }
 
   return text;

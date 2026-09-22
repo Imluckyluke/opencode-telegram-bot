@@ -20,6 +20,7 @@ import { attachToSession } from "../../app/services/attach-service.js";
 import { renderAssistantFinalPartsSafe } from "../messages/assistant-rendering.js";
 import { sendLongOutputAsFile, shouldSendLongOutputAsFile } from "../messages/send-output-file.js";
 import { sendRenderedBotPart } from "../messages/telegram-text.js";
+import { truncateTextSafe } from "../render/text-splitter.js";
 import {
   buildSessionSelectionMenuView,
   parseBackgroundSessionCallback,
@@ -342,7 +343,7 @@ function truncateText(text: string, maxLength: number): string {
     return text;
   }
 
-  const clipped = text.slice(0, Math.max(0, maxLength - 3)).trimEnd();
+  const clipped = truncateTextSafe(text, Math.max(0, maxLength - 3)).trimEnd();
   return `${clipped}...`;
 }
 

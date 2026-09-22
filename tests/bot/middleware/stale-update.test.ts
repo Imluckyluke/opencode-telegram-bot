@@ -121,6 +121,16 @@ describe("staleUpdateMiddleware", () => {
     expect(mocked.loggerWarnMock).not.toHaveBeenCalled();
   });
 
+  it("drops a callback press under a day-old bot message", async () => {
+    const ctx = createCallbackContext(25 * 3600);
+    const next: NextFunction = vi.fn().mockResolvedValue(undefined);
+
+    await staleUpdateMiddleware(ctx, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(mocked.loggerWarnMock).toHaveBeenCalledTimes(1);
+  });
+
   it("passes through an update without a message", async () => {
     const ctx = createUpdateWithoutMessage();
     const next: NextFunction = vi.fn().mockResolvedValue(undefined);

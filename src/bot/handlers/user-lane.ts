@@ -24,6 +24,7 @@ import {
   stripBotMention,
 } from "../inline/inline-results.js";
 import { renderAssistantFinalPartsSafe } from "../messages/assistant-rendering.js";
+import { truncateTextSafe } from "../render/text-splitter.js";
 import {
   sendRenderedBotPart,
 } from "../messages/telegram-text.js";
@@ -305,7 +306,7 @@ export async function processUserLaneMessage(ctx: Context): Promise<void> {
     startedAt,
     onProgress: async (text) => {
       await ctx.api
-        .editMessageText(chatId, placeholder.message_id, text.slice(0, 4000))
+        .editMessageText(chatId, placeholder.message_id, truncateTextSafe(text, 4000))
         .catch(() => {});
       return true;
     },

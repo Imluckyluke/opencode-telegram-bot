@@ -53,6 +53,23 @@ function findSplitBoundary(text: string, start: number, maxLength: number): numb
   return whitespaceBoundary ?? fallbackBoundary;
 }
 
+/**
+ * Truncates to at most maxLength UTF-16 code units without splitting a
+ * surrogate pair, so the result never holds a lone surrogate.
+ */
+export function truncateTextSafe(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  let endIndex = Math.max(0, Math.floor(maxLength));
+  while (endIndex > 0 && !isSafeUtf16Boundary(text, endIndex)) {
+    endIndex -= 1;
+  }
+
+  return text.slice(0, endIndex);
+}
+
 export function splitTextIntoChunks(text: string, maxLength: number): string[] {
   if (!text) {
     return [];
