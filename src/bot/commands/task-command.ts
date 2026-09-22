@@ -9,7 +9,7 @@ import { getStoredAgent } from "../../app/services/agent-selection-service.js";
 import { getCurrentProject } from "../../app/stores/settings-store.js";
 import { taskCreationManager } from "../../app/managers/scheduled-task-creation-manager.js";
 import { parseTaskSchedule } from "../../app/services/scheduled-task-schedule-parser-service.js";
-import { addScheduledTask, listScheduledTasks } from "../../app/stores/scheduled-task-store.js";
+import { listScheduledTasks, tryAddScheduledTask } from "../../app/stores/scheduled-task-store.js";
 import { scheduledTaskRuntime } from "../../app/services/scheduled-task-runtime-service.js";
 import { buildCancelKeyboard, buildRetryScheduleKeyboard } from "../menus/scheduled-task-menu.js";
 import { getAgentDisplayName } from "../../app/types/agent.js";
@@ -43,7 +43,11 @@ function clearTaskFlow(reason: string): void {
 }
 
 function isTaskLimitReached(): boolean {
-  return listScheduledTasks().length >= config.bot.taskLimit;
+  // Terminal rows (nextRunAt null) are kept for inspection but must not
+  // consume quota, or dead tasks would shrink capacity until manual deletion.
+  return (
+    listScheduledTasks().filter((task) => task.nextRunAt != null).length >= config.bot.taskLimit
+  );
 }
 
 function truncateTaskPrompt(prompt: string): string {
@@ -168,6 +172,19 @@ function expandCronMinuteToken(token: string): number[] {
     }
 
     const baseValues = expandCronMinuteBase(rawBase);
+    if (rawBase !== "*" && !rawBase.includes("-") && baseValues.length === 1) {
+      // Standard cron treats `5/15` as `5-59/15`, not as a single value.
+      const start = baseValues[0];
+      if (start === undefined) {
+        throw new Error("Invalid cron minute field returned by parser");
+      }
+      const stepped: number[] = [];
+      for (let value = start; value <= 59; value += step) {
+        stepped.push(value);
+      }
+      return stepped;
+    }
+
     return baseValues.filter((_value, index) => {
       if (baseValues.length === 0) {
         return false;
@@ -441,14 +458,6 @@ export async function handleTaskTextInput(ctx: Context): Promise<boolean> {
   }
 
   try {
-    if (isTaskLimitReached()) {
-      await deleteMessageIfPresent(ctx, flowState.previewMessageId);
-      await deleteMessageIfPresent(ctx, flowState.promptRequestMessageId);
-      clearTaskFlow("task_limit_reached_before_save");
-      await ctx.reply(t("task.limit_reached", { limit: String(config.bot.taskLimit) }));
-      return true;
-    }
-
     const task = buildScheduledTask(
       flowState.projectId,
       flowState.projectWorktree,
@@ -459,7 +468,17 @@ export async function handleTaskTextInput(ctx: Context): Promise<boolean> {
       prompt,
     );
 
-    await addScheduledTask(task);
+    // Atomic check-and-insert inside the store queue: the entry fast-path above
+    // cannot stop two concurrent saves from both slipping through the limit.
+    // Terminal rows (nextRunAt null) never consume quota.
+    if (!(await tryAddScheduledTask(task, config.bot.taskLimit))) {
+      await deleteMessageIfPresent(ctx, flowState.previewMessageId);
+      await deleteMessageIfPresent(ctx, flowState.promptRequestMessageId);
+      clearTaskFlow("task_limit_reached_before_save");
+      await ctx.reply(t("task.limit_reached", { limit: String(config.bot.taskLimit) }));
+      return true;
+    }
+
     scheduledTaskRuntime.registerTask(task);
     await deleteMessageIfPresent(ctx, flowState.previewMessageId);
     await deleteMessageIfPresent(ctx, flowState.promptRequestMessageId);

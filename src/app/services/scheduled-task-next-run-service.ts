@@ -147,6 +147,19 @@ function expandFieldToken(
     throw new Error(`Invalid cron field step: ${token}`);
   }
 
+  if (baseRaw !== "*" && !baseRaw.includes("-") && baseValues.length === 1) {
+    // Standard cron treats `5/15` as `5-<max>/15`, not as a single value.
+    const start = baseValues[0];
+    if (start === undefined) {
+      throw new Error(`Invalid cron field: ${token}`);
+    }
+    const stepped: number[] = [];
+    for (let value = start; value <= max; value += step) {
+      stepped.push(value);
+    }
+    return stepped;
+  }
+
   return baseValues.filter((value, index) => {
     if (baseRaw === "*") {
       return (value - min) % step === 0;

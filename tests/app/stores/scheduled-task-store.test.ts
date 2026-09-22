@@ -1,13 +1,14 @@
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setRuntimeMode } from "../../../src/runtime/mode.js";
 import { __resetSettingsForTests, loadSettings } from "../../../src/app/stores/settings-store.js";
 import {
   addScheduledTask,
   listScheduledTasks,
   removeScheduledTask,
+  tryAddScheduledTask,
 } from "../../../src/app/stores/scheduled-task-store.js";
 import {
   cleanupScheduledTaskSessionIgnores,
@@ -16,6 +17,18 @@ import {
   removeScheduledTaskSessionIgnore,
 } from "../../../src/app/services/scheduled-task-session-ignore-service.js";
 import type { ScheduledTask } from "../../../src/app/types/scheduled-task.js";
+
+const { sessionDeleteMock } = vi.hoisted(() => ({
+  sessionDeleteMock: vi.fn(async () => ({ data: true, error: null })),
+}));
+
+vi.mock("../../../src/opencode/client.js", () => ({
+  opencodeClient: {
+    session: {
+      delete: sessionDeleteMock,
+    },
+  },
+}));
 
 function createScheduledTask(overrides: Partial<ScheduledTask> = {}): ScheduledTask {
   return {
@@ -122,6 +135,8 @@ describe("app/stores/scheduled-task-store", () => {
     const removed = await cleanupScheduledTaskSessionIgnores(new Date("2026-03-16T12:00:00.000Z"));
 
     expect(removed).toBe(1);
+    // Expired temporary sessions are deleted so kept-for-inspection runs cannot leak.
+    expect(sessionDeleteMock).toHaveBeenCalledWith({ sessionID: "stale-session" });
 
     const settingsPath = path.join(tempHome, "settings.json");
     const settingsFile = JSON.parse(await readFile(settingsPath, "utf-8")) as {
@@ -136,5 +151,20 @@ describe("app/stores/scheduled-task-store", () => {
     expect(isScheduledTaskSessionIgnored("fresh-session", new Date("2026-03-16T12:00:00.000Z"))).toBe(
       false,
     );
+  });
+
+  it("adds atomically only while schedulable tasks stay under the limit", async () => {
+    const activeTask = createScheduledTask({ id: "task-1" });
+    const deadTask = createScheduledTask({ id: "task-0", nextRunAt: null });
+
+    await expect(tryAddScheduledTask(activeTask, 1)).resolves.toBe(true);
+    await expect(tryAddScheduledTask(createScheduledTask({ id: "task-2" }), 1)).resolves.toBe(
+      false,
+    );
+    expect(listScheduledTasks().map((task) => task.id)).toEqual(["task-1"]);
+
+    // Terminal rows do not consume quota.
+    await expect(tryAddScheduledTask(deadTask, 1)).resolves.toBe(true);
+    expect(listScheduledTasks().map((task) => task.id)).toEqual(["task-1", "task-0"]);
   });
 });

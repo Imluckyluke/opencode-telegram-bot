@@ -27,6 +27,18 @@ describe("app/services/scheduled-task-next-run-service", () => {
     expect(nextRunAt).toBe("2026-03-23T09:30:00.000Z");
   });
 
+  it("expands a stepped single value as value-to-max (5/15 means 5,20,35,50)", () => {
+    expect(computeNextCronRunAt("5/15 * * * *", "UTC", new Date("2026-03-16T10:00:00.000Z"))).toBe(
+      "2026-03-16T10:05:00.000Z",
+    );
+    expect(computeNextCronRunAt("5/15 * * * *", "UTC", new Date("2026-03-16T10:06:00.000Z"))).toBe(
+      "2026-03-16T10:20:00.000Z",
+    );
+    expect(computeNextCronRunAt("5/15 * * * *", "UTC", new Date("2026-03-16T10:51:00.000Z"))).toBe(
+      "2026-03-16T11:05:00.000Z",
+    );
+  });
+
   it("returns null for one-time task after its run date", () => {
     const task: ScheduledTask = {
       id: "task-1",

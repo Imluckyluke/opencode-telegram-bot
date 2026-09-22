@@ -19,7 +19,7 @@ const mocked = vi.hoisted(() => ({
   storedAgent: "build",
   taskLimit: 10,
   parseTaskScheduleMock: vi.fn(),
-  addScheduledTaskMock: vi.fn(),
+  tryAddScheduledTaskMock: vi.fn(),
   listScheduledTasksMock: vi.fn(),
   registerTaskMock: vi.fn(),
 }));
@@ -81,7 +81,7 @@ vi.mock("../../../src/app/services/scheduled-task-schedule-parser-service.js", (
 }));
 
 vi.mock("../../../src/app/stores/scheduled-task-store.js", () => ({
-  addScheduledTask: mocked.addScheduledTaskMock,
+  tryAddScheduledTask: mocked.tryAddScheduledTaskMock,
   listScheduledTasks: mocked.listScheduledTasksMock,
 }));
 
@@ -146,11 +146,11 @@ describe("bot/commands/task", () => {
     };
     mocked.storedAgent = "build";
     mocked.parseTaskScheduleMock.mockReset();
-    mocked.addScheduledTaskMock.mockReset();
+    mocked.tryAddScheduledTaskMock.mockReset();
     mocked.listScheduledTasksMock.mockReset();
     mocked.registerTaskMock.mockReset();
     mocked.taskLimit = 10;
-    mocked.addScheduledTaskMock.mockResolvedValue(undefined);
+    mocked.tryAddScheduledTaskMock.mockResolvedValue(true);
     mocked.listScheduledTasksMock.mockReturnValue([]);
     mocked.parseTaskScheduleMock.mockResolvedValue({
       kind: "cron",
@@ -184,7 +184,9 @@ describe("bot/commands/task", () => {
 
   it("does not start flow when task limit is reached", async () => {
     mocked.taskLimit = 1;
-    mocked.listScheduledTasksMock.mockReturnValue([{ id: "task-1" }]);
+    mocked.listScheduledTasksMock.mockReturnValue([
+      { id: "task-1", nextRunAt: "2026-03-16T17:00:00.000Z" },
+    ]);
 
     const ctx = createCommandContext();
 
@@ -193,6 +195,20 @@ describe("bot/commands/task", () => {
     expect(ctx.reply).toHaveBeenCalledWith(t("task.limit_reached", { limit: "1" }));
     expect(taskCreationManager.isActive()).toBe(false);
     expect(interactionManager.getSnapshot()).toBeNull();
+  });
+
+  it("does not count terminal tasks without a next run against the limit", async () => {
+    mocked.taskLimit = 1;
+    mocked.listScheduledTasksMock.mockReturnValue([{ id: "task-0", nextRunAt: null }]);
+
+    const ctx = createCommandContext();
+
+    await taskCommand(ctx as never);
+
+    expect(ctx.reply).toHaveBeenCalledWith(t("task.prompt.schedule"), {
+      reply_markup: expect.any(Object),
+    });
+    expect(taskCreationManager.isActive()).toBe(true);
   });
 
   it("parses schedule and switches flow to prompt input", async () => {
@@ -238,9 +254,9 @@ describe("bot/commands/task", () => {
     const handled = await handleTaskTextInput(ctx);
 
     expect(handled).toBe(true);
-    expect(mocked.addScheduledTaskMock).toHaveBeenCalledTimes(1);
+    expect(mocked.tryAddScheduledTaskMock).toHaveBeenCalledTimes(1);
     expect(mocked.registerTaskMock).toHaveBeenCalledTimes(1);
-    expect(mocked.addScheduledTaskMock).toHaveBeenCalledWith(
+    expect(mocked.tryAddScheduledTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: "project-1",
         projectWorktree: "D:\\Projects\\Repo",
@@ -260,6 +276,7 @@ describe("bot/commands/task", () => {
         lastStatus: "idle",
         lastError: null,
       }),
+      10,
     );
     const successCall = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
     expect(successCall[0]).toContain("Send me a daily summary");
@@ -275,18 +292,18 @@ describe("bot/commands/task", () => {
     expect(interactionManager.getSnapshot()).toBeNull();
   });
 
-  it("stops task save when limit is reached before final step", async () => {
+  it("stops task save when the atomic store insert reports a full limit", async () => {
     await taskCommand(createCommandContext() as never);
     await handleTaskTextInput(createTextContext("every day at 17:00", [201, 202]));
 
     mocked.taskLimit = 1;
-    mocked.listScheduledTasksMock.mockReturnValue([{ id: "task-1" }]);
+    mocked.tryAddScheduledTaskMock.mockResolvedValueOnce(false);
 
     const ctx = createTextContext("Send me a daily summary", [301]);
     const handled = await handleTaskTextInput(ctx);
 
     expect(handled).toBe(true);
-    expect(mocked.addScheduledTaskMock).not.toHaveBeenCalled();
+    expect(mocked.tryAddScheduledTaskMock).toHaveBeenCalledTimes(1);
     expect(mocked.registerTaskMock).not.toHaveBeenCalled();
     expect(ctx.reply).toHaveBeenCalledWith(t("task.limit_reached", { limit: "1" }));
     expect(taskCreationManager.isActive()).toBe(false);
@@ -346,7 +363,7 @@ describe("bot/commands/task", () => {
     const handled = await handleTaskTextInput(ctx);
 
     expect(handled).toBe(true);
-    expect(mocked.addScheduledTaskMock).not.toHaveBeenCalled();
+    expect(mocked.tryAddScheduledTaskMock).not.toHaveBeenCalled();
     const errorCall = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[1] as [
       string,
       { reply_markup: unknown },

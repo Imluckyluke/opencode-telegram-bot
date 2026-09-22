@@ -42,6 +42,24 @@ export async function addScheduledTask(task: ScheduledTask): Promise<void> {
   logger.info(`[ScheduledTaskStore] Added scheduled task: id=${task.id}, kind=${task.kind}`);
 }
 
+/**
+ * Atomically adds a task only when fewer than `limit` schedulable tasks exist.
+ * Terminal rows (nextRunAt null) are kept for inspection but do not consume quota.
+ * Returns false when the limit is reached so check-and-insert cannot race.
+ */
+export async function tryAddScheduledTask(task: ScheduledTask, limit: number): Promise<boolean> {
+  return mutateScheduledTasks((tasks) => {
+    if (task.nextRunAt != null) {
+      const activeCount = tasks.filter((existing) => existing.nextRunAt != null).length;
+      if (activeCount >= limit) {
+        return { tasks, result: false };
+      }
+    }
+
+    return { tasks: [...tasks, cloneScheduledTask(task)], result: true };
+  });
+}
+
 export async function replaceScheduledTasks(tasks: ScheduledTask[]): Promise<void> {
   await mutateScheduledTasks(() => ({
     tasks: tasks.map((task) => cloneScheduledTask(task)),

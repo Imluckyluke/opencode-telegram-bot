@@ -2,6 +2,8 @@ import {
   getScheduledTaskSessionIgnores,
   setScheduledTaskSessionIgnores,
 } from "../stores/settings-store.js";
+import { opencodeClient } from "../../opencode/client.js";
+import { logger } from "../../utils/logger.js";
 import type { ScheduledTaskSessionIgnoreInfo } from "../types/settings.js";
 
 const SCHEDULED_TASK_SESSION_IGNORE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -70,8 +72,27 @@ export async function removeScheduledTaskSessionIgnore(sessionId: string): Promi
 }
 
 export async function cleanupScheduledTaskSessionIgnores(now = new Date()): Promise<number> {
+  const nowMs = now.getTime();
+  const expiredSessionIds = getScheduledTaskSessionIgnores()
+    .filter((ignore) => !isFreshIgnore(ignore, nowMs))
+    .map((ignore) => ignore.sessionId);
+
+  for (const sessionId of expiredSessionIds) {
+    // Every ignored id is a temporary scheduled-task session. Runs delete
+    // their own session, except runs kept for inspection after an empty
+    // response: with the ignore entry gone nothing would ever clean those up.
+    try {
+      await opencodeClient.session.delete({ sessionID: sessionId });
+    } catch (error) {
+      logger.debug(
+        `[ScheduledTaskSessions] Failed to delete expired temporary session: id=${sessionId}`,
+        error,
+      );
+    }
+  }
+
   return mutateIgnores((ignores) => {
-    const nextIgnores = pruneExpiredIgnores(ignores, now.getTime());
+    const nextIgnores = pruneExpiredIgnores(ignores, nowMs);
     return {
       ignores: nextIgnores,
       result: ignores.length - nextIgnores.length,
