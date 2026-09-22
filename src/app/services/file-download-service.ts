@@ -4,7 +4,8 @@ import { Agent as HttpsAgent } from "https";
 import { config } from "../../config.js";
 import { logger } from "../../utils/logger.js";
 
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+export const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+const DOWNLOAD_TIMEOUT_MS = 300_000;
 const DEFAULT_TELEGRAM_API_ROOT = "https://api.telegram.org";
 
 export interface DownloadedFile {
@@ -58,21 +59,77 @@ export async function downloadTelegramFile(api: Api, fileId: string): Promise<Do
     };
   }
 
-  const response = await nodeFetch(fileUrl, fetchOptions);
+  const response = await nodeFetch(fileUrl, { ...fetchOptions, timeout: DOWNLOAD_TIMEOUT_MS });
 
   if (!response.ok) {
     throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
   }
 
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
+  // Belt and suspenders: the metadata check above trusts Telegram, so enforce
+  // the cap again on the wire — declared length up front, actual bytes while
+  // streaming — instead of buffering an unbounded body into memory.
+  const declaredLength = response.headers?.get("content-length") ?? null;
+  if (declaredLength !== null) {
+    const declaredBytes = Number.parseInt(declaredLength, 10);
+    if (Number.isInteger(declaredBytes) && declaredBytes > MAX_FILE_SIZE_BYTES) {
+      throw new Error(
+        `File too large: ${(declaredBytes / (1024 * 1024)).toFixed(2)}MB (max 20MB)`,
+      );
+    }
+  }
 
+  const buffer = await readCappedBody(response);
   logger.debug(`[FileDownload] Downloaded ${buffer.length} bytes`);
 
   return {
     buffer,
     filePath: file.file_path,
   };
+}
+
+/**
+ * Reads a node-fetch body while enforcing MAX_FILE_SIZE_BYTES. A lying or
+ * missing Content-Length cannot OOM the process: the stream is destroyed as
+ * soon as the cap is exceeded.
+ */
+async function readCappedBody(response: Awaited<ReturnType<typeof nodeFetch>>): Promise<Buffer> {
+  // node-fetch v2 streams Node readable bodies at runtime; the static type is
+  // the web-stream shape, so narrow to the surface actually used.
+  const body = response.body as unknown as {
+    on(event: "data", listener: (chunk: Buffer) => void): unknown;
+    on(event: "end", listener: () => void): unknown;
+    on(event: "error", listener: (error: Error) => void): unknown;
+    destroy?: () => void;
+  } | null;
+
+  if (!body) {
+    const fallback = Buffer.from(await response.arrayBuffer());
+    if (fallback.length > MAX_FILE_SIZE_BYTES) {
+      throw new Error(
+        `File too large: ${(fallback.length / (1024 * 1024)).toFixed(2)}MB (max 20MB)`,
+      );
+    }
+    return fallback;
+  }
+
+  const chunks: Buffer[] = [];
+  let receivedBytes = 0;
+
+  await new Promise<void>((resolve, reject) => {
+    body.on("data", (chunk: Buffer) => {
+      receivedBytes += chunk.length;
+      if (receivedBytes > MAX_FILE_SIZE_BYTES) {
+        reject(new Error(`File too large: exceeds 20MB during download`));
+        body.destroy?.();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    body.on("end", () => resolve());
+    body.on("error", (error: Error) => reject(error));
+  });
+
+  return Buffer.concat(chunks);
 }
 
 export function toDataUri(buffer: Buffer, mimeType: string): string {

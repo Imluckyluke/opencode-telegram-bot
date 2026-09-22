@@ -6,6 +6,8 @@ import {
   toDataUri,
   isTextMimeType,
   isFileSizeAllowed,
+  MAX_FILE_SIZE_BYTES,
+  formatFileSize,
 } from "../../app/services/file-download-service.js";
 import { isDocExtractorConfigured, extractDocument } from "../../app/services/document-extractor-service.js";
 import { getModelCapabilities, supportsInput } from "../../app/services/model-capabilities-service.js";
@@ -35,6 +37,19 @@ export interface DocumentHandlerDeps extends ProcessPromptDeps {
     input: IncomingPrompt,
     deps: ProcessPromptDeps,
   ) => Promise<boolean>;
+}
+
+/**
+ * Paranoia check after download: metadata sizes can lie, so verify the actual
+ * bytes against the shared 20MB cap before base64-inflating into a data URI.
+ */
+function assertDownloadedSize(actualBytes: number, filename: string): void {
+  if (actualBytes > MAX_FILE_SIZE_BYTES) {
+    logger.warn(
+      `[Document] Downloaded file exceeds size cap: ${filename} (${formatFileSize(actualBytes)})`,
+    );
+    throw new Error(`Downloaded file too large: ${formatFileSize(actualBytes)} (max 20MB)`);
+  }
 }
 
 export async function handleDocumentMessage(
@@ -92,6 +107,17 @@ export async function handleDocumentMessage(
       }
       const downloadedFile = await downloadFile(ctx.api, doc.file_id);
 
+      // Metadata can lie: re-check the actual bytes after download.
+      if (downloadedFile.buffer.length > config.files.maxFileSizeKb * 1024) {
+        logger.warn(
+          `[Document] Text file too large after download: ${filename} (${downloadedFile.buffer.length} bytes)`,
+        );
+        await ctx.reply(
+          t("bot.text_file_too_large", { maxSizeKb: String(config.files.maxFileSizeKb) }),
+        );
+        return;
+      }
+
       const textContent = downloadedFile.buffer.toString("utf-8");
 
       const promptWithFile = `--- Content of ${filename} ---\n${textContent}\n--- End of file ---\n\n${caption}`;
@@ -125,6 +151,7 @@ export async function handleDocumentMessage(
         return;
       }
       const downloadedFile = await downloadFile(ctx.api, doc.file_id);
+      assertDownloadedSize(downloadedFile.buffer.length, filename);
 
       const dataUri = toDataUri(downloadedFile.buffer, mimeType);
 
@@ -204,6 +231,7 @@ export async function handleDocumentMessage(
         return;
       }
       const downloadedFile = await downloadFile(ctx.api, doc.file_id);
+      assertDownloadedSize(downloadedFile.buffer.length, filename);
 
       const dataUri = toDataUri(downloadedFile.buffer, mimeType);
 

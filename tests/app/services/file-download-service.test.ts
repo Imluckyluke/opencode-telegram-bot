@@ -316,3 +316,87 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
     expect((agent as HttpsAgent).options.family).toBe(4);
   });
 });
+
+describe("downloadTelegramFile size caps", () => {
+  beforeEach(() => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "bot-token-xyz");
+    vi.stubEnv("TELEGRAM_ALLOWED_USER_ID", "123456789");
+    vi.stubEnv("OPENCODE_MODEL_PROVIDER", "test-provider");
+    vi.stubEnv("OPENCODE_MODEL_ID", "test-model");
+    vi.stubEnv("TELEGRAM_PROXY_URL", "");
+    vi.stubEnv("TELEGRAM_API_ROOT", "");
+    vi.stubEnv("TELEGRAM_PROXY_SECRET", "");
+    vi.stubEnv("TELEGRAM_FORCE_IPV4", "");
+    nodeFetchMock.mockReset();
+  });
+
+  function makeApiStub(): Api {
+    return {
+      getFile: vi.fn().mockResolvedValue({
+        file_path: "documents/big.bin",
+        file_size: 100,
+      }),
+    } as unknown as Api;
+  }
+
+  async function loadDownloadModule() {
+    vi.resetModules();
+    return import("../../../src/app/services/file-download-service.js");
+  }
+
+  it("rejects a declared content-length over the cap without reading the body", async () => {
+    const arrayBufferMock = vi.fn();
+    nodeFetchMock.mockResolvedValue({
+      ok: true,
+      headers: { get: () => String(21 * 1024 * 1024) },
+      arrayBuffer: arrayBufferMock,
+    });
+
+    const { downloadTelegramFile } = await loadDownloadModule();
+
+    await expect(downloadTelegramFile(makeApiStub(), "fid")).rejects.toThrow(/too large/i);
+    expect(arrayBufferMock).not.toHaveBeenCalled();
+  });
+
+  it("streams small bodies through untouched", async () => {
+    const { EventEmitter } = await import("node:events");
+    const body = new EventEmitter() as EventEmitter & {
+      destroy?: () => void;
+    };
+    nodeFetchMock.mockResolvedValue({ ok: true, headers: { get: () => null }, body });
+
+    const { downloadTelegramFile } = await loadDownloadModule();
+    const resultPromise = downloadTelegramFile(makeApiStub(), "fid");
+
+    // Let the downloader attach its stream listeners first.
+    await new Promise((resolve) => setImmediate(resolve));
+    body.emit("data", Buffer.from("hello "));
+    body.emit("data", Buffer.from("world"));
+    body.emit("end");
+
+    const result = await resultPromise;
+    expect(result.buffer.toString()).toBe("hello world");
+  });
+
+  it("destroys the stream once the body exceeds the cap mid-download", async () => {
+    const { EventEmitter } = await import("node:events");
+    const body = new EventEmitter() as EventEmitter & {
+      destroy?: () => void;
+    };
+    const destroyMock = vi.fn();
+    body.destroy = destroyMock;
+    nodeFetchMock.mockResolvedValue({ ok: true, headers: { get: () => null }, body });
+
+    const { downloadTelegramFile } = await loadDownloadModule();
+    const resultPromise = downloadTelegramFile(makeApiStub(), "fid");
+
+    // Let the downloader attach its stream listeners first.
+    await new Promise((resolve) => setImmediate(resolve));
+    body.emit("data", Buffer.alloc(8 * 1024 * 1024));
+    body.emit("data", Buffer.alloc(8 * 1024 * 1024));
+    body.emit("data", Buffer.alloc(8 * 1024 * 1024));
+
+    await expect(resultPromise).rejects.toThrow(/too large/i);
+    expect(destroyMock).toHaveBeenCalledTimes(1);
+  });
+});

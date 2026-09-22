@@ -17,7 +17,7 @@ import { createIncomingPrompt, type IncomingPrompt } from "../../app/types/promp
 import { flushPendingPrompt } from "./message-merger.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
-import { buildTelegramFileUrl } from "../../app/services/file-download-service.js";
+import { buildTelegramFileUrl, MAX_FILE_SIZE_BYTES } from "../../app/services/file-download-service.js";
 import { buildQuotedNotification } from "../../app/services/quoted-notification.js";
 import { editBotText } from "../messages/telegram-text.js";
 import { tryEnqueuePromptIfBusy, rejectQueuedMediaBeforePreparation } from "./prompt-queue-dispatch.js";
@@ -83,9 +83,16 @@ async function downloadTelegramFileByUrl(url: string, redirectDepth: number = 0)
         }
 
         const chunks: Buffer[] = [];
+        let receivedBytes = 0;
 
         response.on("data", (chunk: Buffer | string) => {
-          chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+          const piece = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+          receivedBytes += piece.length;
+          if (receivedBytes > MAX_FILE_SIZE_BYTES) {
+            request.destroy(new Error("Telegram file download exceeds 20MB"));
+            return;
+          }
+          chunks.push(piece);
         });
 
         response.on("end", () => {

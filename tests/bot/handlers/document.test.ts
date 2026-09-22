@@ -226,6 +226,28 @@ describe("bot/handlers/document", () => {
       expect(processPromptMock).not.toHaveBeenCalled();
     });
 
+    it("rejects text file whose actual bytes exceed the limit despite metadata", async () => {
+      const { ctx, replyMock } = createDocumentContext({
+        document: {
+          file_id: "doc-file-id",
+          file_unique_id: "unique-id",
+          file_name: "lying.txt",
+          mime_type: "text/plain",
+          file_size: 500,
+        },
+      });
+      const { deps, processPromptMock, downloadMock } = createDocumentDeps();
+      downloadMock.mockResolvedValueOnce({
+        buffer: Buffer.alloc(200 * 1024, "x"),
+        filePath: "documents/lying.txt",
+      });
+
+      await handleDocumentMessage(ctx, deps);
+
+      expect(replyMock).toHaveBeenCalledWith(t("bot.text_file_too_large", { maxSizeKb: "100" }));
+      expect(processPromptMock).not.toHaveBeenCalled();
+    });
+
     it("accepts application/json as text file", async () => {
       const { ctx, replyMock } = createDocumentContext({
         document: {
