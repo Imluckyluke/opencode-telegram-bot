@@ -278,7 +278,7 @@ Configuration can be provided through process environment variables or an `.env`
 | `STT_MODEL`                                | STT model name passed to `/audio/transcriptions`                                                                      |    No    | `whisper-large-v3-turbo` |
 | `STT_LANGUAGE`                             | Optional language hint (empty = provider auto-detect)                                                                 |    No    | —                        |
 | `STT_REQUEST_FORMAT`                       | STT request format: `multipart` (standard OpenAI/Groq Whisper) or `json` (base64 `input_audio` body, e.g. OpenRouter) |    No    | `multipart`              |
-| `STT_NOTE_PROMPT`                          | Optional note prepended to the LLM prompt as `[Note: ...]` for voice transcriptions; empty / `false` / `0` disable it |    No    | —                        |
+| `STT_NOTE_PROMPT`                          | Optional custom note prepended to the LLM prompt as `[Note: ...]` for voice transcriptions (on top of the fixed transcription marker); empty / `false` / `0` disable the custom note only |    No    | -                        |
 | `DOC_EXTRACTOR_URL`                        | Document text extraction API URL (enables PDF/DOCX/PPTX extraction)                                                    |    No    | —                        |
 | `DOC_EXTRACTOR_API_KEY`                    | API key for the document extractor (optional for self-hosted extractors)                                                |    No    | —                        |
 | `TTS_PROVIDER`                             | TTS provider: `openai` for OpenAI-compatible APIs, `elevenlabs` for ElevenLabs, or `google` for Google Cloud TTS      |    No    | `openai`                 |
@@ -375,7 +375,7 @@ If `STT_API_URL` and `STT_API_KEY` are set, the bot will:
 3. Show recognized text in chat
 4. Send the recognized text to OpenCode as a normal prompt
 
-If `STT_NOTE_PROMPT` is set to a non-empty value other than `false` or `0`, the bot prepends `[Note: ...]` to the transcription before sending it to the LLM. The recognized text shown in Telegram stays unchanged.
+If `STT_NOTE_PROMPT` is set to a non-empty value other than `false` or `0`, the bot prepends `[Note: ...]` to the transcription before sending it to the LLM. Every voice transcription is additionally prefixed with a fixed marker so the model knows it received transcribed text (speech or song lyrics), not the raw audio itself. The recognized text shown in Telegram stays unchanged.
 
 If TTS credentials are configured, you can choose spoken reply behavior in `/settings`: `off` disables audio replies, `all` sends audio for every assistant reply, and `auto` sends audio only after voice/audio prompts. The preference is stored in `settings.json` and persists across restarts.
 
