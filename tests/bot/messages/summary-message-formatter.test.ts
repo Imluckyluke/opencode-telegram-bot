@@ -403,4 +403,18 @@ describe("bot/messages/summary-message-formatter", () => {
     const writeFile = prepareCodeFile("content", "D:/repo/src/absolute-write.ts", "write");
     expect(writeFile?.buffer.toString("utf8")).toContain("Write File/Path: src/absolute-write.ts");
   });
+
+  it("never ends a markdown part inside a code fence", () => {
+    // The fence straddles the limit: a naive newline breakpoint would cut it.
+    const text = `${"A".repeat(390)}\n\`\`\`\n${"code();\n".repeat(30)}\`\`\`\n${"B".repeat(100)}`;
+    const parts = formatSummaryWithMode(text, "markdown", 500);
+
+    expect(parts.length).toBeGreaterThan(1);
+    for (const part of parts) {
+      expect(part.length).toBeLessThanOrEqual(500);
+      const fenceCount = (part.match(/```/g) ?? []).length;
+      expect(fenceCount % 2).toBe(0);
+    }
+    expect(parts.join("")).toContain("B".repeat(100));
+  });
 });
