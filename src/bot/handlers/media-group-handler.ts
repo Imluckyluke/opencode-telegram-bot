@@ -206,24 +206,24 @@ export class MediaGroupAttachmentHandler {
     logger.info(`[MediaGroup] Processing Telegram media group: key=${key}, items=${items.length}`);
 
     try {
+      // One unsupported sibling (e.g. a video in a photo album) must not
+      // silently discard the valid rest of the album: report it and keep
+      // processing whatever is supported.
+      const supportedItems = items.filter((item) => item.kind !== "unsupported");
       const unsupportedContexts = items
         .filter((item) => item.kind === "unsupported")
         .map((item) => item.ctx);
       if (unsupportedContexts.length > 0) {
-        await handleUnsupportedMessages(unsupportedContexts);
-        return;
+        const reported = await handleUnsupportedMessages(unsupportedContexts);
+        if (!reported) {
+          await replyCtx.reply(t("bot.message_type_unsupported"));
+        }
+        if (supportedItems.length === 0) {
+          return;
+        }
       }
 
-      const validationResult = await this.validateItems(items);
-      if ("reason" in validationResult) {
-        logger.warn(
-          `[MediaGroup] Rejecting media group: key=${key}, reason=${validationResult.reason}`,
-        );
-        await replyCtx.reply(t("bot.media_group_not_processed"));
-        return;
-      }
-
-      const mediaBytes = items.reduce<number | undefined>((total, item) => {
+      const mediaBytes = supportedItems.reduce<number | undefined>((total, item) => {
         if (total === undefined) {
           return undefined;
         }
@@ -239,6 +239,16 @@ export class MediaGroupAttachmentHandler {
       if (await rejectQueuedMediaBeforePreparation(replyCtx, mediaBytes)) {
         return;
       }
+
+      const validationResult = await this.validateItems(supportedItems);
+      if ("reason" in validationResult) {
+        logger.warn(
+          `[MediaGroup] Rejecting media group: key=${key}, reason=${validationResult.reason}`,
+        );
+        await replyCtx.reply(t("bot.media_group_not_processed"));
+        return;
+      }
+
       await replyCtx.reply(t("bot.files_downloading"));
 
       const { promptText, fileParts } = await this.preparePrompt(validationResult.items, items);

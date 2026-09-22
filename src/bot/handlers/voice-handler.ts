@@ -20,7 +20,7 @@ import { t } from "../../i18n/index.js";
 import { buildTelegramFileUrl } from "../../app/services/file-download-service.js";
 import { buildQuotedNotification } from "../../app/services/quoted-notification.js";
 import { editBotText } from "../messages/telegram-text.js";
-import { tryEnqueuePromptIfBusy } from "./prompt-queue-dispatch.js";
+import { tryEnqueuePromptIfBusy, rejectQueuedMediaBeforePreparation } from "./prompt-queue-dispatch.js";
 
 const TELEGRAM_DOWNLOAD_TIMEOUT_MS = 30_000;
 const TELEGRAM_DOWNLOAD_MAX_REDIRECTS = 3;
@@ -203,6 +203,14 @@ export async function handleVoiceMessage(ctx: Context, deps: VoiceMessageDeps): 
     return;
   }
 
+  // Skip the expensive download + transcription when the queue cannot take
+  // this message while busy (full queue or over the media cap). Sizes here are
+  // raw Telegram file_size metadata, so no download is needed for the check.
+  const voiceSize = voice?.file_size ?? audio?.file_size;
+  if (await rejectQueuedMediaBeforePreparation(ctx, voiceSize)) {
+    return;
+  }
+
   // Send "recognizing..." status message (will be edited later)
   const statusMessage = await ctx.reply(t("stt.recognizing"));
 
@@ -266,6 +274,9 @@ export async function handleVoiceMessage(ctx: Context, deps: VoiceMessageDeps): 
         ...createIncomingPrompt(textForLLM),
         displayText: recognizedText,
         responseMode,
+        // Counted toward the queue media cap (unknown sizes were already
+        // refused above while busy).
+        ...(voiceSize === undefined ? {} : { mediaBytes: voiceSize }),
       })
     ) {
       return;

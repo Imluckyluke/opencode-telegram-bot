@@ -415,6 +415,27 @@ describe("bot/handlers/media-group", () => {
     expect(processPromptMock).not.toHaveBeenCalled();
   });
 
+  it("processes valid siblings instead of dropping the album for one video", async () => {
+    const photo = createPhotoContext({
+      messageId: 71,
+      smallFileId: "photo-small",
+      largeFileId: "photo-large",
+    });
+    const video = createUnsupportedMediaContext(72);
+    const { deps, processPromptMock, downloadMock } = createDeps();
+    const handler = new MediaGroupAttachmentHandler(deps, { debounceMs: 10_000 });
+
+    await addToHandler(handler, photo.ctx);
+    await addToHandler(handler, video.ctx);
+    await handler.flushAll();
+
+    // The video is reported...
+    expect(video.replyMock).toHaveBeenCalledWith(t("bot.message_type_unsupported"));
+    // ...but the photo is still processed instead of being discarded.
+    expect(downloadMock).toHaveBeenCalledTimes(1);
+    expect(processPromptMock).toHaveBeenCalledTimes(1);
+  });
+
   it("waits for the debounce window before sending the prompt", async () => {
     vi.useFakeTimers();
     const image = createDocumentContext({

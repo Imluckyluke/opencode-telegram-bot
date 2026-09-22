@@ -9,12 +9,14 @@ import { defined } from "../../helpers/defined.js";
 const mocked = vi.hoisted(() => ({
   getTtsModeMock: vi.fn(),
   getPromptQueueEnabledMock: vi.fn(),
+  getShowBottomKeyboardMock: vi.fn(() => false),
   flushPendingPromptMock: vi.fn(),
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
   getTtsMode: mocked.getTtsModeMock,
   getPromptQueueEnabled: mocked.getPromptQueueEnabledMock,
+  getShowBottomKeyboard: mocked.getShowBottomKeyboardMock,
 }));
 
 vi.mock("../../../src/utils/logger.js", () => ({
@@ -49,6 +51,7 @@ function createVoiceContext(): {
     message: {
       voice: {
         file_id: "voice-file-id",
+        file_size: 1234,
       },
     },
     reply: replyMock,
@@ -142,6 +145,7 @@ describe("bot/handlers/voice-handler", () => {
     vi.clearAllMocks();
     mocked.getTtsModeMock.mockReturnValue("off");
     mocked.getPromptQueueEnabledMock.mockReturnValue(false);
+    mocked.getShowBottomKeyboardMock.mockReturnValue(false);
     vi.doUnmock("node:https");
     vi.stubEnv("TELEGRAM_BOT_TOKEN", "test-telegram-token");
     vi.stubEnv("TELEGRAM_ALLOWED_USER_ID", "123456789");
@@ -196,7 +200,35 @@ describe("bot/handlers/voice-handler", () => {
         responseMode: "text_only",
       }),
     ]);
-    expect(promptQueue.mediaSize()).toBe(0);
+    expect(promptQueue.mediaSize()).toBe(1234);
+  });
+
+  it("refuses voice without a reliable size before downloading while busy", async () => {
+    mocked.getPromptQueueEnabledMock.mockReturnValue(true);
+    const { handleVoiceMessage } = await loadVoiceModule();
+    const { foregroundSessionState } = await import(
+      "../../../src/app/managers/foreground-session-state-manager.js"
+    );
+    const { promptQueue } = await import("../../../src/app/managers/prompt-queue-manager.js");
+    foregroundSessionState.__resetForTests();
+    promptQueue.__resetForTests();
+    foregroundSessionState.markBusy("session-1", "/repo");
+    const { ctx } = createVoiceContext();
+    // Simulate missing Telegram file_size metadata.
+    if (ctx.message && "voice" in ctx.message && ctx.message.voice) {
+      delete (ctx.message.voice as { file_size?: number }).file_size;
+    }
+    const { deps, processPromptMock, downloadMock, transcribeMock } = createVoiceDeps();
+
+    await handleVoiceMessage(ctx, deps);
+
+    expect(downloadMock).not.toHaveBeenCalled();
+    expect(transcribeMock).not.toHaveBeenCalled();
+    expect(processPromptMock).not.toHaveBeenCalled();
+    expect(promptQueue.size()).toBe(0);
+
+    foregroundSessionState.__resetForTests();
+    promptQueue.__resetForTests();
   });
 
   it("continues with prompt processing when recognized text message edit fails", async () => {
