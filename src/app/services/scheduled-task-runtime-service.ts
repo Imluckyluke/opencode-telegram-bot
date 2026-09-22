@@ -20,6 +20,7 @@ import type { QueuedScheduledTaskDelivery, ScheduledTask } from "../types/schedu
 const MAX_TIMER_DELAY_MS = 2_147_483_647;
 const TASK_DESCRIPTION_PREVIEW_LENGTH = 64;
 const RESTART_INTERRUPTED_ERROR = "Interrupted by bot restart during scheduled task execution.";
+const MAX_DEFERRED_DELIVERIES = 50;
 
 export interface ScheduledTaskDeliverySender {
   send(delivery: QueuedScheduledTaskDelivery): Promise<boolean>;
@@ -95,6 +96,7 @@ export class ScheduledTaskRuntime {
   private initialized = false;
   private timersByTaskId = new Map<string, ReturnType<typeof setTimeout>>();
   private runningTaskIds = new Set<string>();
+  private cancelledTaskIds = new Set<string>();
   private deliveryQueue: QueuedScheduledTaskDelivery[] = [];
   private flushInProgress = false;
 
@@ -122,6 +124,13 @@ export class ScheduledTaskRuntime {
   }
 
   removeTask(taskId: string): void {
+    // User-initiated removal: in-flight runs must stop and stay silent.
+    // Internal bookkeeping uses removeTaskState so normal completion still delivers.
+    this.cancelledTaskIds.add(taskId);
+    this.removeTaskState(taskId);
+  }
+
+  private removeTaskState(taskId: string): void {
     const timer = this.timersByTaskId.get(taskId);
     if (timer) {
       clearTimeout(timer);
@@ -146,17 +155,21 @@ export class ScheduledTaskRuntime {
     this.flushInProgress = true;
 
     try {
+      // Attempt every queued delivery: one failing recipient must not
+      // head-of-line-block the rest. Failures are requeued for a later flush.
+      const failed: QueuedScheduledTaskDelivery[] = [];
       while (this.deliveryQueue.length > 0 && !foregroundSessionState.isBusy()) {
-        const nextDelivery = this.deliveryQueue[0];
+        const nextDelivery = this.deliveryQueue.shift();
         if (!nextDelivery) {
           break;
         }
         const sent = await this.sendDelivery(nextDelivery);
         if (!sent) {
-          break;
+          failed.push(nextDelivery);
         }
-
-        this.deliveryQueue.shift();
+      }
+      if (failed.length > 0) {
+        this.deliveryQueue.push(...failed);
       }
     } finally {
       this.flushInProgress = false;
@@ -166,6 +179,12 @@ export class ScheduledTaskRuntime {
   shutdown(): void {
     for (const timer of this.timersByTaskId.values()) {
       clearTimeout(timer);
+    }
+
+    // In-flight runs are abandoned: their late completions must neither
+    // reschedule (blocked via initialized) nor notify.
+    for (const taskId of this.runningTaskIds) {
+      this.cancelledTaskIds.add(taskId);
     }
 
     this.timersByTaskId.clear();
@@ -184,6 +203,7 @@ export class ScheduledTaskRuntime {
     this.initialized = false;
     this.timersByTaskId.clear();
     this.runningTaskIds.clear();
+    this.cancelledTaskIds.clear();
     this.deliveryQueue = [];
     this.flushInProgress = false;
   }
@@ -202,6 +222,11 @@ export class ScheduledTaskRuntime {
       if (normalizedTask.lastStatus === "running") {
         normalizedTask.lastStatus = "error";
         normalizedTask.lastError = RESTART_INTERRUPTED_ERROR;
+        if (normalizedTask.kind === "once") {
+          // A one-time task interrupted mid-run may have partially executed:
+          // keep the visible error and do NOT silently retry on boot.
+          normalizedTask.nextRunAt = null;
+        }
         hasChanges = true;
       }
 
@@ -249,6 +274,12 @@ export class ScheduledTaskRuntime {
 
   private scheduleTask(task: ScheduledTask): void {
     this.removeTaskTimer(task.id);
+
+    // Never arm timers after shutdown: executions finishing late must not
+    // resurrect scheduling. recoverTasksOnStartup runs while initialized.
+    if (!this.initialized) {
+      return;
+    }
 
     if (!task.nextRunAt) {
       return;
@@ -304,7 +335,7 @@ export class ScheduledTaskRuntime {
 
     const task = getScheduledTask(taskId);
     if (!task) {
-      this.removeTask(taskId);
+      this.removeTaskState(taskId);
       return;
     }
 
@@ -329,28 +360,49 @@ export class ScheduledTaskRuntime {
   private async executeTask(taskId: string): Promise<void> {
     const taskSnapshot = getScheduledTask(taskId);
     if (!taskSnapshot) {
-      this.removeTask(taskId);
+      this.removeTaskState(taskId);
       this.runningTaskIds.delete(taskId);
       return;
     }
 
     const startedAt = new Date().toISOString();
-    const runningTask = await updateScheduledTask(taskId, (task) => ({
-      ...task,
-      lastStatus: "running",
-      lastError: null,
-      lastRunAt: startedAt,
-      runCount: task.runCount + 1,
-    }));
+    let runningTask: ScheduledTask | null;
+    try {
+      runningTask = await updateScheduledTask(taskId, (task) => ({
+        ...task,
+        lastStatus: "running",
+        lastError: null,
+        lastRunAt: startedAt,
+        runCount: task.runCount + 1,
+      }));
+    } catch (error) {
+      // A failed store write must not strand the task in "running" with no
+      // timer: drop the run and re-arm so it fires again later.
+      logger.error(`[ScheduledTaskRuntime] Failed to mark task as running: id=${taskId}`, error);
+      this.runningTaskIds.delete(taskId);
+      const retryTask = getScheduledTask(taskId);
+      if (retryTask) {
+        this.scheduleTask(retryTask);
+      }
+      return;
+    }
 
     if (!runningTask) {
-      this.removeTask(taskId);
+      this.removeTaskState(taskId);
       this.runningTaskIds.delete(taskId);
       return;
     }
 
     try {
-      const result = await executeScheduledTask(runningTask);
+      const result = await executeScheduledTask(runningTask, {
+        shouldCancel: () => this.cancelledTaskIds.has(taskId),
+      });
+
+      if (this.cancelledTaskIds.delete(taskId)) {
+        // Removed or shut down mid-run: stay silent, no reschedule, no delivery.
+        this.removeTaskState(taskId);
+        return;
+      }
 
       if (result.status === "success") {
         await this.handleSuccessfulExecution(
@@ -381,7 +433,7 @@ export class ScheduledTaskRuntime {
 
     if (task.kind === "once") {
       await removeScheduledTask(task.id);
-      this.removeTask(task.id);
+      this.removeTaskState(task.id);
       await this.enqueueDelivery(delivery);
       return;
     }
@@ -445,13 +497,29 @@ export class ScheduledTaskRuntime {
   }
 
   private async enqueueDelivery(delivery: QueuedScheduledTaskDelivery): Promise<void> {
+    // A flush in progress owns the send order: just append so deliveries stay ordered.
+    if (this.flushInProgress) {
+      this.pushDelivery(delivery);
+      return;
+    }
+
     if (
       this.deliveryQueue.length === 0 &&
-      !this.flushInProgress &&
       !foregroundSessionState.isBusy() &&
       (await this.sendDelivery(delivery))
     ) {
       return;
+    }
+
+    this.pushDelivery(delivery);
+  }
+
+  private pushDelivery(delivery: QueuedScheduledTaskDelivery): void {
+    if (this.deliveryQueue.length >= MAX_DEFERRED_DELIVERIES) {
+      const dropped = this.deliveryQueue.shift();
+      logger.warn(
+        `[ScheduledTaskRuntime] Deferred delivery queue full, dropping oldest: id=${dropped?.taskId}, status=${dropped?.status}`,
+      );
     }
 
     this.deliveryQueue.push(delivery);

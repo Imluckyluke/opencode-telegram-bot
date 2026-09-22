@@ -712,4 +712,63 @@ describe("app/services/scheduled-task-executor-service", () => {
       expect.any(Error),
     );
   });
+
+  it("aborts the session before reporting a bot execution timeout", async () => {
+    const { executeScheduledTask } = await import("../../../src/app/services/scheduled-task-executor-service.js");
+
+    mocked.createMock.mockResolvedValueOnce({
+      data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
+      error: null,
+    });
+    mocked.promptAsyncMock.mockResolvedValueOnce({ data: undefined, error: null });
+    mocked.messagesMock.mockResolvedValue({ data: [], error: null });
+    mocked.statusMock.mockResolvedValue({
+      data: { "session-1": { type: "busy" } },
+      error: null,
+    });
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-16T10:00:00.000Z"));
+
+    const resultPromise = executeScheduledTask(createTask());
+
+    await vi.advanceTimersByTimeAsync(2 * 60 * 60 * 1000 + 2000);
+
+    await expect(resultPromise).resolves.toMatchObject({
+      status: "error",
+      resultText: null,
+      errorMessage: "Scheduled task exceeded bot execution timeout after 120 minutes.",
+    });
+    expect(mocked.abortMock).toHaveBeenCalledWith({
+      sessionID: "session-1",
+      directory: "D:\\Projects\\Repo",
+    });
+    expect(mocked.deleteMock).toHaveBeenCalledWith({ sessionID: "session-1" });
+
+    vi.useRealTimers();
+  });
+
+  it("aborts the session and stops polling when cancelled mid-run", async () => {
+    const { executeScheduledTask } = await import("../../../src/app/services/scheduled-task-executor-service.js");
+
+    mocked.createMock.mockResolvedValueOnce({
+      data: { id: "session-1", directory: "D:\\Projects\\Repo", title: "Scheduled task run" },
+      error: null,
+    });
+    mocked.promptAsyncMock.mockResolvedValueOnce({ data: undefined, error: null });
+
+    await expect(
+      executeScheduledTask(createTask(), { shouldCancel: () => true }),
+    ).resolves.toMatchObject({
+      status: "error",
+      resultText: null,
+      errorMessage: "Scheduled task run was cancelled.",
+    });
+    expect(mocked.abortMock).toHaveBeenCalledWith({
+      sessionID: "session-1",
+      directory: "D:\\Projects\\Repo",
+    });
+    expect(mocked.messagesMock).not.toHaveBeenCalled();
+    expect(mocked.deleteMock).toHaveBeenCalledWith({ sessionID: "session-1" });
+  });
 });

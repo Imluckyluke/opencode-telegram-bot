@@ -328,4 +328,203 @@ describe("app/services/scheduled-task-runtime-service", () => {
     runtime.__resetForTests();
     vi.useRealTimers();
   });
+
+  it("stays silent when a task is removed mid-run", async () => {
+    ({ ScheduledTaskRuntime: ScheduledTaskRuntimeClass } =
+      await import("../../../src/app/services/scheduled-task-runtime-service.js"));
+    ({ foregroundSessionState } = await import("../../../src/app/managers/foreground-session-state-manager.js"));
+    foregroundSessionState.__resetForTests();
+
+    const runtime = new ScheduledTaskRuntimeClass();
+    mocked.tasks = [createTask({ kind: "cron", nextRunAt: "2026-03-16T10:00:00.000Z" })];
+    let resolveExecution: (result: unknown) => void = () => undefined;
+    mocked.executeScheduledTaskMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveExecution = resolve as (result: unknown) => void;
+      }),
+    );
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-16T10:00:00.000Z"));
+
+    await runtime.initialize({ api: {} } as Bot<Context>, await createDeliverySender());
+    await Promise.resolve();
+
+    // Simulate user deletion while the run is in flight.
+    mocked.tasks = [];
+    runtime.removeTask("task-1");
+    resolveExecution({
+      taskId: "task-1",
+      status: "success",
+      startedAt: "2026-03-16T10:00:00.000Z",
+      finishedAt: "2026-03-16T10:01:00.000Z",
+      resultText: "Late result",
+      errorMessage: null,
+    });
+    await Promise.resolve();
+    await vi.runAllTimersAsync();
+
+    expect(mocked.sendBotTextMock).not.toHaveBeenCalled();
+    expect(mocked.executeScheduledTaskMock).toHaveBeenCalledTimes(1);
+
+    runtime.__resetForTests();
+    vi.useRealTimers();
+  });
+
+  it("does not reschedule or notify after shutdown", async () => {
+    ({ ScheduledTaskRuntime: ScheduledTaskRuntimeClass } =
+      await import("../../../src/app/services/scheduled-task-runtime-service.js"));
+    ({ foregroundSessionState } = await import("../../../src/app/managers/foreground-session-state-manager.js"));
+    foregroundSessionState.__resetForTests();
+
+    const runtime = new ScheduledTaskRuntimeClass();
+    mocked.tasks = [createTask({ kind: "cron", nextRunAt: "2026-03-16T10:00:00.000Z" })];
+    let resolveExecution: (result: unknown) => void = () => undefined;
+    mocked.executeScheduledTaskMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveExecution = resolve as (result: unknown) => void;
+      }),
+    );
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-16T10:00:00.000Z"));
+
+    await runtime.initialize({ api: {} } as Bot<Context>, await createDeliverySender());
+    await Promise.resolve();
+
+    runtime.shutdown();
+    resolveExecution({
+      taskId: "task-1",
+      status: "success",
+      startedAt: "2026-03-16T10:00:00.000Z",
+      finishedAt: "2026-03-16T10:01:00.000Z",
+      resultText: "Late result",
+      errorMessage: null,
+    });
+    await Promise.resolve();
+    await vi.runAllTimersAsync();
+
+    expect(mocked.sendBotTextMock).not.toHaveBeenCalled();
+    expect(mocked.executeScheduledTaskMock).toHaveBeenCalledTimes(1);
+
+    runtime.__resetForTests();
+    vi.useRealTimers();
+  });
+
+  it("re-arms the timer when marking a task as running fails", async () => {
+    ({ ScheduledTaskRuntime: ScheduledTaskRuntimeClass } =
+      await import("../../../src/app/services/scheduled-task-runtime-service.js"));
+    ({ foregroundSessionState } = await import("../../../src/app/managers/foreground-session-state-manager.js"));
+    foregroundSessionState.__resetForTests();
+
+    const runtime = new ScheduledTaskRuntimeClass();
+    mocked.tasks = [createTask({ kind: "cron", nextRunAt: "2026-03-16T10:00:00.000Z" })];
+    mocked.executeScheduledTaskMock.mockResolvedValue({
+      taskId: "task-1",
+      status: "success",
+      startedAt: "2026-03-16T10:00:00.000Z",
+      finishedAt: "2026-03-16T10:01:00.000Z",
+      resultText: "All good",
+      errorMessage: null,
+    });
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-16T10:00:00.000Z"));
+
+    await runtime.initialize({ api: {} } as Bot<Context>, await createDeliverySender());
+
+    const { updateScheduledTask } = await import("../../../src/app/stores/scheduled-task-store.js");
+    vi.mocked(updateScheduledTask).mockRejectedValueOnce(new Error("write failed"));
+
+    await vi.runAllTimersAsync();
+
+    // The failed run was dropped but the task was re-armed and ran again.
+    expect(mocked.executeScheduledTaskMock).toHaveBeenCalledTimes(2);
+    expect(mocked.tasks[0]?.lastStatus).not.toBe("running");
+
+    runtime.__resetForTests();
+    vi.useRealTimers();
+  });
+
+  it("keeps interrupted one-time tasks as errors without silently retrying", async () => {
+    ({ ScheduledTaskRuntime: ScheduledTaskRuntimeClass } =
+      await import("../../../src/app/services/scheduled-task-runtime-service.js"));
+    ({ foregroundSessionState } = await import("../../../src/app/managers/foreground-session-state-manager.js"));
+    foregroundSessionState.__resetForTests();
+
+    const runtime = new ScheduledTaskRuntimeClass();
+    mocked.tasks = [
+      createTask({
+        kind: "once",
+        lastStatus: "running",
+        nextRunAt: "2026-03-16T09:00:00.000Z",
+      }),
+    ];
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-16T10:00:00.000Z"));
+
+    await runtime.initialize({ api: {} } as Bot<Context>, await createDeliverySender());
+    await vi.runAllTimersAsync();
+
+    expect(mocked.tasks).toHaveLength(1);
+    expect(mocked.tasks[0]?.lastStatus).toBe("error");
+    expect(mocked.tasks[0]?.lastError).toContain("Interrupted by bot restart");
+    expect(mocked.tasks[0]?.nextRunAt).toBeNull();
+    expect(mocked.executeScheduledTaskMock).not.toHaveBeenCalled();
+
+    runtime.__resetForTests();
+    vi.useRealTimers();
+  });
+
+  it("delivers past one failing recipient instead of head-of-line blocking", async () => {
+    ({ ScheduledTaskRuntime: ScheduledTaskRuntimeClass } =
+      await import("../../../src/app/services/scheduled-task-runtime-service.js"));
+    ({ foregroundSessionState } = await import("../../../src/app/managers/foreground-session-state-manager.js"));
+    foregroundSessionState.__resetForTests();
+
+    const runtime = new ScheduledTaskRuntimeClass();
+    mocked.tasks = [
+      createTask({ id: "task-1", prompt: "First report", nextRunAt: "2026-03-16T10:00:00.000Z" }),
+      createTask({ id: "task-2", prompt: "Second report", nextRunAt: "2026-03-16T10:00:00.000Z" }),
+    ];
+    mocked.executeScheduledTaskMock.mockImplementation(async (task: ScheduledTask) => ({
+      taskId: task.id,
+      status: "success",
+      startedAt: "2026-03-16T10:00:00.000Z",
+      finishedAt: "2026-03-16T10:01:00.000Z",
+      resultText: `${task.prompt} done`,
+      errorMessage: null,
+    }));
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-16T10:00:00.000Z"));
+    foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
+
+    await runtime.initialize({ api: {} } as Bot<Context>, await createDeliverySender());
+    await vi.runAllTimersAsync();
+
+    // Both results are deferred while busy.
+    expect(mocked.sendBotTextMock).not.toHaveBeenCalled();
+
+    foregroundSessionState.markIdle("session-1");
+    mocked.sendBotTextMock.mockRejectedValueOnce(new Error("send failed"));
+    await runtime.flushDeferredDeliveries();
+
+    // The second delivery went out despite the first one failing.
+    expect(mocked.sendBotTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({ text: expect.stringContaining("Second report") }),
+    );
+
+    mocked.sendBotTextMock.mockReset();
+    mocked.sendBotTextMock.mockResolvedValue(undefined);
+    await runtime.flushDeferredDeliveries();
+
+    expect(mocked.sendBotTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({ text: expect.stringContaining("First report") }),
+    );
+
+    runtime.__resetForTests();
+    vi.useRealTimers();
+  });
 });

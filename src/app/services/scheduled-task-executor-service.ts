@@ -13,7 +13,9 @@ import type { ScheduledTask, ScheduledTaskExecutionResult } from "../types/sched
 
 const SCHEDULED_TASK_SESSION_TITLE = "Scheduled task run";
 const EXECUTION_POLL_INTERVAL_MS = 2000;
-const MAX_IDLE_POLLS_WITHOUT_RESULT = 3;
+// Idle grace after observed activity: the server can report "idle" between tool
+// rounds while a long tool step is still running, so allow ~20s before giving up.
+const MAX_IDLE_POLLS_WITHOUT_RESULT = 10;
 // Grace period for the server to start the session before any activity is seen.
 const MAX_STARTUP_POLLS_WITHOUT_ACTIVITY = 45;
 const COMPLETED_EMPTY_RESULT_RECHECK_INTERVAL_MS = 500;
@@ -84,6 +86,18 @@ class ScheduledTaskInteractiveRequestError extends Error {
     );
     this.name = "ScheduledTaskInteractiveRequestError";
   }
+}
+
+class ScheduledTaskCancelledError extends Error {
+  constructor() {
+    super("Scheduled task run was cancelled.");
+    this.name = "ScheduledTaskCancelledError";
+  }
+}
+
+export interface ScheduledTaskExecutionOptions {
+  /** Polled each loop iteration; when true the run aborts its session and stops. */
+  shouldCancel?: () => boolean;
 }
 
 function collectResponseText(parts: TextLikePart[]): string {
@@ -393,6 +407,7 @@ async function waitForScheduledTaskResult(
   taskId: string,
   sessionId: string,
   directory: string,
+  shouldCancel?: () => boolean,
 ): Promise<string> {
   const startedAtMs = Date.now();
   const executionTimeoutMs = getExecutionTimeoutMs();
@@ -402,7 +417,14 @@ async function waitForScheduledTaskResult(
   let completedEmptyResultReadCount = 0;
 
   while (true) {
+    if (shouldCancel?.()) {
+      await abortScheduledTaskSession(sessionId, directory);
+      throw new ScheduledTaskCancelledError();
+    }
+
     if (Date.now() - startedAtMs >= executionTimeoutMs) {
+      // Stop server-side generation before giving up so compute is not leaked.
+      await abortScheduledTaskSession(sessionId, directory);
       throw new Error(createExecutionTimeoutMessage());
     }
 
@@ -498,6 +520,7 @@ async function waitForScheduledTaskResult(
 
 export async function executeScheduledTask(
   task: ScheduledTask,
+  options?: ScheduledTaskExecutionOptions,
 ): Promise<ScheduledTaskExecutionResult> {
   const startedAt = new Date().toISOString();
   if (isBotDisabled()) {
@@ -560,7 +583,12 @@ export async function executeScheduledTask(
       throw promptError || new Error("Scheduled task prompt execution failed");
     }
 
-    const resultText = await waitForScheduledTaskResult(task.id, session.id, session.directory);
+    const resultText = await waitForScheduledTaskResult(
+      task.id,
+      session.id,
+      session.directory,
+      options?.shouldCancel,
+    );
 
     return {
       taskId: task.id,
@@ -577,6 +605,10 @@ export async function executeScheduledTask(
       logger.warn(
         `[ScheduledTaskExecutor] Keeping temporary session for inspection: id=${task.id}, sessionId=${sessionId}`,
       );
+    } else if (sessionId) {
+      // Stop server-side generation before the temporary session is deleted so
+      // abandoned runs do not keep consuming server compute.
+      await abortScheduledTaskSession(sessionId, task.projectWorktree);
     }
 
     logger.warn(
