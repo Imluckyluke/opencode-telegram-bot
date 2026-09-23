@@ -152,4 +152,23 @@ describe("bot/inline/run-waiter fail-fast", () => {
     expect(mocked.questionRejectMock).not.toHaveBeenCalled();
     expect(mocked.abortMock).not.toHaveBeenCalled();
   });
+
+  it("returns a fast completed run without ever observing busy", async () => {
+    mocked.messagesMock.mockResolvedValue({
+      data: [assistantMessage("Quick answer", true)],
+      error: null,
+    });
+    mocked.statusMock.mockResolvedValue({ data: {}, error: null });
+
+    const result = await waitForAssistantCompletion({
+      sessionId: "session-1",
+      directory: "D:\\Repo",
+      startedAt: 0,
+      pollMs: 5,
+      timeoutMs: 4000,
+      onProgress: vi.fn().mockResolvedValue(true),
+    });
+
+    expect(result).toMatchObject({ text: "Quick answer", completed: true });
+  });
 });

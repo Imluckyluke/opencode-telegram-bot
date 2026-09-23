@@ -230,5 +230,11 @@ export async function waitForAssistantCompletion(
       // Idle with nothing ever shown: interrupted (abort/error before output).
       return null;
     }
+    if (!busy && !observedBusy && snapshot?.completed && snapshot.text === lastSent) {
+      // Fast runs can finish before the first busy poll ever observes activity:
+      // a completed snapshot on an idle session ends the wait instead of
+      // holding it (and the shared run flag) until the timeout.
+      return { text: lastSent, completed: true };
+    }
   }
 }
