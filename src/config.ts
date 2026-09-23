@@ -145,6 +145,21 @@ export function parseInitialSettingsPreset(): Record<string, unknown> {
 
 const VALID_TTS_PROVIDERS: TtsProvider[] = ["openai", "google", "elevenlabs", "edge"];
 
+/** Default voice per provider, honoring Persian defaults for fa locale. */
+export function defaultTtsVoice(provider: TtsProvider, locale: Locale): string {
+  const isFa = locale === "fa";
+  if (provider === "google") {
+    return isFa ? "fa-IR-Standard-A" : "en-US-Studio-O";
+  }
+  if (provider === "elevenlabs") {
+    return "21m00Tcm4TlvDq8ikWAM";
+  }
+  if (provider === "edge") {
+    return isFa ? "fa-IR-DilaraNeural" : "en-US-EmmaMultilingualNeural";
+  }
+  return "alloy";
+}
+
 function getOptionalTtsProviderEnvVar(key: string, defaultValue: TtsProvider): TtsProvider {
   const value = getEnvVar(key, false);
 
@@ -378,26 +393,15 @@ export const config = {
   tts: (() => {
     const provider = getOptionalTtsProviderEnvVar("TTS_PROVIDER", "openai");
     const locale = normalizeLocale(getEnvVar("BOT_LOCALE", false), "en");
-    const isFa = locale === "fa";
-    const defaultVoice =
-      provider === "google"
-        ? isFa
-          ? "fa-IR-Standard-A"
-          : "en-US-Studio-O"
-        : provider === "elevenlabs"
-          ? "21m00Tcm4TlvDq8ikWAM"
-          : provider === "edge"
-            ? isFa
-              ? "fa-IR-DilaraNeural"
-              : "en-US-EmmaMultilingualNeural"
-            : "alloy";
+    const explicitVoice = getEnvVar("TTS_VOICE", false);
     const defaultModel = provider === "elevenlabs" ? "eleven_flash_v2_5" : "gpt-4o-mini-tts";
     return {
       apiUrl: getEnvVar("TTS_API_URL", false),
       apiKey: getEnvVar("TTS_API_KEY", false),
       provider,
       model: getEnvVar("TTS_MODEL", false) || defaultModel,
-      voice: getEnvVar("TTS_VOICE", false) || defaultVoice,
+      voice: explicitVoice || defaultTtsVoice(provider, locale),
+      voiceExplicit: explicitVoice.length > 0,
     };
   })(),
 };

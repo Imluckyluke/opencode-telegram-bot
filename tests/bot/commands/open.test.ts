@@ -42,6 +42,7 @@ vi.mock("../../../src/app/services/file-browser-service.js", () => ({
   MAX_ENTRIES_PER_PAGE: 8,
   getBrowserRoots: mocked.getBrowserRootsMock,
   isWithinAllowedRoot: mocked.isWithinAllowedRootMock,
+  isWithinAllowedRootSafe: mocked.isWithinAllowedRootMock,
   isAllowedRoot: mocked.isAllowedRootMock,
 }));
 

@@ -177,11 +177,11 @@ describe("bot question menu/callbacks", () => {
     });
   });
 
-  it("truncates long question text to Telegram message limit", async () => {
+  it("truncates long question text to the rich-block limit", async () => {
     const api = createApi([901]);
     const longQuestion: Question = {
       header: "Long",
-      question: "Q".repeat(5000),
+      question: "Q".repeat(33000),
       options: [{ label: "Option", description: "description" }],
     };
 
@@ -205,7 +205,7 @@ describe("bot question menu/callbacks", () => {
     };
 
     const rendered = message.blocks.map((block) => flatten(block.text));
-    expect(rendered.join("\n\n").length).toBeLessThanOrEqual(4096);
+    expect(rendered.join("\n\n").length).toBeLessThanOrEqual(32000);
     expect(rendered.at(-1)?.endsWith("…")).toBe(true);
   });
 
