@@ -191,6 +191,7 @@ export const id: I18nDictionary = {
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
   "inline.open_bot": "Open bot",
+  "guest.question.reply_hint": "Balas pesan ini dengan nomor jawabanmu.",
 
   "help.intro": "Send any text as a prompt \u2014 no command needed.",
   "help.group.sessions": "Sessions & projects",
@@ -223,6 +224,8 @@ export const id: I18nDictionary = {
   "bot.already_enabled": "Bot is already enabled.",
   "deletesessions.started": "Deleting all sessions.",
   "deletesessions.done": "Done: deleted {deleted}, failed {failed}.",
+  "deletesessions.confirm_yes": "✅ Ya, hapus semua",
+  "deletesessions.confirm_text": "⚠️ Semua sesi akan dihapus. Ketuk ✅ di bawah untuk mengonfirmasi.",
   "restart.scheduled": "Restarting.",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
@@ -256,6 +259,9 @@ export const id: I18nDictionary = {
   "sessions.page_load_error_callback": "Tidak dapat memuat halaman ini. Coba lagi.",
   "sessions.button.prev_page": "⬅️ Sebelumnya",
   "sessions.button.next_page": "Berikutnya ➡️",
+  "sessions.deleted_callback": "Sesi dihapus.",
+  "sessions.delete_confirm": "Ketuk 🗑 lagi untuk mengonfirmasi penghapusan.",
+  "sessions.button.delete": "🗑",
   "sessions.loading_context": "⏳ Memuat konteks dan pesan terbaru...",
   "sessions.selected": "✅ Sesi dipilih: {title}",
   "sessions.select_error": "🔴 Gagal memilih sesi.",

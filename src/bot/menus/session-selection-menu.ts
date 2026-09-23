@@ -4,6 +4,7 @@ import { getDateLocale, t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 
 export const SESSION_CALLBACK_PREFIX = "session:";
+const SESSION_DELETE_CALLBACK_PREFIX = "session:delete:";
 const SESSION_PAGE_CALLBACK_PREFIX = "session:page:";
 const BACKGROUND_SESSION_CALLBACK_PREFIX = "background-session:";
 const SESSION_FETCH_EXTRA_COUNT = 1;
@@ -69,7 +70,20 @@ export function parseSessionIdCallback(data: string): string | null {
     return null;
   }
 
+  if (data.startsWith(SESSION_DELETE_CALLBACK_PREFIX)) {
+    return null;
+  }
+
   const sessionId = data.slice(SESSION_CALLBACK_PREFIX.length);
+  return sessionId.length > 0 ? sessionId : null;
+}
+
+export function parseSessionDeleteCallback(data: string): string | null {
+  if (!data.startsWith(SESSION_DELETE_CALLBACK_PREFIX)) {
+    return null;
+  }
+
+  const sessionId = data.slice(SESSION_DELETE_CALLBACK_PREFIX.length);
   return sessionId.length > 0 ? sessionId : null;
 }
 
@@ -155,7 +169,10 @@ function buildSessionsKeyboard(pageData: SessionPage, pageSize: number): InlineK
   pageData.sessions.forEach((session, index) => {
     const date = new Date(session.time.created).toLocaleDateString(localeForDate);
     const label = `${pageStartIndex + index + 1}. ${session.title} (${date})`;
-    keyboard.text(label, `${SESSION_CALLBACK_PREFIX}${session.id}`).row();
+    keyboard
+      .text(label, `${SESSION_CALLBACK_PREFIX}${session.id}`)
+      .text(t("sessions.button.delete"), `${SESSION_DELETE_CALLBACK_PREFIX}${session.id}`)
+      .row();
   });
 
   if (pageData.page > 0) {

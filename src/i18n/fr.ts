@@ -192,6 +192,7 @@ export const fr: I18nDictionary = {
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
   "inline.open_bot": "Open bot",
+  "guest.question.reply_hint": "Répondez à ce message avec le numéro de votre réponse.",
 
   "help.intro": "Send any text as a prompt \u2014 no command needed.",
   "help.group.sessions": "Sessions & projects",
@@ -224,6 +225,8 @@ export const fr: I18nDictionary = {
   "bot.already_enabled": "Bot is already enabled.",
   "deletesessions.started": "Deleting all sessions.",
   "deletesessions.done": "Done: deleted {deleted}, failed {failed}.",
+  "deletesessions.confirm_yes": "✅ Oui, tout supprimer",
+  "deletesessions.confirm_text": "⚠️ Toutes les sessions seront supprimées. Touchez ✅ ci-dessous pour confirmer.",
   "restart.scheduled": "Restarting.",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
@@ -260,6 +263,9 @@ export const fr: I18nDictionary = {
   "sessions.page_load_error_callback": "Impossible de charger cette page. Veuillez réessayer.",
   "sessions.button.prev_page": "⬅️ Préc.",
   "sessions.button.next_page": "Suiv. ➡️",
+  "sessions.deleted_callback": "Session supprimée.",
+  "sessions.delete_confirm": "Touchez à nouveau 🗑 pour confirmer la suppression.",
+  "sessions.button.delete": "🗑",
   "sessions.loading_context": "⏳ Chargement du contexte et des derniers messages...",
   "sessions.selected": "✅ Session sélectionnée : {title}",
   "sessions.select_error": "🔴 Impossible de sélectionner la session.",

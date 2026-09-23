@@ -181,6 +181,7 @@ export const ru: I18nDictionary = {
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
   "inline.open_bot": "Open bot",
+  "guest.question.reply_hint": "Ответьте на это сообщение номером вашего ответа.",
 
   "help.intro": "Send any text as a prompt \u2014 no command needed.",
   "help.group.sessions": "Sessions & projects",
@@ -213,6 +214,8 @@ export const ru: I18nDictionary = {
   "bot.already_enabled": "Bot is already enabled.",
   "deletesessions.started": "Deleting all sessions.",
   "deletesessions.done": "Done: deleted {deleted}, failed {failed}.",
+  "deletesessions.confirm_yes": "✅ Да, удалить всё",
+  "deletesessions.confirm_text": "⚠️ Все сессии будут удалены. Нажмите ✅ ниже для подтверждения.",
   "restart.scheduled": "Restarting.",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
@@ -250,6 +253,9 @@ export const ru: I18nDictionary = {
     "Не удалось загрузить эту страницу. Пожалуйста, попробуйте снова.",
   "sessions.button.prev_page": "⬅️ Назад",
   "sessions.button.next_page": "Вперёд ➡️",
+  "sessions.deleted_callback": "Сессия удалена.",
+  "sessions.delete_confirm": "Нажмите 🗑 ещё раз для подтверждения удаления.",
+  "sessions.button.delete": "🗑",
   "sessions.loading_context": "⏳ Загружаю контекст и последние сообщения...",
   "sessions.selected": "✅ Сессия выбрана: {title}",
   "sessions.select_error": "🔴 Ошибка при выборе сессии.",

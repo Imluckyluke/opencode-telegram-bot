@@ -194,6 +194,7 @@ export const ar: I18nDictionary = {
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
   "inline.open_bot": "Open bot",
+  "guest.question.reply_hint": "رد على هذه الرسالة برقم إجابتك.",
 
   "help.intro": "Send any text as a prompt \u2014 no command needed.",
   "help.group.sessions": "Sessions & projects",
@@ -226,6 +227,8 @@ export const ar: I18nDictionary = {
   "bot.already_enabled": "Bot is already enabled.",
   "deletesessions.started": "Deleting all sessions.",
   "deletesessions.done": "Done: deleted {deleted}, failed {failed}.",
+  "deletesessions.confirm_yes": "✅ نعم، احذف الكل",
+  "deletesessions.confirm_text": "⚠️ سيتم حذف جميع الجلسات. اضغط ✅ أدناه للتأكيد.",
   "restart.scheduled": "Restarting.",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
@@ -260,6 +263,9 @@ export const ar: I18nDictionary = {
   "sessions.page_load_error_callback": "تعذر تحميل هذه الصفحة. حاول مرة أخرى.",
   "sessions.button.prev_page": "⬅️ السابق",
   "sessions.button.next_page": "التالي ➡️",
+  "sessions.deleted_callback": "تم حذف الجلسة.",
+  "sessions.delete_confirm": "اضغط 🗑 مرة أخرى لتأكيد الحذف.",
+  "sessions.button.delete": "🗑",
   "sessions.loading_context": "⏳ جارٍ تحميل السياق وأحدث الرسائل...",
   "sessions.selected": "✅ تم اختيار الجلسة: {title}",
   "sessions.select_error": "🔴 تعذر اختيار الجلسة.",

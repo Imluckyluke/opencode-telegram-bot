@@ -1,4 +1,4 @@
-import type { CommandContext, Context } from "grammy";
+import { type CommandContext, type Context, InlineKeyboard } from "grammy";
 import { isAllowedTelegramUser } from "../../config.js";
 import { opencodeClient } from "../../opencode/client.js";
 import { getProjects } from "../../app/services/project-service.js";
@@ -11,6 +11,7 @@ import { cleanupScheduledTaskSessionIgnores } from "../../app/services/scheduled
 import { clearGuestChatSessions } from "../../app/managers/guest-session-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { cancelInlineRuns } from "../inline/inline-run-state.js";
+import { cancelMenu } from "../callbacks/feedback.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 
@@ -46,12 +47,48 @@ async function deleteProjectSessions(worktree: string): Promise<{ deleted: numbe
  * dashboard). Scheduled task definitions are kept; their temp sessions are
  * recreated on the next run.
  */
+export const DELETE_SESSIONS_CONFIRM_CALLBACK = "deletesessions:confirm";
+export const DELETE_SESSIONS_CANCEL_CALLBACK = "deletesessions:cancel";
+
+/**
+ * Owner-only instant wipe. Asks for a second confirmation first: wiping
+ * deletes every OpenCode session in every known project and cannot be undone.
+ */
 export async function deleteSessionsCommand(ctx: CommandContext<Context>): Promise<void> {
   if (!isAllowedTelegramUser(ctx.from?.id)) {
     await ctx.reply(t("tier.blocked"));
     return;
   }
 
+  await ctx.reply(t("deletesessions.confirm_text"), {
+    reply_markup: new InlineKeyboard()
+      .text(t("deletesessions.confirm_yes"), DELETE_SESSIONS_CONFIRM_CALLBACK)
+      .text(t("inline.button.cancel"), DELETE_SESSIONS_CANCEL_CALLBACK),
+  });
+}
+
+export async function handleDeleteSessionsCallback(ctx: Context): Promise<boolean> {
+  const data = ctx.callbackQuery?.data;
+  if (data !== DELETE_SESSIONS_CONFIRM_CALLBACK && data !== DELETE_SESSIONS_CANCEL_CALLBACK) {
+    return false;
+  }
+
+  if (!isAllowedTelegramUser(ctx.from?.id)) {
+    await ctx.answerCallbackQuery({ text: t("tier.blocked") });
+    return true;
+  }
+
+  if (data === DELETE_SESSIONS_CANCEL_CALLBACK) {
+    await cancelMenu(ctx);
+    return true;
+  }
+
+  await ctx.answerCallbackQuery();
+  await executeDeleteSessions(ctx);
+  return true;
+}
+
+async function executeDeleteSessions(ctx: Context): Promise<void> {
   const statusMessage = await ctx.reply(t("deletesessions.started")).catch(() => undefined);
   // In-flight inline/guest waits poll sessions that are about to disappear:
   // release them now so they end promptly instead of hanging to timeout.

@@ -171,6 +171,7 @@ export const zh: I18nDictionary = {
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
   "inline.open_bot": "Open bot",
+  "guest.question.reply_hint": "请回复此消息并附上你的答案编号。",
 
   "help.intro": "Send any text as a prompt \u2014 no command needed.",
   "help.group.sessions": "Sessions & projects",
@@ -203,6 +204,8 @@ export const zh: I18nDictionary = {
   "bot.already_enabled": "Bot is already enabled.",
   "deletesessions.started": "Deleting all sessions.",
   "deletesessions.done": "Done: deleted {deleted}, failed {failed}.",
+  "deletesessions.confirm_yes": "✅ 是，全部删除",
+  "deletesessions.confirm_text": "⚠️ 将删除所有会话。点击下面的 ✅ 确认。",
   "restart.scheduled": "Restarting.",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
@@ -236,6 +239,9 @@ export const zh: I18nDictionary = {
   "sessions.page_load_error_callback": "无法加载此页面。请重试。",
   "sessions.button.prev_page": "⬅️ 上一页",
   "sessions.button.next_page": "下一页 ➡️",
+  "sessions.deleted_callback": "会话已删除。",
+  "sessions.delete_confirm": "再次点击 🗑 以确认删除。",
+  "sessions.button.delete": "🗑",
   "sessions.loading_context": "⏳ 正在加载上下文和最新消息...",
   "sessions.selected": "✅ 已选择会话：{title}",
   "sessions.select_error": "🔴 选择会话失败。",

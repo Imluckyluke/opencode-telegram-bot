@@ -185,6 +185,7 @@ export const tr: I18nDictionary = {
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
   "inline.open_bot": "Open bot",
+  "guest.question.reply_hint": "Bu mesaja yanıtınızın numarasıyla yanıt verin.",
 
   "help.intro": "Send any text as a prompt \u2014 no command needed.",
   "help.group.sessions": "Sessions & projects",
@@ -217,6 +218,8 @@ export const tr: I18nDictionary = {
   "bot.already_enabled": "Bot is already enabled.",
   "deletesessions.started": "Deleting all sessions.",
   "deletesessions.done": "Done: deleted {deleted}, failed {failed}.",
+  "deletesessions.confirm_yes": "✅ Evet, tümünü sil",
+  "deletesessions.confirm_text": "⚠️ Tüm oturumlar silinecek. Onaylamak için aşağıdaki ✅ düğmesine dokunun.",
   "restart.scheduled": "Restarting.",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
@@ -252,6 +255,9 @@ export const tr: I18nDictionary = {
   "sessions.page_load_error_callback": "Bu sayfa yüklenemiyor. Lütfen tekrar deneyin.",
   "sessions.button.prev_page": "⬅️ Önceki",
   "sessions.button.next_page": "Sonraki ➡️",
+  "sessions.deleted_callback": "Oturum silindi.",
+  "sessions.delete_confirm": "Silmeyi onaylamak için 🗑 simgesine tekrar dokunun.",
+  "sessions.button.delete": "🗑",
   "sessions.loading_context": "⏳ Bağlam ve son mesajlar yükleniyor...",
   "sessions.selected": "✅ Oturum seçildi: {title}",
   "sessions.select_error": "🔴 Oturum seçilemedi.",

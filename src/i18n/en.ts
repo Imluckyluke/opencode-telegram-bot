@@ -78,6 +78,8 @@ export const en = {
   "bot.already_enabled": "✅ Bot is already enabled.",
   "deletesessions.started": "🧹 Deleting all sessions…",
   "deletesessions.done": "🧹 Done: deleted {deleted}, failed {failed}. Use /new to start fresh.",
+  "deletesessions.confirm_yes": "✅ Yes, delete all",
+  "deletesessions.confirm_text": "⚠️ This will delete ALL sessions. Tap ✅ below to confirm.",
   "restart.scheduled": "🔄 Restarting… back in a moment.",
 
   "inline.status.title": "📊 Bot status",
@@ -87,6 +89,7 @@ export const en = {
   "inline.posted.text": "⏳ {query}\n\nWorking on it…",  "inline.no_project": "🏗 Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "⏹ Stopped — see the bot chat for details.",
   "inline.open_bot": "🤖 Open bot",
+  "guest.question.reply_hint": "Reply to this message with the number of your answer.",
   "help.text":
     "📖 **Help**\n\n/status - Check server status\n/sessions - Session list\n/new - Create new session\n/help - Help",
 
@@ -242,6 +245,9 @@ export const en = {
   "sessions.page_load_error_callback": "Cannot load this page. Please try again.",
   "sessions.button.prev_page": "⬅️ Prev",
   "sessions.button.next_page": "Next ➡️",
+  "sessions.deleted_callback": "Session deleted.",
+  "sessions.delete_confirm": "Tap 🗑 again to confirm deletion.",
+  "sessions.button.delete": "🗑",
   "sessions.loading_context": "⏳ Loading context and latest messages...",
   "sessions.selected": "✅ Session selected: {title}",
   "sessions.select_error": "🔴 Failed to select session.",

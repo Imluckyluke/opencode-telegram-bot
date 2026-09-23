@@ -3,6 +3,7 @@ import type { Bot, Context } from "grammy";
 import {
   handleBackgroundSessionOpen,
   handleSessionSelect,
+  __resetArmedSessionDeletesForTests,
 } from "../../../src/bot/callbacks/session-callback-handler.js";
 import { sessionsCommand } from "../../../src/bot/commands/sessions-command.js";
 import { buildBackgroundSessionOpenKeyboard } from "../../../src/bot/menus/session-selection-menu.js";
@@ -20,6 +21,9 @@ const mocked = vi.hoisted(() => ({
   sessionListMock: vi.fn(),
   sessionGetMock: vi.fn(),
   sessionMessagesMock: vi.fn(),
+  sessionDeleteMock: vi.fn(),
+  clearSessionMock: vi.fn(),
+  getCurrentSessionMock: vi.fn((): { id: string } | null => null),
   setCurrentSessionMock: vi.fn(),
   clearSummaryMock: vi.fn(),
   clearInteractionMock: vi.fn(),
@@ -51,12 +55,15 @@ vi.mock("../../../src/opencode/client.js", () => ({
       list: mocked.sessionListMock,
       get: mocked.sessionGetMock,
       messages: mocked.sessionMessagesMock,
+      delete: mocked.sessionDeleteMock,
     },
   },
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
   getCurrentProject: vi.fn(() => mocked.currentProject),
+  getCurrentSession: mocked.getCurrentSessionMock,
+  clearSession: mocked.clearSessionMock,
 }));
 
 vi.mock("../../../src/app/services/session-service.js", () => ({
@@ -228,6 +235,7 @@ describe("bot/commands/sessions", () => {
   beforeEach(() => {
     interactionManager.clear("test_setup");
     foregroundSessionState.__resetForTests();
+    __resetArmedSessionDeletesForTests();
     mocked.currentProject = {
       id: "project-1",
       worktree: "/repo",
@@ -236,6 +244,11 @@ describe("bot/commands/sessions", () => {
     mocked.sessionListMock.mockReset();
     mocked.sessionGetMock.mockReset();
     mocked.sessionMessagesMock.mockReset();
+    mocked.sessionDeleteMock.mockReset();
+    mocked.sessionDeleteMock.mockResolvedValue({ data: {}, error: null });
+    mocked.clearSessionMock.mockReset();
+    mocked.getCurrentSessionMock.mockReset();
+    mocked.getCurrentSessionMock.mockReturnValue(null);
     mocked.setCurrentSessionMock.mockReset();
     mocked.clearSummaryMock.mockReset();
     mocked.clearInteractionMock.mockReset();
@@ -743,5 +756,87 @@ describe("bot/commands/sessions", () => {
     expect(handled).toBe(false);
     expect(mocked.sessionGetMock).not.toHaveBeenCalled();
     expect(ctx.answerCallbackQuery).not.toHaveBeenCalled();
+  });
+
+  it("arms a single session delete on first tap without deleting", async () => {
+    interactionManager.start({
+      kind: "inline",
+      expectedInput: "callback",
+      metadata: {
+        menuKind: "session",
+        messageId: 456,
+      },
+    });
+
+    const ctx = createCallbackContext("session:delete:session-1", 456);
+    const handled = await handleSessionSelect(ctx, createDeps());
+
+    expect(handled).toBe(true);
+    expect(mocked.sessionDeleteMock).not.toHaveBeenCalled();
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
+      text: t("sessions.delete_confirm"),
+      show_alert: true,
+    });
+  });
+
+  it("deletes the session on second tap and clears it when current", async () => {
+    mocked.getCurrentSessionMock.mockReturnValue({ id: "session-1" });
+    interactionManager.start({
+      kind: "inline",
+      expectedInput: "callback",
+      metadata: {
+        menuKind: "session",
+        messageId: 456,
+      },
+    });
+
+    expect(await handleSessionSelect(createCallbackContext("session:delete:session-1", 456), createDeps())).toBe(true);
+    const ctx = createCallbackContext("session:delete:session-1", 456);
+    expect(await handleSessionSelect(ctx, createDeps())).toBe(true);
+
+    expect(mocked.sessionDeleteMock).toHaveBeenCalledWith({
+      sessionID: "session-1",
+      directory: "/repo",
+    });
+    expect(mocked.clearSessionMock).toHaveBeenCalledTimes(1);
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("sessions.deleted_callback") });
+    expect(ctx.deleteMessage).toHaveBeenCalled();
+  });
+
+  it("does not clear other sessions when deleting", async () => {
+    mocked.getCurrentSessionMock.mockReturnValue({ id: "session-9" });
+    interactionManager.start({
+      kind: "inline",
+      expectedInput: "callback",
+      metadata: {
+        menuKind: "session",
+        messageId: 456,
+      },
+    });
+
+    await handleSessionSelect(createCallbackContext("session:delete:session-1", 456), createDeps());
+    await handleSessionSelect(createCallbackContext("session:delete:session-1", 456), createDeps());
+
+    expect(mocked.sessionDeleteMock).toHaveBeenCalledTimes(1);
+    expect(mocked.clearSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("reports delete failures without crashing", async () => {
+    mocked.sessionDeleteMock.mockResolvedValueOnce({ data: null, error: new Error("gone") });
+    interactionManager.start({
+      kind: "inline",
+      expectedInput: "callback",
+      metadata: {
+        menuKind: "session",
+        messageId: 456,
+      },
+    });
+
+    await handleSessionSelect(createCallbackContext("session:delete:session-1", 456), createDeps());
+    const ctx = createCallbackContext("session:delete:session-1", 456);
+    expect(await handleSessionSelect(ctx, createDeps())).toBe(true);
+
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("callback.processing_error") });
+    expect(ctx.deleteMessage).not.toHaveBeenCalled();
   });
 });

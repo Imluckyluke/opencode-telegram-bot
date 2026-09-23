@@ -191,6 +191,7 @@ export const ko: I18nDictionary = {
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
   "inline.open_bot": "Open bot",
+  "guest.question.reply_hint": "이 메시지에 답변 번호로 답장하세요.",
 
   "help.intro": "Send any text as a prompt \u2014 no command needed.",
   "help.group.sessions": "Sessions & projects",
@@ -223,6 +224,8 @@ export const ko: I18nDictionary = {
   "bot.already_enabled": "Bot is already enabled.",
   "deletesessions.started": "Deleting all sessions.",
   "deletesessions.done": "Done: deleted {deleted}, failed {failed}.",
+  "deletesessions.confirm_yes": "✅ 예, 모두 삭제",
+  "deletesessions.confirm_text": "⚠️ 모든 세션이 삭제됩니다. 확인하려면 아래 ✅를 누르세요.",
   "restart.scheduled": "Restarting.",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
@@ -259,6 +262,9 @@ export const ko: I18nDictionary = {
   "sessions.page_load_error_callback": "이 페이지를 불러올 수 없습니다. 다시 시도해 주세요.",
   "sessions.button.prev_page": "⬅️ 이전",
   "sessions.button.next_page": "다음 ➡️",
+  "sessions.deleted_callback": "세션이 삭제되었습니다.",
+  "sessions.delete_confirm": "삭제를 확인하려면 🗑를 다시 누르세요.",
+  "sessions.button.delete": "🗑",
   "sessions.loading_context": "⏳ 컨텍스트와 최근 메시지를 불러오는 중...",
   "sessions.selected": "✅ 세션 선택됨: {title}",
   "sessions.select_error": "🔴 세션 선택에 실패했습니다.",

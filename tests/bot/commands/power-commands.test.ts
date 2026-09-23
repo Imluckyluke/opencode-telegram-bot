@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Context } from "grammy";
 import { disableCommand, enableCommand } from "../../../src/bot/commands/power-command.js";
-import { deleteSessionsCommand } from "../../../src/bot/commands/delete-sessions-command.js";
+import {
+  deleteSessionsCommand,
+  handleDeleteSessionsCallback,
+} from "../../../src/bot/commands/delete-sessions-command.js";
 import { restartCommand } from "../../../src/bot/commands/restart-command.js";
 import { t } from "../../../src/i18n/index.js";
 
@@ -120,6 +123,18 @@ describe("bot/commands/delete-sessions-command", () => {
     mocked.clearGuestChatSessionsMock.mockReset();
   });
 
+  function createCallbackContext(data: string): Context {
+    return {
+      from: { id: 111 },
+      chat: { id: 111 },
+      callbackQuery: { data },
+      answerCallbackQuery: vi.fn().mockResolvedValue(undefined),
+      deleteMessage: vi.fn().mockResolvedValue(undefined),
+      reply: vi.fn().mockResolvedValue({ message_id: 7 }),
+      api: { editMessageText: vi.fn().mockResolvedValue(undefined) },
+    } as unknown as Context;
+  }
+
   it("refuses non-owners", async () => {
     mocked.isAllowedTelegramUserMock.mockReturnValue(false);
     const ctx = createContext();
@@ -130,10 +145,55 @@ describe("bot/commands/delete-sessions-command", () => {
     expect(mocked.sessionDeleteMock).not.toHaveBeenCalled();
   });
 
-  it("deletes every session and clears bot state", async () => {
+  it("asks for confirmation instead of wiping immediately", async () => {
     const ctx = createContext();
 
     await deleteSessionsCommand(ctx as never);
+
+    expect(mocked.sessionDeleteMock).not.toHaveBeenCalled();
+    expect(ctx.reply).toHaveBeenCalledWith(
+      t("deletesessions.confirm_text"),
+      expect.objectContaining({
+        reply_markup: expect.objectContaining({
+          inline_keyboard: [
+            [
+              { text: t("deletesessions.confirm_yes"), callback_data: "deletesessions:confirm" },
+              { text: t("inline.button.cancel"), callback_data: "deletesessions:cancel" },
+            ],
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("ignores unrelated callbacks", async () => {
+    const ctx = createCallbackContext("session:whatever");
+
+    expect(await handleDeleteSessionsCallback(ctx as never)).toBe(false);
+    expect(mocked.sessionDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses the confirm button for non-owners", async () => {
+    mocked.isAllowedTelegramUserMock.mockReturnValue(false);
+    const ctx = createCallbackContext("deletesessions:confirm");
+
+    expect(await handleDeleteSessionsCallback(ctx as never)).toBe(true);
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("tier.blocked") });
+    expect(mocked.sessionDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("cancels the wipe without touching sessions", async () => {
+    const ctx = createCallbackContext("deletesessions:cancel");
+
+    expect(await handleDeleteSessionsCallback(ctx as never)).toBe(true);
+    expect(mocked.sessionDeleteMock).not.toHaveBeenCalled();
+    expect(ctx.deleteMessage).toHaveBeenCalled();
+  });
+
+  it("deletes every session and clears bot state on confirm", async () => {
+    const ctx = createCallbackContext("deletesessions:confirm");
+
+    expect(await handleDeleteSessionsCallback(ctx as never)).toBe(true);
 
     expect(mocked.sessionDeleteMock).toHaveBeenCalledTimes(2);
     expect(mocked.clearSessionMock).toHaveBeenCalledTimes(1);
@@ -148,10 +208,10 @@ describe("bot/commands/delete-sessions-command", () => {
   });
 
   it("falls back to a fresh message when the status notice fails to send", async () => {
-    const ctx = createContext();
+    const ctx = createCallbackContext("deletesessions:confirm");
     (ctx.reply as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(undefined);
 
-    await deleteSessionsCommand(ctx as never);
+    expect(await handleDeleteSessionsCallback(ctx as never)).toBe(true);
 
     expect(mocked.sessionDeleteMock).toHaveBeenCalledTimes(2);
     expect(ctx.api.editMessageText).not.toHaveBeenCalled();

@@ -5,7 +5,7 @@ import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { setCurrentSession } from "../../app/services/session-service.js";
 import { applySessionSettings } from "../../app/services/session-settings-service.js";
 import type { SessionInfo } from "../../app/types/session.js";
-import { getCurrentProject } from "../../app/stores/settings-store.js";
+import { clearSession, getCurrentProject, getCurrentSession } from "../../app/stores/settings-store.js";
 import { clearAllInteractionState, interactionManager } from "../../app/managers/interaction-manager.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { appendInlineMenuCancelButton, ensureActiveInlineMenu } from "../menus/inline-menu.js";
@@ -24,11 +24,30 @@ import { truncateTextSafe } from "../render/text-splitter.js";
 import {
   buildSessionSelectionMenuView,
   parseBackgroundSessionCallback,
+  parseSessionDeleteCallback,
   parseSessionIdCallback,
   parseSessionPageCallback,
   SESSION_CALLBACK_PREFIX,
   loadSessionPage,
 } from "../menus/session-selection-menu.js";
+
+// Armed single-session deletes: first tap arms, second tap within the TTL
+// executes. Keyed by chat so one chat cannot confirm another's arming.
+const armedSessionDeletes = new Map<string, number>();
+const SESSION_DELETE_ARM_TTL_MS = 60_000;
+
+/** Test helper: clears armed single-session deletes. */
+export function __resetArmedSessionDeletesForTests(): void {
+  armedSessionDeletes.clear();
+}
+
+function sweepArmedSessionDeletes(now: number): void {
+  for (const [key, armedAt] of armedSessionDeletes) {
+    if (now - armedAt > SESSION_DELETE_ARM_TTL_MS) {
+      armedSessionDeletes.delete(key);
+    }
+  }
+}
 
 export interface SessionSelectDeps {
   bot: Bot<Context>;
@@ -263,9 +282,15 @@ export async function handleSessionSelect(ctx: Context, deps: SessionSelectDeps)
 
   const page = parseSessionPageCallback(callbackQuery.data);
   const sessionId = parseSessionIdCallback(callbackQuery.data);
+  const deleteSessionId = parseSessionDeleteCallback(callbackQuery.data);
 
   const isActiveMenu = await ensureActiveInlineMenu(ctx, "session");
   if (!isActiveMenu) {
+    return true;
+  }
+
+  if (deleteSessionId) {
+    await handleSessionDelete(ctx, deleteSessionId);
     return true;
   }
 
@@ -319,6 +344,57 @@ export async function handleSessionSelect(ctx: Context, deps: SessionSelectDeps)
   }
 
   return true;
+}
+
+/**
+ * Two-tap single session delete from the /sessions menu: the first tap arms
+ * the delete, the second tap within a minute executes it.
+ */
+async function handleSessionDelete(ctx: Context, sessionId: string): Promise<void> {
+  const chatId = ctx.chat?.id;
+  if (typeof chatId !== "number") {
+    await ctx.answerCallbackQuery({ text: t("callback.processing_error") });
+    return;
+  }
+
+  const now = Date.now();
+  sweepArmedSessionDeletes(now);
+  const armKey = `${chatId}:${sessionId}`;
+  if (!armedSessionDeletes.has(armKey)) {
+    armedSessionDeletes.set(armKey, now);
+    await alert(ctx, "sessions.delete_confirm");
+    return;
+  }
+  armedSessionDeletes.delete(armKey);
+
+  try {
+    const currentProject = getCurrentProject();
+    if (!currentProject) {
+      await alert(ctx, "sessions.select_project_first");
+      return;
+    }
+
+    const { error } = await opencodeClient.session.delete({
+      sessionID: sessionId,
+      directory: currentProject.worktree,
+    });
+    if (error) {
+      logger.warn(`[Sessions] Failed to delete session: id=${sessionId}`, error);
+      await failure(ctx, "callback.processing_error");
+      return;
+    }
+
+    if (getCurrentSession()?.id === sessionId) {
+      clearSession();
+    }
+
+    logger.info(`[Sessions] Deleted session from menu: id=${sessionId}`);
+    await ctx.answerCallbackQuery({ text: t("sessions.deleted_callback") });
+    await ctx.deleteMessage().catch(() => {});
+  } catch (error) {
+    logger.error("[Sessions] Error deleting session:", error);
+    await failure(ctx, "callback.processing_error");
+  }
 }
 
 function extractTextParts(

@@ -191,6 +191,7 @@ export const de: I18nDictionary = {
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
   "inline.open_bot": "Open bot",
+  "guest.question.reply_hint": "Antworte auf diese Nachricht mit der Nummer deiner Antwort.",
 
   "help.intro": "Send any text as a prompt \u2014 no command needed.",
   "help.group.sessions": "Sessions & projects",
@@ -223,6 +224,8 @@ export const de: I18nDictionary = {
   "bot.already_enabled": "Bot is already enabled.",
   "deletesessions.started": "Deleting all sessions.",
   "deletesessions.done": "Done: deleted {deleted}, failed {failed}.",
+  "deletesessions.confirm_yes": "✅ Ja, alle löschen",
+  "deletesessions.confirm_text": "⚠️ Alle Sitzungen werden gelöscht. Zum Bestätigen unten auf ✅ tippen.",
   "restart.scheduled": "Restarting.",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
@@ -260,6 +263,9 @@ export const de: I18nDictionary = {
     "Diese Seite kann nicht geladen werden. Bitte versuche es erneut.",
   "sessions.button.prev_page": "⬅️ Zurück",
   "sessions.button.next_page": "Weiter ➡️",
+  "sessions.deleted_callback": "Sitzung gelöscht.",
+  "sessions.delete_confirm": "Zum Bestätigen erneut 🗑 tippen.",
+  "sessions.button.delete": "🗑",
   "sessions.loading_context": "⏳ Lade Kontext und letzte Nachrichten...",
   "sessions.selected": "✅ Sitzung ausgewählt: {title}",
   "sessions.select_error": "🔴 Sitzung konnte nicht ausgewählt werden.",

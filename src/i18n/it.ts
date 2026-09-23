@@ -190,6 +190,7 @@ export const it: I18nDictionary = {
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
   "inline.open_bot": "Open bot",
+  "guest.question.reply_hint": "Rispondi a questo messaggio con il numero della tua risposta.",
 
   "help.intro": "Send any text as a prompt \u2014 no command needed.",
   "help.group.sessions": "Sessions & projects",
@@ -222,6 +223,8 @@ export const it: I18nDictionary = {
   "bot.already_enabled": "Bot is already enabled.",
   "deletesessions.started": "Deleting all sessions.",
   "deletesessions.done": "Done: deleted {deleted}, failed {failed}.",
+  "deletesessions.confirm_yes": "✅ Sì, elimina tutto",
+  "deletesessions.confirm_text": "⚠️ Tutte le sessioni saranno eliminate. Tocca ✅ qui sotto per confermare.",
   "restart.scheduled": "Restarting.",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
@@ -258,6 +261,9 @@ export const it: I18nDictionary = {
   "sessions.page_load_error_callback": "Impossibile caricare questa pagina. Riprova.",
   "sessions.button.prev_page": "⬅️ Prec",
   "sessions.button.next_page": "Succ ➡️",
+  "sessions.deleted_callback": "Sessione eliminata.",
+  "sessions.delete_confirm": "Tocca di nuovo 🗑 per confermare l'eliminazione.",
+  "sessions.button.delete": "🗑",
   "sessions.loading_context": "⏳ Carico contesto e messaggi recenti...",
   "sessions.selected": "✅ Sessione selezionata: {title}",
   "sessions.select_error": "🔴 Selezione della sessione non riuscita.",

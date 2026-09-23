@@ -75,6 +75,8 @@ export const fa: I18nDictionary = {
   "bot.already_enabled": "✅ بات از قبل روشن بود.",
   "deletesessions.started": "🧹 در حال حذف همه سشن‌ها…",
   "deletesessions.done": "🧹 تمام شد: {deleted} حذف، {failed} ناموفق. با /new تازه شروع کن.",
+  "deletesessions.confirm_yes": "✅ بله، همه را حذف کن",
+  "deletesessions.confirm_text": "⚠️ همه سشن‌ها حذف می‌شوند. برای تایید ✅ زیر را بزنید.",
   "restart.scheduled": "🔄 در حال ری‌استارت… یک لحظه صبر کن.",
   "inline.status.title": "📊 وضعیت بات",
   "inline.status.description": "پروژه، گفتگو و مدل جاری",
@@ -84,6 +86,7 @@ export const fa: I18nDictionary = {
   "inline.no_project": "🏗 پروژه انتخاب نشده است. اول در چت بات با /projects یکی انتخاب کن.",
   "inline.interrupted": "⏹ متوقف شد — جزئیات در چت بات.",
   "inline.open_bot": "🤖 باز کردن بات",
+  "guest.question.reply_hint": "برای پاسخ، شماره گزینه را ریپلای همین پیام کنید.",
   "help.text":
     "📖 **راهنما**\n\n/status - بررسی وضعیت سرور\n/sessions - فهرست نشست‌ها\n/new - ایجاد نشست جدید\n/help - راهنما",
 
@@ -238,6 +241,9 @@ export const fa: I18nDictionary = {
   "sessions.page_load_error_callback": "بارگیری این صفحه ممکن نیست. دوباره تلاش کنید.",
   "sessions.button.prev_page": "⬅️ قبلی",
   "sessions.button.next_page": "بعدی ➡️",
+  "sessions.deleted_callback": "سشن حذف شد.",
+  "sessions.delete_confirm": "برای تایید حذف، دوباره 🗑 را بزنید.",
+  "sessions.button.delete": "🗑",
   "sessions.loading_context": "⏳ در حال بارگیری کانتکست و آخرین پیام‌ها...",
   "sessions.selected": "✅ نشست انتخاب شد: {title}",
   "sessions.select_error": "🔴 انتخاب نشست ناموفق بود.",
