@@ -56,4 +56,11 @@ describe("agent-context-service", () => {
     expect(stripAgentContext("do X")).toBe("do X");
     expect(stripAgentContext("[Note: only a note]")).toBe("");
   });
+
+  it("advertises rich message authoring capabilities to the model", () => {
+    const note = buildDefaultContextNote();
+
+    expect(note).toContain("callback_data");
+    expect(note).toContain("core.telegram.org/bots/api");
+  });
 });
