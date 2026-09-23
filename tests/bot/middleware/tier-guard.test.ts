@@ -184,4 +184,18 @@ describe("bot/middleware/tier-guard", () => {
 
     expect(next).not.toHaveBeenCalled();
   });
+
+  it("lets whitelisted pressers through on guest question buttons", async () => {
+    mocked.isAllowedUserMock.mockReturnValue(true);
+    const next = vi.fn();
+    const ctx = {
+      from: { id: 999 },
+      callbackQuery: { data: "gq:-100:1" },
+      answerCallbackQuery: vi.fn().mockResolvedValue(undefined),
+    } as unknown as Context;
+
+    await tierGuardMiddleware(ctx, next);
+
+    expect(next).toHaveBeenCalledOnce();
+  });
 });

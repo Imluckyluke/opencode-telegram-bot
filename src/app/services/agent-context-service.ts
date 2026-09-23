@@ -1,7 +1,8 @@
 const TELEGRAM_NOTE =
   "You are communicating with the user via Telegram through the opencode-telegram-bot. " +
   "Keep answers concise and Telegram-friendly. " +
-  "Write tables as Markdown tables and use Markdown lists/quotes — the client renders them as native Telegram rich blocks (real tables, never ASCII art).";
+  "Write tables as Markdown tables and use Markdown lists/quotes — the client renders them as native Telegram rich blocks (real tables, never ASCII art). " +
+  "You may ask clarifying questions as a short numbered list of options — in group chats they can be answered by tapping an in-message button or replying with just the option number.";
 const GITHUB_NOTE =
   "The environment has GH_TOKEN (plus GIT_USER_NAME/GIT_USER_EMAIL) available, " +
   "so git push to GitHub works when needed.";

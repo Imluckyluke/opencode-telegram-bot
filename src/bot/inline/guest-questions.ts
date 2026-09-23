@@ -21,14 +21,24 @@ export interface GuestPendingQuestion {
 
 export const GUEST_QUESTION_REPLY_TIMEOUT_MS = 5 * 60 * 1000;
 
+/** Callback data prefix for in-message buttons on guest question tables. */
+export const GUEST_QUESTION_CALLBACK_PREFIX = "gq:";
+
 const pendingByChatId = new Map<number, GuestPendingQuestion>();
 
 export function setPendingGuestQuestion(chatId: number, pending: GuestPendingQuestion): void {
   pendingByChatId.set(chatId, pending);
 }
 
-/** Returns the live pending question for a chat, sweeping expired ones. */
-export function peekPendingGuestQuestion(chatId: number, now: number = Date.now()): GuestPendingQuestion | null {
+/**
+ * Atomically takes the live pending question for a chat (sweeping expired
+ * ones). Taking removes it, so a button tap and a numbered reply racing each
+ * other cannot answer twice — the loser finds nothing and stands down.
+ */
+export function claimPendingGuestQuestion(
+  chatId: number,
+  now: number = Date.now(),
+): GuestPendingQuestion | null {
   const pending = pendingByChatId.get(chatId);
   if (!pending) {
     return null;
@@ -37,7 +47,18 @@ export function peekPendingGuestQuestion(chatId: number, now: number = Date.now(
     pendingByChatId.delete(chatId);
     return null;
   }
+  pendingByChatId.delete(chatId);
   return pending;
+}
+
+/** Puts a claimed entry back untouched (e.g. invalid input keeps its expiry). */
+export function restorePendingGuestQuestion(chatId: number, pending: GuestPendingQuestion): void {
+  pendingByChatId.set(chatId, pending);
+}
+
+/** Puts a claimed entry back with a fresh expiry (submit failed, retryable). */
+export function requeuePendingGuestQuestion(chatId: number, pending: GuestPendingQuestion): void {
+  pendingByChatId.set(chatId, { ...pending, expiresAt: Date.now() + GUEST_QUESTION_REPLY_TIMEOUT_MS });
 }
 
 export function clearPendingGuestQuestion(chatId: number): void {
@@ -47,6 +68,29 @@ export function clearPendingGuestQuestion(chatId: number): void {
 /** Test helper: resets module state. */
 export function __resetPendingGuestQuestionsForTests(): void {
   pendingByChatId.clear();
+}
+
+/**
+ * Parses button callback data ("gq:<chatId>:<optionIndex>"). Range is checked
+ * against the pending entry by the caller.
+ */
+export function parseGuestQuestionCallback(data: string): {
+  chatId: number;
+  optionIndex: number;
+} | null {
+  if (!data.startsWith(GUEST_QUESTION_CALLBACK_PREFIX)) {
+    return null;
+  }
+  const match = /^gq:(-?\d+):(\d+)$/.exec(data);
+  if (!match) {
+    return null;
+  }
+  const chatId = Number.parseInt(match[1] as string, 10);
+  const optionIndex = Number.parseInt(match[2] as string, 10);
+  if (!Number.isSafeInteger(chatId) || !Number.isInteger(optionIndex) || optionIndex < 0) {
+    return null;
+  }
+  return { chatId, optionIndex };
 }
 
 /** "3" → 2 (zero-based) when it names one of `optionCount` options. */

@@ -35,10 +35,12 @@ import {
 import type { InteractiveQuestion } from "../inline/run-waiter.js";
 import {
   GUEST_QUESTION_REPLY_TIMEOUT_MS,
+  claimPendingGuestQuestion,
   clearPendingGuestQuestion,
   parseGuestAnswerNumber,
-  peekPendingGuestQuestion,
   renderGuestQuestionTable,
+  requeuePendingGuestQuestion,
+  restorePendingGuestQuestion,
   setPendingGuestQuestion,
   submitGuestQuestionAnswer,
 } from "../inline/guest-questions.js";
@@ -168,30 +170,27 @@ async function tryAnswerPendingGuestQuestion(
   chatId: number,
   text: string,
 ): Promise<boolean> {
-  const pending = peekPendingGuestQuestion(chatId);
+  const pending = claimPendingGuestQuestion(chatId);
   if (!pending) {
     return false;
   }
 
   const pick = parseGuestAnswerNumber(text, pending.options.length);
   if (pick === null) {
-    // Not an answer (and the run is still in flight): leave the question
-    // table with its instruction visible instead of misrouting the message.
+    // Not an answer (and the run is still in flight): put the entry back
+    // untouched and leave the question table with its instruction visible.
+    restorePendingGuestQuestion(chatId, pending);
     logger.debug(`[Bot] Ignoring non-answer while guest question pending: chat=${chatId}`);
     return true;
   }
 
   const submitted = await submitGuestQuestionAnswer(pending, pick);
   if (!submitted) {
-    // Keep the entry so the answer can be retried (expiry still sweeps it).
-    setPendingGuestQuestion(chatId, {
-      ...pending,
-      expiresAt: Date.now() + GUEST_QUESTION_REPLY_TIMEOUT_MS,
-    });
+    // Keep the entry with a fresh expiry so the answer can be retried.
+    requeuePendingGuestQuestion(chatId, pending);
     return true;
   }
 
-  clearPendingGuestQuestion(chatId);
   const label = pending.options[pick]?.label ?? String(pick + 1);
   await editInlineMessage(api, pending.inlineMessageId, pending.question, `✓ ${label}`, false);
   return true;
@@ -309,6 +308,38 @@ async function runInlinePrompt(
 
 const INLINE_RICH_BUDGET_CHARS = 30000;
 
+/**
+ * Posts a guest model question as a numbered table with real in-message
+ * buttons (one row, up to 8 options). Tapping a button and replying with the
+ * number share the same pending entry with atomic claiming, so whichever
+ * arrives first wins. Falls back to the text table when rich edits fail.
+ */
+async function editGuestQuestionMessage(
+  api: Bot<Context>["api"],
+  inlineMessageId: string,
+  tableText: string,
+  chatId: number,
+  options: Array<{ label: string }>,
+): Promise<void> {
+  const buttons = options.slice(0, 8).map((option, index) => ({
+    text: `${index + 1}. ${option.label}`.slice(0, 64),
+    callback_data: `gq:${chatId}:${index}`,
+  }));
+  try {
+    const parts = renderAssistantFinalPartsSafe(truncateInlineText(tableText, INLINE_RICH_BUDGET_CHARS));
+    const blocks = [...parts.flatMap((part) => part.blocks)];
+    if (blocks.length > 0 && buttons.length > 0) {
+      await api.editMessageTextInline(inlineMessageId, {
+        blocks: [...blocks, { type: "buttons" as const, buttons }],
+      });
+      return;
+    }
+  } catch (error) {
+    logger.debug("[Bot] Guest question rich edit failed, retrying as text", error);
+  }
+  await editInlineMessage(api, inlineMessageId, "", tableText, false);
+}
+
 async function editInlineMessage(
   api: Bot<Context>["api"],
   inlineMessageId: string,
@@ -401,12 +432,12 @@ async function streamInlineAnswer(
               inlineMessageId,
               expiresAt: Date.now() + GUEST_QUESTION_REPLY_TIMEOUT_MS,
             });
-            await editInlineMessage(
+            await editGuestQuestionMessage(
               api,
               inlineMessageId,
-              query,
               renderGuestQuestionTable(first, t("guest.question.reply_hint")),
-              false,
+              guest.chatId,
+              first.options,
             );
           },
         }

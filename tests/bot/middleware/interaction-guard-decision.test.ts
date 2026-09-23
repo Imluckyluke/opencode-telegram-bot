@@ -504,4 +504,26 @@ describe("interaction-guard-decision guest updates", () => {
 
     expect(decision.allow).toBe(true);
   });
+
+  it("allows guest question taps during an unrelated DM interaction", () => {
+    interactionManager.start({
+      kind: "rename",
+      expectedInput: "text",
+    });
+    const decision = resolveInteractionGuardDecision(createContext({ callbackData: "gq:-100:0" }));
+
+    expect(decision.allow).toBe(true);
+    expect(decision.inputType).toBe("callback");
+  });
+
+  it("allows guest question taps while the session is busy", () => {
+    foregroundSessionState.markBusy("session-1", "D:\\Repo");
+    try {
+      const decision = resolveInteractionGuardDecision(createContext({ callbackData: "gq:-100:1" }));
+
+      expect(decision.allow).toBe(true);
+    } finally {
+      foregroundSessionState.__resetForTests();
+    }
+  });
 });

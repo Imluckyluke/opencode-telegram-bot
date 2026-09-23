@@ -153,6 +153,12 @@ function isAllowedTaskCallback(ctx: Context, state: InteractionState): boolean {
   );
 }
 
+function isGuestQuestionCallback(ctx: Context): boolean {
+  // Taps on in-message buttons of guest question tables live outside every DM
+  // flow (separate chat, separate session): never block or route them.
+  return ctx.callbackQuery?.data?.startsWith("gq:") === true;
+}
+
 export function resolveInteractionGuardDecision(
   ctx: Context,
   localCommandRegistry?: LocalCommandRegistry,
@@ -173,6 +179,9 @@ export function resolveInteractionGuardDecision(
   }
 
   if (isBusy) {
+    if (isGuestQuestionCallback(ctx)) {
+      return createAllowDecision(inputType, state, command, true);
+    }
     if (inputType === "command") {
       if (state && localCommandRegistry?.has(command)) {
         return createBusyBlockDecision(inputType, state, "command_not_allowed", command);
@@ -241,6 +250,10 @@ export function resolveInteractionGuardDecision(
   }
 
   if (inputType === "callback" && isAllowedTaskCallback(ctx, state)) {
+    return createAllowDecision(inputType, state, command);
+  }
+
+  if (isGuestQuestionCallback(ctx)) {
     return createAllowDecision(inputType, state, command);
   }
 

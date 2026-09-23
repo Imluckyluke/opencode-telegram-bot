@@ -18,13 +18,16 @@ vi.mock("../../../src/utils/logger.js", () => ({
 
 import {
   __resetPendingGuestQuestionsForTests,
+  claimPendingGuestQuestion,
   clearPendingGuestQuestion,
   formatGuestAnswer,
   parseGuestAnswerNumber,
+  parseGuestQuestionCallback,
   renderGuestQuestionTable,
+  requeuePendingGuestQuestion,
+  restorePendingGuestQuestion,
   setPendingGuestQuestion,
   submitGuestQuestionAnswer,
-  peekPendingGuestQuestion,
 } from "../../../src/bot/inline/guest-questions.js";
 
 const OPTIONS = [
@@ -73,7 +76,7 @@ describe("bot/inline/guest-questions", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-16T10:00:00.000Z"));
     try {
-      setPendingGuestQuestion(-100, {
+      const entry = {
         sessionId: "s-1",
         directory: "D:\\Repo",
         requestId: "q-1",
@@ -81,16 +84,77 @@ describe("bot/inline/guest-questions", () => {
         options: OPTIONS,
         inlineMessageId: "inline-1",
         expiresAt: Date.now() + 5 * 60 * 1000,
-      });
+      };
+      setPendingGuestQuestion(-100, entry);
 
-      expect(peekPendingGuestQuestion(-100)?.requestId).toBe("q-1");
-      expect(peekPendingGuestQuestion(-200)).toBeNull();
+      expect(claimPendingGuestQuestion(-200)).toBeNull();
 
       vi.setSystemTime(new Date("2026-03-16T10:06:00.000Z"));
-      expect(peekPendingGuestQuestion(-100)).toBeNull();
+      expect(claimPendingGuestQuestion(-100)).toBeNull();
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("lets only the first claimer answer (button vs numbered race)", () => {
+    setPendingGuestQuestion(-100, {
+      sessionId: "s-1",
+      directory: "D:\\Repo",
+      requestId: "q-1",
+      question: "Pick?",
+      options: OPTIONS,
+      inlineMessageId: "inline-1",
+      expiresAt: Date.now() + 5 * 60 * 1000,
+    });
+
+    expect(claimPendingGuestQuestion(-100)?.requestId).toBe("q-1");
+    expect(claimPendingGuestQuestion(-100)).toBeNull();
+  });
+
+  it("restores entries untouched and requeues them with fresh expiry", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-16T10:00:00.000Z"));
+    try {
+      const entry = {
+        sessionId: "s-1",
+        directory: "D:\\Repo",
+        requestId: "q-1",
+        question: "Pick?",
+        options: OPTIONS,
+        inlineMessageId: "inline-1",
+        expiresAt: Date.now() + 5 * 60 * 1000,
+      };
+      setPendingGuestQuestion(-100, entry);
+
+      const claimed = claimPendingGuestQuestion(-100);
+      expect(claimed?.requestId).toBe("q-1");
+      restorePendingGuestQuestion(-100, claimed!);
+      expect(claimPendingGuestQuestion(-100)?.requestId).toBe("q-1");
+
+      const claimedAgain = claimPendingGuestQuestion(-100);
+      expect(claimedAgain).toBeNull();
+
+      setPendingGuestQuestion(-100, entry);
+      const retry = claimPendingGuestQuestion(-100);
+      expect(retry?.requestId).toBe("q-1");
+      // Requeue with a short original expiry: the fresh 5-minute window
+      // outlives it, proving the extension.
+      requeuePendingGuestQuestion(-100, { ...retry!, expiresAt: Date.now() + 60_000 });
+      vi.setSystemTime(new Date("2026-03-16T10:02:00.000Z"));
+      expect(claimPendingGuestQuestion(-100)?.requestId).toBe("q-1");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("parses button callback data strictly", () => {
+    expect(parseGuestQuestionCallback("gq:-100:2")).toEqual({ chatId: -100, optionIndex: 2 });
+    expect(parseGuestQuestionCallback("gq:123:0")).toEqual({ chatId: 123, optionIndex: 0 });
+    expect(parseGuestQuestionCallback("session:abc")).toBeNull();
+    expect(parseGuestQuestionCallback("gq:abc:1")).toBeNull();
+    expect(parseGuestQuestionCallback("gq:123")).toBeNull();
+    expect(parseGuestQuestionCallback("gq:123:-1")).toBeNull();
+    expect(parseGuestQuestionCallback("gq:123:1:extra")).toBeNull();
   });
 
   it("submits the selected option to the agent", async () => {
@@ -140,6 +204,6 @@ describe("bot/inline/guest-questions", () => {
 
     clearPendingGuestQuestion(-100);
 
-    expect(peekPendingGuestQuestion(-100)).toBeNull();
+    expect(claimPendingGuestQuestion(-100)).toBeNull();
   });
 });

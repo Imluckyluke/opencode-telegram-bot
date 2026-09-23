@@ -142,6 +142,12 @@ function renderBlock(block: RichBlock, state: ConversionState): string {
           .filter(Boolean)
           .join("\n\n"),
       );
+    case "expandable_blockquote":
+      return quoteMarkdown(
+        [renderRichText(block.text), block.credit && `— ${renderRichText(block.credit)}`]
+          .filter(Boolean)
+          .join("\n\n"),
+      );
     case "pullquote":
       return quoteMarkdown(
         [renderRichText(block.text), block.credit && `— ${renderRichText(block.credit)}`]
@@ -156,6 +162,8 @@ function renderBlock(block: RichBlock, state: ConversionState): string {
       ]
         .filter(Boolean)
         .join("\n\n");
+    case "buttons":
+      return block.buttons.map((button) => `[${renderRichText(button.text)}]`).join("\n");
     case "table":
       return renderTable(block.cells, block.caption);
     case "details":
@@ -177,6 +185,7 @@ function renderBlock(block: RichBlock, state: ConversionState): string {
     case "video":
     case "voice_note":
     case "map":
+    case "document":
       state.skippedMediaCount += 1;
       return block.caption ? renderCaption(block.caption) : "";
     default: {
@@ -217,6 +226,8 @@ function renderRichText(text: RichText): string {
       return `==${renderRichText(text.text)}==`;
     case "code":
       return renderInlineCode(plainRichText(text.text));
+    case "button":
+      return renderRichText(text.button.text);
     case "custom_emoji":
       return text.alternative_text;
     case "mathematical_expression":
@@ -261,6 +272,8 @@ function plainRichText(text: RichText): string {
   switch (text.type) {
     case "custom_emoji":
       return text.alternative_text;
+    case "button":
+      return plainRichText(text.button.text);
     case "mathematical_expression":
       return text.expression;
     case "anchor":

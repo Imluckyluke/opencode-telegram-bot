@@ -52,6 +52,13 @@ export async function tierGuardMiddleware(ctx: Context, next: NextFunction): Pro
     return;
   }
 
+  // In-message buttons on guest question tables: any whitelisted presser may
+  // answer (strangers never reach here — auth drops them first).
+  if (ctx.callbackQuery?.data?.startsWith("gq:")) {
+    await next();
+    return;
+  }
+
   if (guestMessage) {
     // Owners already returned above. Granted users (/allow) may summon in
     // guest mode: each ask runs in a fresh session and the answer is posted

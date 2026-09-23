@@ -9,6 +9,7 @@ import { handleAgentSelect } from "./agent-selection-callback-handler.js";
 import { handleCommandsCallback } from "./command-catalog-callback-handler.js";
 import { handleCompactConfirm } from "./context-control-callback-handler.js";
 import { handleDeleteSessionsCallback } from "../commands/delete-sessions-command.js";
+import { handleGuestQuestionCallback } from "./guest-question-callback-handler.js";
 import { handleLsCallback, handleOpenCallback } from "./file-browser-callback-handler.js";
 import { handleInlineMenuCancel } from "./inline-menu-cancel-callback-handler.js";
 import { handleMcpsCallback } from "./mcp-catalog-callback-handler.js";
@@ -92,6 +93,10 @@ export function registerCallbackRouter(bot: Bot<Context>, deps: CallbackRouterDe
     [
       "deletesessions",
       { name: "deletesessions", handlers: [handleDeleteSessionsCallback], errorScope: "none" },
+    ],
+    [
+      "gq",
+      { name: "gq", handlers: [handleGuestQuestionCallback], errorScope: "none" },
     ],
     [
       "language",
