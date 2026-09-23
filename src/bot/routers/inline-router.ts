@@ -125,6 +125,7 @@ async function resolveGuestChatSession(
 ): Promise<InlineSession | null> {
   const mapped = getGuestChatSession(chatId, projectWorktree);
   if (mapped && (await isGuestSessionAlive(mapped.sessionId, mapped.directory))) {
+    logger.info(`[Bot] Reusing guest chat session: chat=${chatId}, session=${mapped.sessionId}`);
     return { id: mapped.sessionId, directory: mapped.directory };
   }
 
@@ -134,6 +135,7 @@ async function resolveGuestChatSession(
   if (!created) {
     return null;
   }
+  logger.info(`[Bot] New guest chat session: chat=${chatId}, session=${created.id}`);
   setGuestChatSession(chatId, {
     sessionId: created.id,
     directory: created.directory,
