@@ -8,11 +8,17 @@ import { getCurrentProject } from "../../app/stores/settings-store.js";
 import { getStoredAgent, resolveProjectAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredInlineModel, getStoredModel } from "../../app/services/model-selection-service.js";
 import { backgroundSessionTracker } from "../../app/managers/background-session-manager.js";
+import {
+  getGuestChatSession,
+  setGuestChatSession,
+  touchGuestChatSession,
+} from "../../app/managers/guest-session-manager.js";
 import { withAgentContext } from "../../app/services/agent-context-service.js";
 import { prepareGuestFiles, type GuestFileInput } from "../inline/guest-files.js";
 import { isSttConfigured } from "../../app/services/stt-service.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { formatErrorDetails } from "../../utils/error-format.js";
+import { extractErrorMessage } from "../../utils/opencode-error.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { isSessionBusy } from "../handlers/prompt.js";
@@ -58,16 +64,11 @@ function buildSnapshot(): InlineSnapshot {
 }
 
 /**
- * Dedicated session for inline runs. It is never set as the current session
- * and never attached, so nothing leaks into the DM chat: the DM pipeline
- * only delivers for the current session, and background notifications for
- * this session are muted. One per project directory, reused across asks.
- */
-/**
- * Every inline/guest ask runs in a FRESH session titled after the question,
- * so answers can never bleed in from previous asks' memory. Nothing is sent
- * to the DM chat: failures are reported through onFailureNotice so the
- * caller can edit the inline message instead.
+ * Guest chats keep ONE persistent session per group chat, so consecutive
+ * summons in the same chat share conversational memory. (Inline answers keep
+ * the previous behavior: a fresh session per tap.) Sessions are tracked in
+ * guest-session-manager with TTL + LRU bounds; chat identity comes from the
+ * server-set guest message chat id.
  */
 const INLINE_SESSION_TITLE_PREFIX = "⚡ ";
 
@@ -97,6 +98,48 @@ async function createInlineSession(
   await ingestSessionInfoForCache(data).catch(() => {});
   return { id: data.id, directory };
 }
+
+/**
+ * Resolves the persistent session for a guest chat: reuses the tracked one
+ * when it is still alive server-side, otherwise creates (and tracks) a new
+ * one. Returns null when no session was recorded and creation failed.
+ */
+async function resolveGuestChatSession(
+  chatId: number,
+  projectWorktree: string,
+): Promise<InlineSession | null> {
+  const mapped = getGuestChatSession(chatId, projectWorktree);
+  if (mapped && (await isGuestSessionAlive(mapped.sessionId, mapped.directory))) {
+    return { id: mapped.sessionId, directory: mapped.directory };
+  }
+
+  const created = await createInlineSession(projectWorktree, `Guest chat ${chatId}`).catch(
+    () => null,
+  );
+  if (!created) {
+    return null;
+  }
+  setGuestChatSession(chatId, {
+    sessionId: created.id,
+    directory: created.directory,
+    projectWorktree,
+  });
+  return created;
+}
+
+async function isGuestSessionAlive(sessionId: string, directory: string): Promise<boolean> {
+  try {
+    const { error } = await opencodeClient.session.get({ sessionID: sessionId, directory });
+    if (!error) {
+      return true;
+    }
+    // Only a positive "not found" means gone; anything else is treated as
+    // alive so transient errors surface through the normal prompt path.
+    return !extractErrorMessage(error)?.includes("Session not found");
+  } catch {
+    return true;
+  }
+}
 async function runInlinePrompt(
   deps: InlineRouterDeps,
   api: Bot<Context>["api"],
@@ -104,6 +147,7 @@ async function runInlinePrompt(
   onFailureNotice: (notice: string) => void,
   files: GuestFileInput[] = [],
   hasRealText = true,
+  existingSession: InlineSession | null = null,
 ): Promise<{ sessionId: string; directory: string; startedAt: number } | null> {
   const project = getCurrentProject();
   if (!project) {
@@ -115,7 +159,9 @@ async function runInlinePrompt(
     return null;
   }
 
-  const inlineSession = await createInlineSession(project.worktree, text).catch(() => null);
+  const inlineSession =
+    existingSession ??
+    (await createInlineSession(project.worktree, text).catch(() => null));
   if (!inlineSession) {
     onFailureNotice(t("bot.create_session_error"));
     return null;
@@ -461,8 +507,28 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       return;
     }
     try {
-      const run = await runInlinePrompt(deps, bot.api, promptText, notifyGuest, files, ownText.trim().length > 0);
+      // One persistent session per guest chat: consecutive summons in the same
+      // group share conversational memory. Falls back to a fresh session when
+      // the chat id is missing or no session could be established.
+      const chatId = typeof guest.chat?.id === "number" ? guest.chat.id : null;
+      const project = getCurrentProject();
+      let existingSession: InlineSession | null = null;
+      if (chatId !== null && project) {
+        existingSession = await resolveGuestChatSession(chatId, project.worktree);
+      }
+      const run = await runInlinePrompt(
+        deps,
+        bot.api,
+        promptText,
+        notifyGuest,
+        files,
+        ownText.trim().length > 0,
+        existingSession,
+      );
       if (run) {
+        if (chatId !== null && existingSession) {
+          touchGuestChatSession(chatId);
+        }
         void streamInlineAnswer(
           bot.api,
           inlineMessageId,
