@@ -147,4 +147,41 @@ describe("bot/middleware/tier-guard", () => {
 
     expect(next).toHaveBeenCalledOnce();
   });
+
+  function guestContext(callerId: number): Context {
+    return {
+      from: { id: callerId },
+      update: {
+        guest_message: { guest_bot_caller_user: { id: callerId } },
+      },
+    } as unknown as Context;
+  }
+
+  it("lets owners summon in guest mode", async () => {
+    mocked.isAllowedTelegramUserMock.mockReturnValue(true);
+    const next = vi.fn();
+
+    await tierGuardMiddleware(guestContext(111), next);
+
+    expect(next).toHaveBeenCalledOnce();
+  });
+
+  it("lets granted users summon in guest mode without touching shared state", async () => {
+    mocked.isAllowedUserMock.mockReturnValue(true);
+    const next = vi.fn();
+
+    await tierGuardMiddleware(guestContext(999), next);
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(mocked.processUserLaneMessageMock).not.toHaveBeenCalled();
+  });
+
+  it("silently drops guest summons from strangers", async () => {
+    const next = vi.fn();
+    const ctx = guestContext(666);
+
+    await tierGuardMiddleware(ctx, next);
+
+    expect(next).not.toHaveBeenCalled();
+  });
 });

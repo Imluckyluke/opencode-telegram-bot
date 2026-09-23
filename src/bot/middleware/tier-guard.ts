@@ -10,8 +10,9 @@ import { logger } from "../../utils/logger.js";
  * - Owners (env whitelist): everything, exactly as before.
  * - Granted users: exactly ONE personal chat session. Only plain content
  *   (text/voice/photo/files) flows into their lane; every command, button,
- *   inline query, and guest summons is denied. They never touch shared
- *   state (sessions, settings, keyboard, pinned dashboard).
+ *   and inline query is denied. Guest summons ARE allowed: each ask runs in
+ *   a fresh session and the answer is posted in place, so shared state
+ *   (sessions, settings, keyboard, pinned dashboard) is never touched.
  * - When disabled (/disable): only owner /enable passes; everyone else gets
  *   a notice (or silence where no chat exists).
  */
@@ -52,13 +53,18 @@ export async function tierGuardMiddleware(ctx: Context, next: NextFunction): Pro
   }
 
   if (guestMessage) {
-    // Guest summons are denied for everyone below owner tier (granted users
-    // are restricted to their personal lane). Owners already returned above,
-    // so guest mode keeps working for them. Silent drop: there is no DM chat
-    // to notify and the inline/guest handler stays authoritative.
-    logger.debug(
-      `[TierGuard] Denied guest summons for non-owner userId=${userId}, guestCallerId=${guestCallerId}`,
-    );
+    // Owners already returned above. Granted users (/allow) may summon in
+    // guest mode: each ask runs in a fresh session and the answer is posted
+    // in place, so shared state is never touched. Strangers are dropped here
+    // (auth upstream already stops them; this is defense in depth).
+    const callerAllowed = isAllowedUser(guestCallerId) || isAllowedUser(userId);
+    if (!callerAllowed) {
+      logger.debug(
+        `[TierGuard] Denied guest summons for non-whitelisted userId=${userId}, guestCallerId=${guestCallerId}`,
+      );
+      return;
+    }
+    await next();
     return;
   }
 

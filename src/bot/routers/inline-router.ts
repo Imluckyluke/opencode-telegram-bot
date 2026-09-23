@@ -267,11 +267,28 @@ async function streamInlineAnswer(
     sessionId,
     directory,
     startedAt,
+    // Inline/guest runs cannot answer questions or permissions: fail fast with
+    // a clear notice instead of holding the shared run flag until timeout.
+    failFastOnInteractive: true,
     onProgress: async (text) =>
       editInlineMessage(api, inlineMessageId, query, text, includeQuestion),
   });
   if (result?.completed) {
     logger.info(`[Bot] Inline answer delivered: session=${sessionId}`);
+    return;
+  }
+  if (result?.blocked) {
+    await editInlineMessage(
+      api,
+      inlineMessageId,
+      query,
+      t(
+        result.blocked === "question"
+          ? "task.run.error.interactive_question"
+          : "task.run.error.interactive_permission",
+      ),
+      includeQuestion,
+    );
     return;
   }
   if (!result) {

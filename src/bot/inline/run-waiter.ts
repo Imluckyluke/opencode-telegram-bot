@@ -83,6 +83,12 @@ export interface RunWaiterResult {
   text: string;
   /** True when a completion was observed (answer fully delivered). */
   completed: boolean;
+  /**
+   * Set when the run asked an interactive question/permission: guest and
+   * inline runs have no way to answer those, so the request was rejected and
+   * the session aborted instead of hanging until the timeout.
+   */
+  blocked?: "question" | "permission";
 }
 
 export interface WaitForCompletionOptions {
@@ -94,6 +100,70 @@ export interface WaitForCompletionOptions {
   throttleMs?: number;
   /** Called with new text; return true when it was delivered. */
   onProgress: (text: string, completed: boolean) => Promise<boolean>;
+  /**
+   * When true, a pending question/permission for the session fails fast
+   * (reject + abort) instead of holding the run until the timeout. Opt-in:
+   * DM flows keep waiting so interactive runs can be answered in chat.
+   */
+  failFastOnInteractive?: boolean;
+}
+
+type PendingInteractiveRequest =
+  | { kind: "question"; id: string }
+  | { kind: "permission"; id: string };
+
+async function detectInteractiveRequest(
+  sessionId: string,
+  directory: string,
+): Promise<PendingInteractiveRequest | null> {
+  try {
+    const [questionsResult, permissionsResult] = await Promise.all([
+      opencodeClient.question.list({ directory }),
+      opencodeClient.permission.list({ directory }),
+    ]);
+    const question = questionsResult.data?.find(
+      (request) => (request as { sessionID?: string }).sessionID === sessionId,
+    );
+    if (question) {
+      return { kind: "question", id: (question as { id: string }).id };
+    }
+    const permission = permissionsResult.data?.find(
+      (request) => (request as { sessionID?: string }).sessionID === sessionId,
+    );
+    if (permission) {
+      return { kind: "permission", id: (permission as { id: string }).id };
+    }
+  } catch (error) {
+    logger.debug("[Bot] Interactive request check failed, will retry next poll:", error);
+  }
+  return null;
+}
+
+async function rejectInteractiveRequest(
+  request: PendingInteractiveRequest,
+  sessionId: string,
+  directory: string,
+): Promise<void> {
+  try {
+    if (request.kind === "question") {
+      await opencodeClient.question.reject({ requestID: request.id, directory });
+    } else {
+      await opencodeClient.permission.reply({
+        requestID: request.id,
+        directory,
+        reply: "reject",
+        message: "This run cannot continue because it requires interactive permission.",
+      });
+    }
+  } catch (error) {
+    logger.warn("[Bot] Failed to reject interactive request:", error);
+  }
+
+  try {
+    await opencodeClient.session.abort({ sessionID: sessionId, directory });
+  } catch (error) {
+    logger.warn("[Bot] Failed to abort session blocked on interactive input:", error);
+  }
 }
 
 /**
@@ -113,6 +183,7 @@ export async function waitForAssistantCompletion(
     pollMs = RUN_WAITER_POLL_MS,
     throttleMs = RUN_WAITER_EDIT_THROTTLE_MS,
     onProgress,
+    failFastOnInteractive = false,
   } = options;
   const deadline = Date.now() + timeoutMs;
   let lastSent = "";
@@ -131,6 +202,14 @@ export async function waitForAssistantCompletion(
       if (await onProgress(snapshot.text, snapshot.completed)) {
         lastSent = snapshot.text;
         lastEditAt = now;
+      }
+    }
+    if (failFastOnInteractive) {
+      const blocked = await detectInteractiveRequest(sessionId, directory);
+      if (blocked) {
+        logger.warn(`[Bot] Run blocked on ${blocked.kind}, rejecting without waiting: session=${sessionId}`);
+        await rejectInteractiveRequest(blocked, sessionId, directory);
+        return { text: lastSent, completed: false, blocked: blocked.kind };
       }
     }
     if (now > deadline) {
