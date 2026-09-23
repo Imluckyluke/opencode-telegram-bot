@@ -35,6 +35,7 @@ import {
 import type { InteractiveQuestion } from "../inline/run-waiter.js";
 import {
   GUEST_QUESTION_REPLY_TIMEOUT_MS,
+  buildGuestQuestionBlocks,
   claimPendingGuestQuestion,
   clearPendingGuestQuestion,
   parseGuestAnswerNumber,
@@ -309,35 +310,34 @@ async function runInlinePrompt(
 const INLINE_RICH_BUDGET_CHARS = 30000;
 
 /**
- * Posts a guest model question as a numbered table with real in-message
- * buttons (one row, up to 8 options). Tapping a button and replying with the
- * number share the same pending entry with atomic claiming, so whichever
- * arrives first wins. Falls back to the text table when rich edits fail.
+ * Posts a guest model question as a real table plus one button row per
+ * option (a single row of buttons is unreadable). Tapping a button and
+ * replying with the number share the same pending entry with atomic
+ * claiming, so whichever arrives first wins. Falls back to the numbered
+ * text table when rich edits fail.
  */
 async function editGuestQuestionMessage(
   api: Bot<Context>["api"],
   inlineMessageId: string,
-  tableText: string,
+  question: InteractiveQuestion,
   chatId: number,
-  options: Array<{ label: string }>,
+  hint: string,
 ): Promise<void> {
-  const buttons = options.slice(0, 8).map((option, index) => ({
-    text: `${index + 1}. ${option.label}`.slice(0, 64),
-    callback_data: `gq:${chatId}:${index}`,
-  }));
   try {
-    const parts = renderAssistantFinalPartsSafe(truncateInlineText(tableText, INLINE_RICH_BUDGET_CHARS));
-    const blocks = [...parts.flatMap((part) => part.blocks)];
-    if (blocks.length > 0 && buttons.length > 0) {
-      await api.editMessageTextInline(inlineMessageId, {
-        blocks: [...blocks, { type: "buttons" as const, buttons }],
-      });
-      return;
-    }
+    await api.editMessageTextInline(inlineMessageId, {
+      blocks: buildGuestQuestionBlocks(question, chatId),
+    });
+    return;
   } catch (error) {
     logger.debug("[Bot] Guest question rich edit failed, retrying as text", error);
   }
-  await editInlineMessage(api, inlineMessageId, "", tableText, false);
+  await editInlineMessage(
+    api,
+    inlineMessageId,
+    "",
+    renderGuestQuestionTable(question, hint),
+    false,
+  );
 }
 
 async function editInlineMessage(
@@ -435,9 +435,9 @@ async function streamInlineAnswer(
             await editGuestQuestionMessage(
               api,
               inlineMessageId,
-              renderGuestQuestionTable(first, t("guest.question.reply_hint")),
+              first,
               guest.chatId,
-              first.options,
+              t("guest.question.reply_hint"),
             );
           },
         }

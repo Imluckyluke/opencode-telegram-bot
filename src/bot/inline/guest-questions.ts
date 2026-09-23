@@ -1,5 +1,6 @@
 import { opencodeClient } from "../../opencode/client.js";
 import { logger } from "../../utils/logger.js";
+import type { TelegramRichBlock } from "../render/types.js";
 import type { InteractiveQuestion } from "./run-waiter.js";
 
 /**
@@ -117,6 +118,45 @@ export function renderGuestQuestionTable(
   });
   lines.push("", hint);
   return lines.join("\n");
+}
+
+/**
+ * Rich version of the question table: the question, a real table with one
+ * row per option, and one button row per option (a single row of buttons is
+ * unreadable). Short labels ride on their button, long ones are replaced by
+ * their number since the table already shows the full text.
+ */
+export function buildGuestQuestionBlocks(
+  question: InteractiveQuestion,
+  chatId: number,
+): TelegramRichBlock[] {
+  const headerRow = [
+    { text: "#", is_header: true as const, align: "right" as const, valign: "top" as const },
+    { text: "Option", is_header: true as const, align: "left" as const, valign: "top" as const },
+  ];
+  const bodyRows = question.options.map((option, index) => {
+    const suffix = option.description ? ` — ${option.description}` : "";
+    return [
+      { text: String(index + 1), align: "right" as const, valign: "top" as const },
+      { text: `${option.label}${suffix}`, align: "left" as const, valign: "top" as const },
+    ];
+  });
+
+  const blocks: TelegramRichBlock[] = [
+    { type: "paragraph", text: `❓ ${question.question.trim()}` },
+    { type: "table", is_bordered: true, cells: [headerRow, ...bodyRows] },
+  ];
+
+  question.options.slice(0, 8).forEach((option, index) => {
+    const full = `${index + 1}. ${option.label}`;
+    const text = full.length > 32 ? String(index + 1) : full;
+    blocks.push({
+      type: "buttons",
+      buttons: [{ text: text.slice(0, 64), callback_data: `gq:${chatId}:${index}` }],
+    });
+  });
+
+  return blocks;
 }
 
 /** Formats the selected option the way DM answers do ("* Label: Description"). */

@@ -18,6 +18,7 @@ vi.mock("../../../src/utils/logger.js", () => ({
 
 import {
   __resetPendingGuestQuestionsForTests,
+  buildGuestQuestionBlocks,
   claimPendingGuestQuestion,
   clearPendingGuestQuestion,
   formatGuestAnswer,
@@ -205,5 +206,57 @@ describe("bot/inline/guest-questions", () => {
     clearPendingGuestQuestion(-100);
 
     expect(claimPendingGuestQuestion(-100)).toBeNull();
+  });
+
+  it("builds one button row per option with a rich table", () => {
+    const blocks = buildGuestQuestionBlocks(
+      {
+        question: "Pick one?",
+        options: [
+          { label: "Alpha", description: "first" },
+          { label: "Beta" },
+        ],
+      },
+      -100,
+    );
+
+    expect(blocks[0]).toMatchObject({ type: "paragraph" });
+    const table = blocks[1];
+    expect(table).toMatchObject({ type: "table" });
+    if (table?.type === "table") {
+      expect(table.cells.length).toBe(3);
+    }
+    const buttonRows = blocks.slice(2);
+    expect(buttonRows).toHaveLength(2);
+    expect(buttonRows[0]).toEqual({
+      type: "buttons",
+      buttons: [{ text: "1. Alpha", callback_data: "gq:-100:0" }],
+    });
+    expect(buttonRows[1]).toEqual({
+      type: "buttons",
+      buttons: [{ text: "2. Beta", callback_data: "gq:-100:1" }],
+    });
+  });
+
+  it("shows only the number on buttons with long labels", () => {
+    const blocks = buildGuestQuestionBlocks(
+      {
+        question: "Pick?",
+        options: [{ label: "A very long option label that exceeds the button budget by far" }],
+      },
+      7,
+    );
+
+    expect(blocks[blocks.length - 1]).toEqual({
+      type: "buttons",
+      buttons: [{ text: "1", callback_data: "gq:7:0" }],
+    });
+  });
+
+  it("caps buttons at eight per message", () => {
+    const options = Array.from({ length: 10 }, (_, index) => ({ label: `Option ${index + 1}` }));
+    const blocks = buildGuestQuestionBlocks({ question: "Pick?", options }, 7);
+
+    expect(blocks.filter((block) => block.type === "buttons")).toHaveLength(8);
   });
 });
