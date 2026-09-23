@@ -58,12 +58,15 @@ export function getHomeDirectory(): string {
 
 export function pathToDisplayPath(absolutePath: string): string {
   const home = getHomeDirectory();
-  if (absolutePath === home) {
+  // OpenCode may report forward-slash paths on Windows; normalize separators
+  // before comparing so the `~` collapse still applies.
+  const normalizedPath = path.sep === "/" ? absolutePath : absolutePath.replace(/\//g, path.sep);
+  if (normalizedPath === home) {
     return "~";
   }
 
-  if (absolutePath.startsWith(home + path.sep)) {
-    return "~" + absolutePath.slice(home.length);
+  if (normalizedPath.startsWith(home + path.sep)) {
+    return "~" + normalizedPath.slice(home.length);
   }
 
   return absolutePath;

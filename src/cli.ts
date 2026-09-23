@@ -36,7 +36,8 @@ const CLI_MESSAGES = {
   stopAlreadyStopped: "OpenCode Telegram Bot daemon is not running.",
   linePid: (pid: number) => `PID: ${pid}`,
   lineStartedAt: (startedAt: string) => `Started at: ${startedAt}`,
-  lineUptimeSec: (seconds: number) => `Uptime: ${seconds} sec`,
+  lineUptimeSec: (seconds: number | null) =>
+    seconds === null ? "Uptime: unknown" : `Uptime: ${seconds} sec`,
   lineLogFile: (filePath: string) => `Log file: ${filePath}`,
   lineAppHome: (appHome: string) => `App home: ${appHome}`,
 } as const;
@@ -71,7 +72,10 @@ function formatServiceDetails(details: {
   logFilePath: string;
   appHome: string;
 }): string {
-  const uptimeSec = Math.max(0, Math.floor((Date.now() - Date.parse(details.startedAt)) / 1000));
+  const startedAtMs = Date.parse(details.startedAt);
+  const uptimeSec = Number.isNaN(startedAtMs)
+    ? null
+    : Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
 
   return [
     CLI_MESSAGES.linePid(details.pid),

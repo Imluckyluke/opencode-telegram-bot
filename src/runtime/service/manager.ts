@@ -160,13 +160,30 @@ async function stopWindowsProcess(pid: number, timeoutMs: number): Promise<void>
 }
 
 async function stopUnixProcess(pid: number, timeoutMs: number): Promise<void> {
-  process.kill(pid, "SIGTERM");
+  try {
+    process.kill(pid, "SIGTERM");
+  } catch (error) {
+    // Already dead: nothing to stop (mirrors the Windows path, which treats
+    // a missing process as stopped instead of failing the stop command).
+    if ((error as NodeJS.ErrnoException)?.code === "ESRCH") {
+      return;
+    }
+    throw error;
+  }
 
   if (await waitForProcessExit(pid, timeoutMs)) {
     return;
   }
 
-  process.kill(pid, "SIGKILL");
+  try {
+    process.kill(pid, "SIGKILL");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ESRCH") {
+      return;
+    }
+    throw error;
+  }
+
   await waitForProcessExit(pid, timeoutMs);
 }
 

@@ -55,6 +55,15 @@ describe("file-tree", () => {
     it("should return absolute path unchanged if not under home", () => {
       expect(pathToDisplayPath("/tmp/something")).toBe("/tmp/something");
     });
+
+    it("should collapse forward-slash home paths regardless of separator style", () => {
+      const home = os.homedir();
+      const forwardSlashHome = home.replace(/\\/g, "/");
+      expect(pathToDisplayPath(forwardSlashHome)).toBe("~");
+      expect(pathToDisplayPath(`${forwardSlashHome}/projects/app`)).toBe(
+        `~${path.sep}projects${path.sep}app`,
+      );
+    });
   });
 
   describe("scanDirectory", () => {

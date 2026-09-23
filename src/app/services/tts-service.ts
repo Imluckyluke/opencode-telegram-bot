@@ -1,5 +1,6 @@
-import { config } from "../../config.js";
+import { config, defaultTtsVoice } from "../../config.js";
 import { logger } from "../../utils/logger.js";
+import { getLocale } from "../../i18n/index.js";
 import { synthesizeWithEdgeTts, EDGE_DEFAULT_VOICE } from "./edge-tts.js";
 
 // Loaded lazily: the Google client pulls in a heavy dependency tree
@@ -75,6 +76,18 @@ export function extractLanguageCode(voiceName: string): string {
   return match?.[1] ?? "en-US";
 }
 
+/**
+ * Voice to synthesize with: an explicit TTS_VOICE always wins, otherwise the
+ * default follows the *current* UI locale so an in-chat /language switch does
+ * not leave a stale startup-locale voice behind.
+ */
+function resolveTtsVoice(fallback: string): string {
+  if (config.tts.voiceExplicit) {
+    return config.tts.voice || fallback;
+  }
+  return defaultTtsVoice(config.tts.provider, getLocale());
+}
+
 /** Trims whitespace and trailing slashes so base URLs join cleanly. */
 function normalizeApiUrl(apiUrl: string): string {
   return apiUrl.trim().replace(/\/+$/, "");
@@ -101,7 +114,7 @@ export function _resetGoogleClient(): void {
 
 async function synthesizeWithGoogle(text: string): Promise<TtsResult> {
   const client = await getGoogleClient();
-  const voiceName = config.tts.voice || "en-US-Studio-O";
+  const voiceName = resolveTtsVoice("en-US-Studio-O");
   const languageCode = extractLanguageCode(voiceName);
 
   logger.debug(
@@ -157,7 +170,7 @@ async function synthesizeWithOpenAi(text: string): Promise<TtsResult> {
       },
       body: JSON.stringify({
         model: config.tts.model,
-        voice: config.tts.voice,
+        voice: resolveTtsVoice("alloy"),
         input: text,
         response_format: "mp3",
       }),
@@ -185,7 +198,7 @@ async function synthesizeWithOpenAi(text: string): Promise<TtsResult> {
 
 async function synthesizeWithElevenLabs(text: string): Promise<TtsResult> {
   const apiUrl = normalizeApiUrl(config.tts.apiUrl);
-  const voiceId = config.tts.voice || "21m00Tcm4TlvDq8ikWAM";
+  const voiceId = resolveTtsVoice("21m00Tcm4TlvDq8ikWAM");
   const url = `${apiUrl}/text-to-speech/${encodeURIComponent(voiceId)}`;
 
   logger.debug(
@@ -230,7 +243,7 @@ async function synthesizeWithElevenLabs(text: string): Promise<TtsResult> {
 }
 
 async function synthesizeWithEdge(text: string): Promise<TtsResult> {
-  const voice = config.tts.voice || EDGE_DEFAULT_VOICE;
+  const voice = resolveTtsVoice(EDGE_DEFAULT_VOICE);
 
   logger.debug(
     `[TTS] Edge: voice=${voice}, chars=${text.length}`,

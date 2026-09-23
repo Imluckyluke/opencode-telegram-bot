@@ -24,28 +24,42 @@ fi
 start_server() {
   (cd /workspace && opencode serve --hostname 0.0.0.0 --port "$PORT") &
   SERVER_PID=$!
+  SERVER_STARTED_AT=$(date +%s)
   echo "entrypoint: opencode starting (pid=$SERVER_PID), waiting for $OPENCODE_API_URL"
 }
 
 start_bot() {
   node dist/index.js &
   BOT_PID=$!
+  BOT_STARTED_AT=$(date +%s)
   echo "entrypoint: bot starting (pid=$BOT_PID)"
 }
 
-trap 'SHUTDOWN=1; kill $SERVER_PID $BOT_PID 2>/dev/null; wait' TERM INT
+trap 'SHUTDOWN=1; kill ${SERVER_PID:-} ${BOT_PID:-} 2>/dev/null; wait' TERM INT
 
 # Supervise both children: a crash used to take down the whole container
 # (wait -n). Now only the failed child is restarted; the survivor keeps
 # running so chat state and SSE streams are not needlessly dropped.
+# Restarts back off exponentially (2s per consecutive failure, capped at 60s)
+# and give up after 25 consecutive rapid failures so Railway's own
+# ON_FAILURE policy takes over instead of hot-looping forever. A child that
+# survives 5 minutes resets the counter.
 SHUTDOWN=""
 RESTARTS=0
+MAX_RESTARTS=25
+RESTART_BACKOFF_CAP=60
+STABILITY_WINDOW=300
 start_server
 # wait for initial readiness before starting the bot (bounded, see below)
 READY_ATTEMPT=0
+# Readiness probe via a netrc file so the server password never appears in the
+# process table (curl -u user:pass would leak it to `ps`).
+NETRC_FILE="$(mktemp)"
+chmod 600 "$NETRC_FILE"
+printf 'machine 127.0.0.1 login %s password %s\n' "$OPENCODE_SERVER_USERNAME" "$OPENCODE_SERVER_PASSWORD" > "$NETRC_FILE"
 for i in $(seq 1 60); do
   READY_ATTEMPT=$i
-  if curl -sf --max-time 5 -u "$OPENCODE_SERVER_USERNAME:$OPENCODE_SERVER_PASSWORD" "$OPENCODE_API_URL/app" >/dev/null 2>&1; then break; fi
+  if curl -sf --max-time 5 --netrc-file "$NETRC_FILE" "$OPENCODE_API_URL/app" >/dev/null 2>&1; then break; fi
   sleep 1
 done
 echo "entrypoint: opencode wait finished after ${READY_ATTEMPT}s"
@@ -65,19 +79,48 @@ while [ -z "$SHUTDOWN" ]; do
   if [ -n "$SHUTDOWN" ]; then
     break
   fi
-  RESTARTS=$((RESTARTS + 1))
+  NOW=$(date +%s)
   if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-    echo "entrypoint: opencode server died (status=$STATUS, restarts=$RESTARTS), restarting it"
+    if [ $((NOW - SERVER_STARTED_AT)) -gt "$STABILITY_WINDOW" ]; then
+      RESTARTS=0
+    fi
+    RESTARTS=$((RESTARTS + 1))
+    if [ "$RESTARTS" -gt "$MAX_RESTARTS" ]; then
+      echo "entrypoint: too many consecutive rapid server restarts ($RESTARTS), giving up for platform restart policy"
+      rm -f "$NETRC_FILE"
+      exit 1
+    fi
+    BACKOFF=$((RESTARTS * 2))
+    if [ "$BACKOFF" -gt "$RESTART_BACKOFF_CAP" ]; then
+      BACKOFF=$RESTART_BACKOFF_CAP
+    fi
+    echo "entrypoint: opencode server died (status=$STATUS, restarts=$RESTARTS, backoff=${BACKOFF}s), restarting it"
+    sleep "$BACKOFF"
     start_server
   fi
   if ! kill -0 "$BOT_PID" 2>/dev/null; then
-    echo "entrypoint: bot died (status=$STATUS, restarts=$RESTARTS), restarting it"
+    if [ $((NOW - BOT_STARTED_AT)) -gt "$STABILITY_WINDOW" ]; then
+      RESTARTS=0
+    fi
+    RESTARTS=$((RESTARTS + 1))
+    if [ "$RESTARTS" -gt "$MAX_RESTARTS" ]; then
+      echo "entrypoint: too many consecutive rapid bot restarts ($RESTARTS), giving up for platform restart policy"
+      rm -f "$NETRC_FILE"
+      exit 1
+    fi
+    BACKOFF=$((RESTARTS * 2))
+    if [ "$BACKOFF" -gt "$RESTART_BACKOFF_CAP" ]; then
+      BACKOFF=$RESTART_BACKOFF_CAP
+    fi
+    echo "entrypoint: bot died (status=$STATUS, restarts=$RESTARTS, backoff=${BACKOFF}s), restarting it"
+    sleep "$BACKOFF"
     start_bot
   fi
   sleep 2
 done
 
 echo "entrypoint: shutting down"
-kill $SERVER_PID $BOT_PID 2>/dev/null || true
+rm -f "$NETRC_FILE"
+kill ${SERVER_PID:-} ${BOT_PID:-} 2>/dev/null || true
 wait
 exit 0

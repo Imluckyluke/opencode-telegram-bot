@@ -27,9 +27,13 @@ vi.mock("@google-cloud/text-to-speech", () => {
 });
 
 const mockEdgeSynth = vi.hoisted(() => vi.fn());
-vi.mock("../../../src/app/services/edge-tts.js", () => ({
-  synthesizeWithEdgeTts: mockEdgeSynth,
-}));
+vi.mock("../../../src/app/services/edge-tts.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../src/app/services/edge-tts.js")>();
+  return {
+    ...actual,
+    synthesizeWithEdgeTts: mockEdgeSynth,
+  };
+});
 
 const mockTts = vi.hoisted(() => ({
   apiUrl: "",
@@ -37,9 +41,28 @@ const mockTts = vi.hoisted(() => ({
   provider: "openai" as string,
   model: "gpt-4o-mini-tts",
   voice: "alloy",
+  voiceExplicit: true,
 }));
 
+const mockDefaultTtsVoice = vi.hoisted(
+  () =>
+    (provider: string, locale: string): string => {
+      const isFa = locale === "fa";
+      if (provider === "google") {
+        return isFa ? "fa-IR-Standard-A" : "en-US-Studio-O";
+      }
+      if (provider === "elevenlabs") {
+        return "21m00Tcm4TlvDq8ikWAM";
+      }
+      if (provider === "edge") {
+        return isFa ? "fa-IR-DilaraNeural" : "en-US-EmmaMultilingualNeural";
+      }
+      return "alloy";
+    },
+);
+
 vi.mock("../../../src/config.js", () => ({
+  defaultTtsVoice: mockDefaultTtsVoice,
   config: {
     tts: mockTts,
     telegram: { token: "test", allowedUserId: 0, proxyUrl: "" },
@@ -368,6 +391,25 @@ describe("synthesizeSpeech (Google)", () => {
     mockSynthesizeSpeech.mockResolvedValue([{ audioContent: 42 }]);
 
     await expect(synthesizeSpeech("Hello world")).rejects.toThrow("unexpected audio response");
+  });
+
+  it("follows the current locale for default voices after a language switch", async () => {
+    mockTts.voiceExplicit = false;
+    mockTts.voice = "en-US-Studio-O";
+    vi.stubEnv("BOT_LOCALE", "fa");
+
+    try {
+      await synthesizeSpeech("Hello world");
+
+      const callArgs = defined(mockSynthesizeSpeech.mock.calls[0]);
+      expect(defined(callArgs[0]).voice).toEqual({
+        languageCode: "fa-IR",
+        name: "fa-IR-Standard-A",
+      });
+    } finally {
+      mockTts.voiceExplicit = true;
+      vi.unstubAllEnvs();
+    }
   });
 
   it("handles Uint8Array audioContent from Google SDK", async () => {
