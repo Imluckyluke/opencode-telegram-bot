@@ -17,6 +17,8 @@ const mocked = vi.hoisted(() => ({
   clearAllUserSessionsMock: vi.fn(() => 0),
   cleanupIgnoresMock: vi.fn(),
   pinnedClearMock: vi.fn(),
+  cancelInlineRunsMock: vi.fn(),
+  clearGuestChatSessionsMock: vi.fn(),
 }));
 
 vi.mock("../../../src/config.js", () => ({
@@ -50,6 +52,14 @@ vi.mock("../../../src/app/services/scheduled-task-session-ignore-service.js", ()
 
 vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({
   pinnedMessageManager: { clear: mocked.pinnedClearMock },
+}));
+
+vi.mock("../../../src/bot/inline/inline-run-state.js", () => ({
+  cancelInlineRuns: mocked.cancelInlineRunsMock,
+}));
+
+vi.mock("../../../src/app/managers/guest-session-manager.js", () => ({
+  clearGuestChatSessions: mocked.clearGuestChatSessionsMock,
 }));
 
 function createContext(): Context {
@@ -106,6 +116,8 @@ describe("bot/commands/delete-sessions-command", () => {
     mocked.clearSessionMock.mockReset();
     mocked.clearSessionDirectoryCacheMock.mockReset();
     mocked.clearAllUserSessionsMock.mockReset().mockReturnValue(0);
+    mocked.cancelInlineRunsMock.mockReset();
+    mocked.clearGuestChatSessionsMock.mockReset();
   });
 
   it("refuses non-owners", async () => {
@@ -126,6 +138,8 @@ describe("bot/commands/delete-sessions-command", () => {
     expect(mocked.sessionDeleteMock).toHaveBeenCalledTimes(2);
     expect(mocked.clearSessionMock).toHaveBeenCalledTimes(1);
     expect(mocked.clearAllUserSessionsMock).toHaveBeenCalledTimes(1);
+    expect(mocked.cancelInlineRunsMock).toHaveBeenCalledTimes(1);
+    expect(mocked.clearGuestChatSessionsMock).toHaveBeenCalledTimes(1);
     expect(ctx.api.editMessageText).toHaveBeenCalledWith(
       111,
       expect.any(Number),

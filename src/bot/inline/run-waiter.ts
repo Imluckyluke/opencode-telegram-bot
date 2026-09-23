@@ -106,6 +106,8 @@ export interface WaitForCompletionOptions {
    * DM flows keep waiting so interactive runs can be answered in chat.
    */
   failFastOnInteractive?: boolean;
+  /** When it returns true the wait ends immediately with no result. */
+  shouldAbort?: () => boolean;
 }
 
 type PendingInteractiveRequest =
@@ -184,6 +186,7 @@ export async function waitForAssistantCompletion(
     throttleMs = RUN_WAITER_EDIT_THROTTLE_MS,
     onProgress,
     failFastOnInteractive = false,
+    shouldAbort,
   } = options;
   const deadline = Date.now() + timeoutMs;
   let lastSent = "";
@@ -192,6 +195,9 @@ export async function waitForAssistantCompletion(
   logger.info(`[Bot] Waiting for run completion: session=${sessionId}`);
   for (;;) {
     await sleep(pollMs);
+    if (shouldAbort?.()) {
+      return null;
+    }
     const snapshot = await readRunSnapshot(sessionId, directory, startedAt).catch(() => null);
     const now = Date.now();
     if (

@@ -9,6 +9,11 @@ import { getStoredAgent, resolveProjectAgent } from "../../app/services/agent-se
 import { getStoredInlineModel, getStoredModel } from "../../app/services/model-selection-service.js";
 import { backgroundSessionTracker } from "../../app/managers/background-session-manager.js";
 import {
+  currentInlineRunGeneration,
+  isInlineRunInFlight,
+  setInlineRunInFlight,
+} from "../inline/inline-run-state.js";
+import {
   getGuestChatSession,
   setGuestChatSession,
   touchGuestChatSession,
@@ -71,8 +76,6 @@ function buildSnapshot(): InlineSnapshot {
  * server-set guest message chat id.
  */
 const INLINE_SESSION_TITLE_PREFIX = "⚡ ";
-
-let inlineRunInFlight = false;
 
 function inlineSessionTitle(question: string): string {
   const snippet = question.replace(/\s+/g, " ").trim().slice(0, 40) || "ask";
@@ -154,7 +157,7 @@ async function runInlinePrompt(
     onFailureNotice(t("inline.no_project"));
     return null;
   }
-  if (inlineRunInFlight) {
+  if (isInlineRunInFlight()) {
     onFailureNotice(t("bot.session_busy"));
     return null;
   }
@@ -221,13 +224,13 @@ async function runInlinePrompt(
     promptLength: notedText.length,
   };
   const startedAt = Date.now();
-  inlineRunInFlight = true;
+  setInlineRunInFlight(true);
   safeBackgroundTask({
     taskName: "session.promptAsync.inline",
     task: () => opencodeClient.session.promptAsync(promptOptions),
     onSuccess: ({ error }) => {
       if (error) {
-        inlineRunInFlight = false;
+        setInlineRunInFlight(false);
         logger.error(
           "[Bot] OpenCode API returned an error for inline promptAsync",
           runContext,
@@ -240,7 +243,7 @@ async function runInlinePrompt(
       }
     },
     onError: (error) => {
-      inlineRunInFlight = false;
+      setInlineRunInFlight(false);
       logger.error("[Bot] inline promptAsync background task failed", runContext);
       logger.error("[Bot] inline promptAsync background failure details:", formatErrorDetails(error, 6000));
       onFailureNotice(t("bot.prompt_send_error"));
@@ -309,6 +312,7 @@ async function streamInlineAnswer(
   includeQuestion = true,
 ): Promise<void> {
   logger.info(`[Bot] Streaming inline answer: session=${sessionId}`);
+  const generationAtStart = currentInlineRunGeneration();
   const result = await waitForAssistantCompletion({
     sessionId,
     directory,
@@ -316,6 +320,7 @@ async function streamInlineAnswer(
     // Inline/guest runs cannot answer questions or permissions: fail fast with
     // a clear notice instead of holding the shared run flag until timeout.
     failFastOnInteractive: true,
+    shouldAbort: () => currentInlineRunGeneration() !== generationAtStart,
     onProgress: async (text) =>
       editInlineMessage(api, inlineMessageId, query, text, includeQuestion),
   });
@@ -402,7 +407,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
           run.startedAt,
           queryText,
         ).finally(() => {
-          inlineRunInFlight = false;
+          setInlineRunInFlight(false);
         });
       }
     } catch (err) {
@@ -538,7 +543,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
           question,
           false,
         ).finally(() => {
-          inlineRunInFlight = false;
+          setInlineRunInFlight(false);
         });
       }
     } catch (err) {

@@ -8,7 +8,9 @@ import {
   clearSessionDirectoryCache,
 } from "../../app/stores/settings-store.js";
 import { cleanupScheduledTaskSessionIgnores } from "../../app/services/scheduled-task-session-ignore-service.js";
+import { clearGuestChatSessions } from "../../app/managers/guest-session-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
+import { cancelInlineRuns } from "../inline/inline-run-state.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 
@@ -51,6 +53,9 @@ export async function deleteSessionsCommand(ctx: CommandContext<Context>): Promi
   }
 
   const statusMessage = await ctx.reply(t("deletesessions.started")).catch(() => undefined);
+  // In-flight inline/guest waits poll sessions that are about to disappear:
+  // release them now so they end promptly instead of hanging to timeout.
+  cancelInlineRuns();
   let deleted = 0;
   let failed = 0;
   try {
@@ -67,6 +72,7 @@ export async function deleteSessionsCommand(ctx: CommandContext<Context>): Promi
   clearSession();
   clearSessionDirectoryCache();
   const droppedUserSessions = clearAllUserSessions();
+  clearGuestChatSessions();
   await cleanupScheduledTaskSessionIgnores().catch(() => {});
   await pinnedMessageManager.clear().catch(() => {});
 

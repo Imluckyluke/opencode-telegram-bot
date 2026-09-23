@@ -171,4 +171,27 @@ describe("bot/inline/run-waiter fail-fast", () => {
 
     expect(result).toMatchObject({ text: "Quick answer", completed: true });
   });
+
+  it("ends immediately when shouldAbort turns true", async () => {
+    mocked.messagesMock.mockResolvedValue({
+      data: [assistantMessage("Partial", false)],
+      error: null,
+    });
+    let aborted = false;
+
+    const result = await waitForAssistantCompletion({
+      sessionId: "session-1",
+      directory: "D:\\Repo",
+      startedAt: 0,
+      pollMs: 5,
+      timeoutMs: 4000,
+      shouldAbort: () => aborted,
+      onProgress: vi.fn().mockImplementation(async () => {
+        aborted = true;
+        return true;
+      }),
+    });
+
+    expect(result).toBeNull();
+  });
 });
