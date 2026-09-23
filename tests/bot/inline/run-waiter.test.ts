@@ -194,4 +194,145 @@ describe("bot/inline/run-waiter fail-fast", () => {
 
     expect(result).toBeNull();
   });
+
+  it("presents new questions once and rejects them after the grace period", async () => {
+    mocked.questionListMock.mockResolvedValue({
+      data: [
+        {
+          id: "q-1",
+          sessionID: "session-1",
+          questions: [
+            {
+              question: "Pick one?",
+              options: [
+                { label: "Alpha", description: "first" },
+                { label: "Beta", description: "second" },
+              ],
+            },
+          ],
+        },
+      ],
+      error: null,
+    });
+    const onInteractiveQuestion = vi.fn().mockResolvedValue(undefined);
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-16T10:00:00.000Z"));
+    try {
+      const resultPromise = waitForAssistantCompletion({
+        sessionId: "session-1",
+        directory: "D:\\Repo",
+        startedAt: 0,
+        pollMs: 1000,
+        timeoutMs: 10 * 60 * 1000,
+        failFastOnInteractive: true,
+        onInteractiveQuestion,
+        onProgress: vi.fn().mockResolvedValue(true),
+      });
+
+      await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+      const result = await resultPromise;
+
+      // Presented exactly once, then rejected after the grace period.
+      expect(onInteractiveQuestion).toHaveBeenCalledTimes(1);
+      expect(onInteractiveQuestion).toHaveBeenCalledWith({
+        id: "q-1",
+        questions: [
+          {
+            question: "Pick one?",
+            options: [
+              { label: "Alpha", description: "first" },
+              { label: "Beta", description: "second" },
+            ],
+          },
+        ],
+      });
+      expect(result).toMatchObject({ completed: false, blocked: "question" });
+      expect(mocked.questionRejectMock).toHaveBeenCalledWith({
+        requestID: "q-1",
+        directory: "D:\\Repo",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still rejects permissions immediately when presenting is enabled", async () => {
+    mocked.permissionListMock.mockResolvedValue({
+      data: [{ id: "p-1", sessionID: "session-1" }],
+      error: null,
+    });
+    const onInteractiveQuestion = vi.fn().mockResolvedValue(undefined);
+
+    const result = await waitForAssistantCompletion({
+      sessionId: "session-1",
+      directory: "D:\\Repo",
+      startedAt: 0,
+      pollMs: 5,
+      timeoutMs: 4000,
+      failFastOnInteractive: true,
+      onInteractiveQuestion,
+      onProgress: vi.fn().mockResolvedValue(true),
+    });
+
+    expect(result).toMatchObject({ completed: false, blocked: "permission" });
+    expect(onInteractiveQuestion).not.toHaveBeenCalled();
+    expect(mocked.permissionReplyMock).toHaveBeenCalled();
+  });
+
+  it("resumes to completion after the question is answered out-of-band", async () => {
+    mocked.questionListMock
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: "q-1",
+            sessionID: "session-1",
+            questions: [{ question: "Pick one?", options: [{ label: "Alpha" }] }],
+          },
+        ],
+        error: null,
+      })
+      .mockResolvedValue({ data: [], error: null });
+    let messageCalls = 0;
+    mocked.messagesMock.mockImplementation(async () => {
+      messageCalls += 1;
+      if (messageCalls < 3) {
+        return { data: [], error: null };
+      }
+      return {
+        data: [
+          {
+            info: { role: "assistant", time: { created: 1, completed: 2 } },
+            parts: [{ type: "text", text: "Final answer" }],
+          },
+        ],
+        error: null,
+      };
+    });
+    const onInteractiveQuestion = vi.fn().mockResolvedValue(undefined);
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-16T10:00:00.000Z"));
+    try {
+      const resultPromise = waitForAssistantCompletion({
+        sessionId: "session-1",
+        directory: "D:\\Repo",
+        startedAt: 0,
+        pollMs: 1000,
+        timeoutMs: 10 * 60 * 1000,
+        failFastOnInteractive: true,
+        onInteractiveQuestion,
+        onProgress: vi.fn().mockResolvedValue(true),
+      });
+
+      await vi.advanceTimersByTimeAsync(30 * 1000);
+      const result = await resultPromise;
+
+      expect(onInteractiveQuestion).toHaveBeenCalledTimes(1);
+      expect(mocked.questionRejectMock).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ text: "Final answer", completed: true });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

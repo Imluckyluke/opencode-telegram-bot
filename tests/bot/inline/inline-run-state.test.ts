@@ -3,6 +3,7 @@ import {
   __resetInlineRunStateForTests,
   cancelInlineRuns,
   currentInlineRunGeneration,
+  guestRunKey,
   isInlineRunInFlight,
   setInlineRunInFlight,
 } from "../../../src/bot/inline/inline-run-state.js";
@@ -27,6 +28,21 @@ describe("bot/inline/inline-run-state", () => {
 
     expect(isInlineRunInFlight()).toBe(false);
     expect(currentInlineRunGeneration()).toBe(generation + 1);
+
+    __resetInlineRunStateForTests();
+  });
+
+  it("tracks guest chats independently so they run in parallel", () => {
+    __resetInlineRunStateForTests();
+
+    setInlineRunInFlight(true, guestRunKey(-100));
+
+    expect(isInlineRunInFlight(guestRunKey(-100))).toBe(true);
+    expect(isInlineRunInFlight(guestRunKey(-200))).toBe(false);
+    expect(isInlineRunInFlight()).toBe(false);
+
+    setInlineRunInFlight(false, guestRunKey(-100));
+    expect(isInlineRunInFlight(guestRunKey(-100))).toBe(false);
 
     __resetInlineRunStateForTests();
   });

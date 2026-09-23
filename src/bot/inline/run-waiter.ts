@@ -91,6 +91,13 @@ export interface RunWaiterResult {
   blocked?: "question" | "permission";
 }
 
+export interface InteractiveQuestion {
+  header?: string;
+  question: string;
+  multiple?: boolean;
+  options: Array<{ label: string; description?: string }>;
+}
+
 export interface WaitForCompletionOptions {
   sessionId: string;
   directory: string;
@@ -106,13 +113,72 @@ export interface WaitForCompletionOptions {
    * DM flows keep waiting so interactive runs can be answered in chat.
    */
   failFastOnInteractive?: boolean;
+  /**
+   * Guest-mode hook: called once per new pending question instead of
+   * fail-fasting it, so the caller can present it (e.g. as a numbered table)
+   * and collect the answer out-of-band. The waiter keeps polling meanwhile;
+   * unanswered questions still fail fast after GUEST_QUESTION_TIMEOUT_MS.
+   * Permissions always fail fast (no numbered flow for them).
+   */
+  onInteractiveQuestion?: (request: { id: string; questions: InteractiveQuestion[] }) => Promise<void>;
   /** When it returns true the wait ends immediately with no result. */
   shouldAbort?: () => boolean;
 }
 
+/** Grace period for a presented guest question before it fails fast. */
+export const GUEST_QUESTION_TIMEOUT_MS = 5 * 60 * 1000;
+
 type PendingInteractiveRequest =
-  | { kind: "question"; id: string }
+  | { kind: "question"; id: string; questions: InteractiveQuestion[] }
   | { kind: "permission"; id: string };
+
+function parseInteractiveQuestions(raw: unknown): InteractiveQuestion[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const parsed: InteractiveQuestion[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== "object" || entry === null) {
+      continue;
+    }
+    const record = entry as Record<string, unknown>;
+    if (typeof record.question !== "string" || !Array.isArray(record.options)) {
+      continue;
+    }
+    const options: InteractiveQuestion["options"] = [];
+    for (const option of record.options) {
+      if (typeof option !== "object" || option === null) {
+        continue;
+      }
+      const optionRecord = option as Record<string, unknown>;
+      if (typeof optionRecord.label !== "string") {
+        continue;
+      }
+      const parsedOption: { label: string; description?: string } = {
+        label: optionRecord.label,
+      };
+      if (typeof optionRecord.description === "string") {
+        parsedOption.description = optionRecord.description;
+      }
+      options.push(parsedOption);
+    }
+    if (options.length === 0) {
+      continue;
+    }
+    const parsedEntry: InteractiveQuestion = {
+      question: record.question,
+      options,
+    };
+    if (typeof record.header === "string") {
+      parsedEntry.header = record.header;
+    }
+    if (record.multiple === true) {
+      parsedEntry.multiple = true;
+    }
+    parsed.push(parsedEntry);
+  }
+  return parsed;
+}
 
 async function detectInteractiveRequest(
   sessionId: string,
@@ -127,7 +193,12 @@ async function detectInteractiveRequest(
       (request) => (request as { sessionID?: string }).sessionID === sessionId,
     );
     if (question) {
-      return { kind: "question", id: (question as { id: string }).id };
+      const questionRecord = question as { id: string; questions?: unknown };
+      return {
+        kind: "question",
+        id: questionRecord.id,
+        questions: parseInteractiveQuestions(questionRecord.questions),
+      };
     }
     const permission = permissionsResult.data?.find(
       (request) => (request as { sessionID?: string }).sessionID === sessionId,
@@ -186,12 +257,15 @@ export async function waitForAssistantCompletion(
     throttleMs = RUN_WAITER_EDIT_THROTTLE_MS,
     onProgress,
     failFastOnInteractive = false,
+    onInteractiveQuestion,
     shouldAbort,
   } = options;
   const deadline = Date.now() + timeoutMs;
   let lastSent = "";
   let lastEditAt = 0;
   let observedBusy = false;
+  const presentedQuestionIds = new Set<string>();
+  const questionFirstSeenAt = new Map<string, number>();
   logger.info(`[Bot] Waiting for run completion: session=${sessionId}`);
   for (;;) {
     await sleep(pollMs);
@@ -210,12 +284,35 @@ export async function waitForAssistantCompletion(
         lastEditAt = now;
       }
     }
-    if (failFastOnInteractive) {
-      const blocked = await detectInteractiveRequest(sessionId, directory);
-      if (blocked) {
-        logger.warn(`[Bot] Run blocked on ${blocked.kind}, rejecting without waiting: session=${sessionId}`);
-        await rejectInteractiveRequest(blocked, sessionId, directory);
-        return { text: lastSent, completed: false, blocked: blocked.kind };
+    if (failFastOnInteractive || onInteractiveQuestion) {
+      const found = await detectInteractiveRequest(sessionId, directory);
+      const present = onInteractiveQuestion;
+      if (found && (found.kind === "permission" || !present)) {
+        logger.warn(`[Bot] Run blocked on ${found.kind}, rejecting without waiting: session=${sessionId}`);
+        await rejectInteractiveRequest(found, sessionId, directory);
+        return { text: lastSent, completed: false, blocked: found.kind };
+      }
+      if (found) {
+        // Guest question flow: present once, then keep polling while the
+        // answer arrives out-of-band. Unanswerable or expired questions fall
+        // back to reject-and-report.
+        if (!presentedQuestionIds.has(found.id)) {
+          presentedQuestionIds.add(found.id);
+          questionFirstSeenAt.set(found.id, Date.now());
+          if (found.questions.length > 0) {
+            try {
+              await present?.({ id: found.id, questions: found.questions });
+            } catch (error) {
+              logger.warn("[Bot] Failed to present interactive question:", error);
+            }
+          }
+        }
+        const firstSeenAt = questionFirstSeenAt.get(found.id) ?? Date.now();
+        if (found.questions.length === 0 || Date.now() - firstSeenAt >= GUEST_QUESTION_TIMEOUT_MS) {
+          logger.warn(`[Bot] Guest question unanswered, rejecting: session=${sessionId}`);
+          await rejectInteractiveRequest(found, sessionId, directory);
+          return { text: lastSent, completed: false, blocked: found.kind };
+        }
       }
     }
     if (now > deadline) {

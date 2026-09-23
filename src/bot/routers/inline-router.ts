@@ -9,7 +9,9 @@ import { getStoredAgent, resolveProjectAgent } from "../../app/services/agent-se
 import { getStoredInlineModel, getStoredModel } from "../../app/services/model-selection-service.js";
 import { backgroundSessionTracker } from "../../app/managers/background-session-manager.js";
 import {
+  GLOBAL_RUN_KEY,
   currentInlineRunGeneration,
+  guestRunKey,
   isInlineRunInFlight,
   setInlineRunInFlight,
 } from "../inline/inline-run-state.js";
@@ -30,6 +32,16 @@ import { isSessionBusy } from "../handlers/prompt.js";
 import {
   waitForAssistantCompletion,
 } from "../inline/run-waiter.js";
+import type { InteractiveQuestion } from "../inline/run-waiter.js";
+import {
+  GUEST_QUESTION_REPLY_TIMEOUT_MS,
+  clearPendingGuestQuestion,
+  parseGuestAnswerNumber,
+  peekPendingGuestQuestion,
+  renderGuestQuestionTable,
+  setPendingGuestQuestion,
+  submitGuestQuestionAnswer,
+} from "../inline/guest-questions.js";
 import {
   buildInlineResults,
   consumePendingInlineQuery,
@@ -143,6 +155,45 @@ async function isGuestSessionAlive(sessionId: string, directory: string): Promis
     return true;
   }
 }
+
+/**
+ * Answers a pending model question when a guest replies with just the option
+ * number. Returns true when a pending question existed (answer submitted or
+ * input ignored), so the caller skips starting a new run.
+ */
+async function tryAnswerPendingGuestQuestion(
+  api: Bot<Context>["api"],
+  chatId: number,
+  text: string,
+): Promise<boolean> {
+  const pending = peekPendingGuestQuestion(chatId);
+  if (!pending) {
+    return false;
+  }
+
+  const pick = parseGuestAnswerNumber(text, pending.options.length);
+  if (pick === null) {
+    // Not an answer (and the run is still in flight): leave the question
+    // table with its instruction visible instead of misrouting the message.
+    logger.debug(`[Bot] Ignoring non-answer while guest question pending: chat=${chatId}`);
+    return true;
+  }
+
+  const submitted = await submitGuestQuestionAnswer(pending, pick);
+  if (!submitted) {
+    // Keep the entry so the answer can be retried (expiry still sweeps it).
+    setPendingGuestQuestion(chatId, {
+      ...pending,
+      expiresAt: Date.now() + GUEST_QUESTION_REPLY_TIMEOUT_MS,
+    });
+    return true;
+  }
+
+  clearPendingGuestQuestion(chatId);
+  const label = pending.options[pick]?.label ?? String(pick + 1);
+  await editInlineMessage(api, pending.inlineMessageId, pending.question, `✓ ${label}`, false);
+  return true;
+}
 async function runInlinePrompt(
   deps: InlineRouterDeps,
   api: Bot<Context>["api"],
@@ -151,13 +202,14 @@ async function runInlinePrompt(
   files: GuestFileInput[] = [],
   hasRealText = true,
   existingSession: InlineSession | null = null,
-): Promise<{ sessionId: string; directory: string; startedAt: number } | null> {
+  runKey: string = GLOBAL_RUN_KEY,
+): Promise<{ sessionId: string; directory: string; startedAt: number; runKey: string } | null> {
   const project = getCurrentProject();
   if (!project) {
     onFailureNotice(t("inline.no_project"));
     return null;
   }
-  if (isInlineRunInFlight()) {
+  if (isInlineRunInFlight(runKey)) {
     onFailureNotice(t("bot.session_busy"));
     return null;
   }
@@ -224,13 +276,13 @@ async function runInlinePrompt(
     promptLength: notedText.length,
   };
   const startedAt = Date.now();
-  setInlineRunInFlight(true);
+  setInlineRunInFlight(true, runKey);
   safeBackgroundTask({
     taskName: "session.promptAsync.inline",
     task: () => opencodeClient.session.promptAsync(promptOptions),
     onSuccess: ({ error }) => {
       if (error) {
-        setInlineRunInFlight(false);
+        setInlineRunInFlight(false, runKey);
         logger.error(
           "[Bot] OpenCode API returned an error for inline promptAsync",
           runContext,
@@ -243,14 +295,14 @@ async function runInlinePrompt(
       }
     },
     onError: (error) => {
-      setInlineRunInFlight(false);
+      setInlineRunInFlight(false, runKey);
       logger.error("[Bot] inline promptAsync background task failed", runContext);
       logger.error("[Bot] inline promptAsync background failure details:", formatErrorDetails(error, 6000));
       onFailureNotice(t("bot.prompt_send_error"));
     },
   });
 
-  return { sessionId: inlineSession.id, directory: inlineSession.directory, startedAt };
+  return { sessionId: inlineSession.id, directory: inlineSession.directory, startedAt, runKey };
 }
 
 const INLINE_RICH_BUDGET_CHARS = 30000;
@@ -301,6 +353,10 @@ async function editInlineMessage(
  * answer lands in the same chat without adding the bot anywhere.
  * Aborted/errored runs end the placeholder with an interruption note
  * instead of leaving it stuck.
+ *
+ * Pass `guest` to enable numbered question answering for guest chats: model
+ * questions are posted as a numbered table and the caller replies with just
+ * the option number. Inline taps keep fail-fast (no reply channel there).
  */
 async function streamInlineAnswer(
   api: Bot<Context>["api"],
@@ -310,6 +366,7 @@ async function streamInlineAnswer(
   startedAt: number,
   query: string,
   includeQuestion = true,
+  guest: { chatId: number } | null = null,
 ): Promise<void> {
   logger.info(`[Bot] Streaming inline answer: session=${sessionId}`);
   const generationAtStart = currentInlineRunGeneration();
@@ -317,12 +374,41 @@ async function streamInlineAnswer(
     sessionId,
     directory,
     startedAt,
-    // Inline/guest runs cannot answer questions or permissions: fail fast with
-    // a clear notice instead of holding the shared run flag until timeout.
+    // Runs that cannot be answered interactively fail fast with a clear
+    // notice instead of holding the run flag until timeout.
     failFastOnInteractive: true,
     shouldAbort: () => currentInlineRunGeneration() !== generationAtStart,
     onProgress: async (text) =>
       editInlineMessage(api, inlineMessageId, query, text, includeQuestion),
+    ...(guest
+      ? {
+          onInteractiveQuestion: async (request: {
+            id: string;
+            questions: InteractiveQuestion[];
+          }) => {
+            const first = request.questions[0];
+            if (!first) {
+              return;
+            }
+            setPendingGuestQuestion(guest.chatId, {
+              sessionId,
+              directory,
+              requestId: request.id,
+              question: first.question,
+              options: first.options,
+              inlineMessageId,
+              expiresAt: Date.now() + GUEST_QUESTION_REPLY_TIMEOUT_MS,
+            });
+            await editInlineMessage(
+              api,
+              inlineMessageId,
+              query,
+              renderGuestQuestionTable(first, t("guest.question.reply_hint")),
+              false,
+            );
+          },
+        }
+      : {}),
   });
   if (result?.completed) {
     logger.info(`[Bot] Inline answer delivered: session=${sessionId}`);
@@ -407,7 +493,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
           run.startedAt,
           queryText,
         ).finally(() => {
-          setInlineRunInFlight(false);
+          setInlineRunInFlight(false, run.runKey);
         });
       }
     } catch (err) {
@@ -467,6 +553,16 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       logger.info(`[Bot] Ignoring guest message without text or files: caller=${callerId}`);
       return;
     }
+    const chatId = typeof guest.chat?.id === "number" ? guest.chat.id : null;
+    // A bare number while this chat has a pending model question answers it
+    // instead of starting a new run (matched by chat: guest answers expose no
+    // chat message id to match replies against).
+    if (chatId !== null) {
+      const handled = await tryAnswerPendingGuestQuestion(bot.api, chatId, text);
+      if (handled) {
+        return;
+      }
+    }
     // Answer immediately with a working placeholder; the returned
     // inline_message_id lets us stream the real answer into it in place.
     const botUsername = bot.botInfo?.username ?? null;
@@ -515,8 +611,10 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
       // One persistent session per guest chat: consecutive summons in the same
       // group share conversational memory. Falls back to a fresh session when
       // the chat id is missing or no session could be established.
-      const chatId = typeof guest.chat?.id === "number" ? guest.chat.id : null;
+      // Chats run independently: the concurrency key is per chat, so two
+      // groups asking at once no longer block each other.
       const project = getCurrentProject();
+      const runKey = guestRunKey(chatId);
       let existingSession: InlineSession | null = null;
       if (chatId !== null && project) {
         existingSession = await resolveGuestChatSession(chatId, project.worktree);
@@ -529,6 +627,7 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
         files,
         ownText.trim().length > 0,
         existingSession,
+        runKey,
       );
       if (run) {
         if (chatId !== null && existingSession) {
@@ -542,8 +641,12 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
           run.startedAt,
           question,
           false,
+          chatId !== null ? { chatId } : null,
         ).finally(() => {
-          setInlineRunInFlight(false);
+          if (chatId !== null) {
+            clearPendingGuestQuestion(chatId);
+          }
+          setInlineRunInFlight(false, run.runKey);
         });
       }
     } catch (err) {
