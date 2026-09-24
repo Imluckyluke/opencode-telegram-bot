@@ -28,6 +28,8 @@ import { extractErrorMessage } from "../../utils/opencode-error.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { isSessionBusy } from "../handlers/prompt.js";
+import { getPromptChatId } from "../handlers/prompt.js";
+import { collectRunFiles, deliverFirstRunFileAsInlineMedia } from "../inline/guest-run-files.js";
 import {
   waitForAssistantCompletion,
 } from "../inline/run-waiter.js";
@@ -317,8 +319,33 @@ async function editGuestQuestionMessage(
   );
 }
 
-async function editInlineMessage(
+/**
+ * Replaces the guest placeholder with the run's first produced file (if any).
+ * Files never reach the group otherwise: guest runs poll instead of using
+ * the live pipeline, and inline edits cannot upload — only reference an
+ * existing file_id. No-op when the run produced nothing or no DM chat exists
+ * to stage the upload through.
+ */
+async function deliverGuestRunFiles(
   api: Bot<Context>["api"],
+  inlineMessageId: string,
+  sessionId: string,
+  directory: string,
+  startedAt: number,
+  answerText: string,
+): Promise<void> {
+  const uploadChatId = getPromptChatId();
+  if (!uploadChatId) {
+    return;
+  }
+  const files = await collectRunFiles(sessionId, directory, startedAt).catch(() => []);
+  if (files.length === 0) {
+    return;
+  }
+  await deliverFirstRunFileAsInlineMedia(api, uploadChatId, inlineMessageId, files, answerText);
+}
+
+async function editInlineMessage(  api: Bot<Context>["api"],
   inlineMessageId: string,
   query: string,
   answer: string,
@@ -422,6 +449,9 @@ async function streamInlineAnswer(
   });
   if (result?.completed) {
     logger.info(`[Bot] Inline answer delivered: session=${sessionId}`);
+    if (guest) {
+      await deliverGuestRunFiles(api, inlineMessageId, sessionId, directory, startedAt, result.text);
+    }
     return;
   }
   if (result?.blocked) {

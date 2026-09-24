@@ -1,4 +1,5 @@
 import type { Context } from "grammy";
+import { InputFile } from "grammy";
 import { opencodeClient } from "../../opencode/client.js";
 import {
   clearUserSession,
@@ -35,6 +36,7 @@ import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { isSessionBusy } from "./prompt.js";
 import { waitForAssistantCompletion } from "../inline/run-waiter.js";
+import { collectRunFiles } from "../inline/guest-run-files.js";
 
 const USER_SESSION_TITLE_PREFIX = "Chat ";
 const USER_LANE_TEXT_LIMIT = 4000;
@@ -312,9 +314,23 @@ export async function processUserLaneMessage(ctx: Context): Promise<void> {
     },
   })
     .then(async (result) => {
+      // Polling lanes never see live tool file outputs: reconstruct them from
+      // the finished run so produced files arrive as real documents.
+      const files = result
+        ? await collectRunFiles(session.id, session.directory, startedAt).catch(() => [])
+        : [];
+      for (const file of files) {
+        await ctx.api
+          .sendDocument(chatId, new InputFile(file.buffer, file.filename), {
+            disable_notification: true,
+          })
+          .catch((error: unknown) => {
+            logger.warn("[UserLane] Failed to deliver file:", error);
+          });
+      }
       if (result?.text) {
         await renderFinal(result.text);
-      } else {
+      } else if (files.length === 0) {
         await ctx.api
           .editMessageText(chatId, placeholder.message_id, t("inline.interrupted"))
           .catch(() => {});

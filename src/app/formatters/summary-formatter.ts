@@ -324,6 +324,69 @@ export interface CodeFileData {
   caption: string;
 }
 
+/**
+ * Builds the downloadable file for a completed write/edit/apply_patch tool
+ * call, or null when the call carries no file content. Shared by the live
+ * SSE pipeline and by polling flows (guest/user lanes) that reconstruct the
+ * same files from session messages after the run.
+ */
+export function buildToolFileData(
+  tool: string,
+  input: { [key: string]: unknown } | undefined,
+  title: string | undefined,
+  metadata: { [key: string]: unknown } | undefined,
+): CodeFileData | null {
+  if (tool === "write" && input) {
+    const filePath =
+      typeof input.filePath === "string" ? normalizePathForDisplay(input.filePath) : "";
+    const content = typeof input.content === "string" ? input.content : "";
+    if (!filePath || typeof input.content !== "string") {
+      return null;
+    }
+    return prepareCodeFile(content, filePath, "write");
+  }
+
+  if (tool === "edit" && metadata) {
+    const filediff = isRecord(metadata.filediff) ? metadata.filediff : undefined;
+    const filePath =
+      typeof filediff?.file === "string" && filediff.file
+        ? normalizePathForDisplay(filediff.file)
+        : "";
+    const diffText = typeof metadata.diff === "string" ? metadata.diff : "";
+    if (!filePath || !diffText) {
+      return null;
+    }
+    return prepareCodeFile(diffText, filePath, "edit");
+  }
+
+  if (tool === "apply_patch") {
+    const filediff = isRecord(metadata?.filediff) ? metadata.filediff : undefined;
+    const filePathFromInput =
+      input && typeof input.filePath === "string"
+        ? normalizePathForDisplay(input.filePath)
+        : input && typeof input.path === "string"
+          ? normalizePathForDisplay(input.path)
+          : "";
+    const filePathFromTitle = title ? extractFirstUpdatedFileFromTitle(title) : "";
+    const filePath =
+      (typeof filediff?.file === "string" && filediff.file && normalizePathForDisplay(filediff.file)) ||
+      filePathFromInput ||
+      normalizePathForDisplay(filePathFromTitle);
+    const diffText =
+      typeof metadata?.diff === "string"
+        ? metadata.diff
+        : input && typeof input.patchText === "string"
+          ? input.patchText
+          : "";
+    if (!filePath || !diffText) {
+      return null;
+    }
+    return prepareCodeFile(diffText, filePath, "edit");
+  }
+
+  return null;
+}
+
 function formatDiff(diff: string): string {
   const lines = diff.split("\n");
   const formattedLines: string[] = [];

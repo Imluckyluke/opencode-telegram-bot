@@ -1,7 +1,11 @@
 import { Event, ToolState } from "@opencode-ai/sdk/v2";
 import type { Bot } from "grammy";
 import type { CodeFileData } from "../formatters/summary-formatter.js";
-import { normalizePathForDisplay, prepareCodeFile } from "../formatters/summary-formatter.js";
+import {
+  buildToolFileData,
+  normalizePathForDisplay,
+  prepareCodeFile,
+} from "../formatters/summary-formatter.js";
 import type { Question } from "../types/question.js";
 import type { PermissionRequest } from "../types/permission.js";
 import type { FileChange } from "../types/summary.js";
@@ -1936,18 +1940,18 @@ class SummaryAggregator {
     title: string | undefined,
     metadata: { [key: string]: unknown } | undefined,
   ): PreparedToolFileContext {
+    const fileData = buildToolFileData(tool, input, title, metadata);
+    if (!fileData) {
+      return { fileData: null, fileChange: null };
+    }
+
     if (tool === "write" && input) {
       const filePath =
         typeof input.filePath === "string" ? normalizePathForDisplay(input.filePath) : "";
       const content = typeof input.content === "string" ? input.content : "";
-      const hasContent = typeof input.content === "string";
-
-      if (!filePath || !hasContent) {
-        return { fileData: null, fileChange: null };
-      }
 
       return {
-        fileData: prepareCodeFile(content, filePath, "write"),
+        fileData,
         fileChange: {
           file: filePath,
           additions: content.split("\n").length,
@@ -1962,14 +1966,9 @@ class SummaryAggregator {
         typeof filediff?.file === "string" && filediff.file
           ? normalizePathForDisplay(filediff.file)
           : "";
-      const diffText = typeof metadata.diff === "string" ? metadata.diff : "";
-
-      if (!filePath || !diffText) {
-        return { fileData: null, fileChange: null };
-      }
 
       return {
-        fileData: prepareCodeFile(diffText, filePath, "edit"),
+        fileData,
         fileChange: {
           file: filePath,
           additions: typeof filediff?.additions === "number" ? filediff.additions : 0,
