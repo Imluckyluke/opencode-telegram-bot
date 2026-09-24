@@ -24,6 +24,7 @@ import { handlePermissionCallback } from "./permission-callback-handler.js";
 import { handleProjectSelect } from "./project-callback-handler.js";
 import { handlePromptAttachmentCancel } from "./prompt-attachment-callback-handler.js";
 import { handleQuestionCallback } from "./question-callback-handler.js";
+import { handleRestartCallback } from "../commands/restart-command.js";
 import { handleLanguageCallback } from "./language-callback-handler.js";
 import { handleRenameCancel } from "./rename-callback-handler.js";
 import { handleSettingsCallback } from "./settings-callback-handler.js";
@@ -187,6 +188,10 @@ export function registerCallbackRouter(bot: Bot<Context>, deps: CallbackRouterDe
     [
       "rename",
       { name: "rename", handlers: [handleRenameCancel], errorScope: "rename" },
+    ],
+    [
+      "restart",
+      { name: "restart", handlers: [handleRestartCallback], errorScope: "none" },
     ],
     [
       "session",
