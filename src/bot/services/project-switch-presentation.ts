@@ -1,7 +1,7 @@
 import type { Context } from "grammy";
 import type { ProjectSwitchPresentation } from "../../app/services/project-switch-service.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
-import { createMainKeyboard } from "../keyboards/main-reply-keyboard.js";
+import { createMainKeyboardOrRemove } from "../keyboards/main-reply-keyboard.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 
 export function createProjectSwitchPresentation(): ProjectSwitchPresentation {
@@ -24,6 +24,6 @@ export function createProjectSwitchPresentation(): ProjectSwitchPresentation {
     updateKeyboardAgent(agent) {
       keyboardManager.updateAgent(agent);
     },
-    createMainKeyboard,
+    createMainKeyboard: (...args) => createMainKeyboardOrRemove(...args),
   };
 }

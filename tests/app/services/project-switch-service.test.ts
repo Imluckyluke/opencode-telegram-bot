@@ -65,6 +65,7 @@ vi.mock("../../../src/app/services/variant-selection-service.js", () => ({
 }));
 vi.mock("../../../src/bot/keyboards/main-reply-keyboard.js", () => ({
   createMainKeyboard: mocked.createMainKeyboardMock,
+  createMainKeyboardOrRemove: mocked.createMainKeyboardMock,
 }));
 vi.mock("../../../src/utils/logger.js", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },

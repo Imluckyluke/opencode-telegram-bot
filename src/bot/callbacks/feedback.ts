@@ -55,7 +55,11 @@ export async function failure(ctx: Context, key: I18nKey, params?: FeedbackParam
  * Rule 1: confirm a switch that changes the reply keyboard. The toast is
  * deliberately empty - the message below is the confirmation.
  */
-export async function switched(ctx: Context, text: string, keyboard: Keyboard): Promise<void> {
+export async function switched(
+  ctx: Context,
+  text: string,
+  keyboard: Keyboard | { remove_keyboard: true },
+): Promise<void> {
   await ctx.answerCallbackQuery();
   await ctx.reply(text, { reply_markup: keyboard });
   await ctx.deleteMessage().catch(() => {});

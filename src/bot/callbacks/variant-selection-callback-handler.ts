@@ -9,7 +9,7 @@ import {
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { failure, notify, switched } from "./feedback.js";
-import { createMainKeyboard } from "../keyboards/main-reply-keyboard.js";
+import { createMainKeyboardOrRemove } from "../keyboards/main-reply-keyboard.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { clearActiveInlineMenu, ensureActiveInlineMenu } from "../menus/inline-menu.js";
@@ -79,7 +79,7 @@ export async function handleVariantSelect(ctx: Context): Promise<boolean> {
     }
 
     const variantName = formatVariantForButton(variantId);
-    const keyboard = createMainKeyboard(
+    const keyboard = createMainKeyboardOrRemove(
       currentAgent,
       updatedModel,
       contextInfo ?? undefined,

@@ -3,6 +3,7 @@ import { getAgentButtonLabel } from "../../app/types/agent.js";
 import { formatModelForButton } from "../../app/types/model.js";
 import type { ModelInfo } from "../../app/types/model.js";
 import type { ContextInfo } from "./keyboard-types.js";
+import { getShowBottomKeyboard } from "../../app/stores/settings-store.js";
 import { t } from "../../i18n/index.js";
 
 /**
@@ -93,4 +94,22 @@ export function createAgentKeyboard(currentAgent: string): Keyboard {
  */
 export function removeKeyboard(): { remove_keyboard: true } {
   return { remove_keyboard: true };
+}
+
+/**
+ * The fixed 4-button grid, or a removal when the user disabled the bottom
+ * keyboard in /settings. Use this for every message sent to chat so a stale
+ * grid can never resurrect itself on session/model/agent/variant switches.
+ */
+export function createMainKeyboardOrRemove(
+  currentAgent: string,
+  currentModel: ModelInfo,
+  contextInfo?: ContextInfo,
+  variantName?: string,
+  queuedPromptLabels: string[] = [],
+): Keyboard | { remove_keyboard: true } {
+  if (!getShowBottomKeyboard()) {
+    return removeKeyboard();
+  }
+  return createMainKeyboard(currentAgent, currentModel, contextInfo, variantName, queuedPromptLabels);
 }

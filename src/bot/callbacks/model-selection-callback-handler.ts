@@ -15,7 +15,7 @@ import { interactionManager } from "../../app/managers/interaction-manager.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { cancelMenu, failure, switched } from "./feedback.js";
-import { createMainKeyboard } from "../keyboards/main-reply-keyboard.js";
+import { createMainKeyboardOrRemove } from "../keyboards/main-reply-keyboard.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import {
@@ -313,7 +313,7 @@ async function applyModelSelectionAndNotify(ctx: Context, modelInfo: ModelInfo):
   }
 
   const variantName = formatVariantForButton(modelInfo.variant || "default");
-  const keyboard = createMainKeyboard(
+  const keyboard = createMainKeyboardOrRemove(
     currentAgent,
     modelInfo,
     contextInfo ?? undefined,

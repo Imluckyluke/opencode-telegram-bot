@@ -52,6 +52,7 @@ vi.mock("../../../src/bot/keyboards/keyboard-manager.js", () => ({
 
 vi.mock("../../../src/bot/keyboards/main-reply-keyboard.js", () => ({
   createMainKeyboard: mocked.createMainKeyboardMock,
+  createMainKeyboardOrRemove: mocked.createMainKeyboardMock,
 }));
 
 vi.mock("../../../src/bot/pinned/pinned-message-manager.js", () => ({

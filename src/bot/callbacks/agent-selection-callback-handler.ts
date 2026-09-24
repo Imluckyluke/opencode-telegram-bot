@@ -9,7 +9,7 @@ import { getAgentDisplayName } from "../../app/types/agent.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { failure, switched } from "./feedback.js";
-import { createMainKeyboard } from "../keyboards/main-reply-keyboard.js";
+import { createMainKeyboardOrRemove } from "../keyboards/main-reply-keyboard.js";
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { clearActiveInlineMenu, ensureActiveInlineMenu } from "../menus/inline-menu.js";
@@ -64,7 +64,7 @@ export async function handleAgentSelect(ctx: Context): Promise<boolean> {
     const state = keyboardManager.getState();
     const variantName =
       state?.variantName ?? formatVariantForButton(currentModel.variant || "default");
-    const keyboard = createMainKeyboard(
+    const keyboard = createMainKeyboardOrRemove(
       agentName,
       currentModel,
       contextInfo ?? undefined,

@@ -1,10 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createAgentKeyboard,
   createMainKeyboard,
+  createMainKeyboardOrRemove,
   removeKeyboard,
 } from "../../../src/bot/keyboards/main-reply-keyboard.js";
 import { defined } from "../../helpers/defined.js";
+
+const showBottomKeyboardMock = vi.hoisted(() => vi.fn(() => true));
+
+vi.mock("../../../src/app/stores/settings-store.js", () => ({
+  getShowBottomKeyboard: showBottomKeyboardMock,
+}));
 
 function getButtonText(button: string | { text: string }): string {
   return typeof button === "string" ? button : button.text;
@@ -19,6 +26,9 @@ function buttonTextAt(
 }
 
 describe("bot/keyboards/main-reply-keyboard", () => {
+  beforeEach(() => {
+    showBottomKeyboardMock.mockReset().mockReturnValue(true);
+  });
   it("creates main keyboard with defaults", () => {
     const keyboard = createMainKeyboard("build", {
       providerID: "openrouter",
@@ -90,5 +100,27 @@ describe("bot/keyboards/main-reply-keyboard", () => {
     expect(keyboard.is_persistent).toBe(true);
 
     expect(removeKeyboard()).toEqual({ remove_keyboard: true });
+  });
+
+  it("returns the grid when the bottom keyboard is enabled", () => {
+    const keyboard = createMainKeyboardOrRemove("build", {
+      providerID: "openrouter",
+      modelID: "openai/gpt-4o",
+    });
+
+    expect(buttonTextAt(keyboard as ReturnType<typeof createMainKeyboard>, 0, 0)).toBe(
+      "🛠️ Build Agent",
+    );
+  });
+
+  it("returns a removal when the bottom keyboard is disabled", () => {
+    showBottomKeyboardMock.mockReturnValue(false);
+
+    expect(
+      createMainKeyboardOrRemove("build", {
+        providerID: "openrouter",
+        modelID: "openai/gpt-4o",
+      }),
+    ).toEqual({ remove_keyboard: true });
   });
 });
