@@ -44,8 +44,12 @@ const KEYBOARD = { keyboard: [] };
 let replyMock: ReturnType<typeof vi.fn>;
 
 function makeContext(): Context {
+  return makeContextWithChat(42);
+}
+
+function makeContextWithChat(chatId: number): Context {
   return {
-    chat: { id: 42 },
+    chat: { id: chatId },
     api: { sendMessage: vi.fn() },
     reply: replyMock,
   } as unknown as Context;
@@ -319,6 +323,24 @@ describe("bot/handlers/prompt-queue-dispatch", () => {
 
       expect(processUserPromptMock).not.toHaveBeenCalled();
       expect(promptQueue.size()).toBe(1);
+    });
+
+    it("dispatches each prompt with the context it was queued from", async () => {
+      const ctxA = makeContextWithChat(1);
+      const ctxB = makeContextWithChat(2);
+      await tryEnqueuePrompt(ctxA, "first");
+      await tryEnqueuePrompt(ctxB, "second");
+
+      await dispatchNextQueuedPrompt();
+      await dispatchNextQueuedPrompt();
+
+      expect(processUserPromptMock).toHaveBeenCalledTimes(2);
+      expect(processUserPromptMock.mock.calls[0]?.[0]).toBe(ctxA);
+      expect(processUserPromptMock.mock.calls[0]?.[1]).toMatchObject({ text: "first" });
+      expect(processUserPromptMock.mock.calls[1]?.[0]).toBe(ctxB);
+      expect(processUserPromptMock.mock.calls[1]?.[1]).toMatchObject({ text: "second" });
+      expect(sendBotTextMock.mock.calls[0]?.[0]).toMatchObject({ chatId: 1 });
+      expect(sendBotTextMock.mock.calls[1]?.[0]).toMatchObject({ chatId: 2 });
     });
   });
 });

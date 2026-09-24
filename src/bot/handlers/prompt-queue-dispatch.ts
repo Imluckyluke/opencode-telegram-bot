@@ -26,6 +26,25 @@ let promptDeps: ProcessPromptDeps | null = null;
 // Same approach as message-merger.ts.
 let queuedPromptContext: Context | null = null;
 
+// Per-item dispatch origins: the shared queue serves every lane (owner,
+// granted users), so each item replays the context and deps it was queued
+// from instead of the last writer's. Falls back to the globals above for
+// items queued before this map existed (in practice: never, the queue is
+// in-memory only).
+const queuedItemOrigins = new Map<string, { ctx: Context; deps: ProcessPromptDeps | null }>();
+
+function pruneQueuedItemOrigins(): void {
+  if (queuedItemOrigins.size === 0) {
+    return;
+  }
+  const liveIds = new Set(promptQueue.list().map((item) => item.id));
+  for (const id of queuedItemOrigins.keys()) {
+    if (!liveIds.has(id)) {
+      queuedItemOrigins.delete(id);
+    }
+  }
+}
+
 // Both drain sites fire unawaited, and processUserPrompt only marks the session
 // busy after several network round-trips. Without this flag two overlapping
 // drains could each pass the busy check and start a second run for the same
@@ -75,7 +94,6 @@ export async function tryEnqueuePrompt(ctx: Context, input: QueuedPromptInput): 
   }
 
   queuedPromptContext = ctx;
-
   if (promptQueue.isFull()) {
     logger.info(`[PromptQueue] Rejected prompt: queue is full (max=${MAX_QUEUED_PROMPTS})`);
     await replyWithKeyboard(ctx, t("queue.full", { max: String(MAX_QUEUED_PROMPTS) }));
@@ -91,6 +109,8 @@ export async function tryEnqueuePrompt(ctx: Context, input: QueuedPromptInput): 
   if (!queued) {
     return false;
   }
+  queuedItemOrigins.set(queued.id, { ctx, deps: promptDeps });
+  pruneQueuedItemOrigins();
 
   logger.info(
     `[PromptQueue] Prompt queued while session is busy: size=${promptQueue.size()}/${MAX_QUEUED_PROMPTS}`,
@@ -145,11 +165,16 @@ function formatQueuedMediaLimit(): string {
  * same "external user input" format used for prompts sent from another device.
  */
 export async function dispatchNextQueuedPrompt(): Promise<void> {
+  pruneQueuedItemOrigins();
+  const head = promptQueue.list()[0];
+  const origin = head ? queuedItemOrigins.get(head.id) : undefined;
+  const dispatchCtx = origin?.ctx ?? queuedPromptContext;
+  const dispatchDeps = origin?.deps ?? promptDeps;
   if (
     dispatchInFlight ||
-    promptQueue.size() === 0 ||
-    !promptDeps ||
-    !queuedPromptContext ||
+    !head ||
+    !dispatchDeps ||
+    !dispatchCtx ||
     isForegroundBusy()
   ) {
     return;
@@ -162,9 +187,10 @@ export async function dispatchNextQueuedPrompt(): Promise<void> {
     if (!item) {
       return;
     }
+    queuedItemOrigins.delete(item.id);
 
-    const ctx = queuedPromptContext;
-    const deps = promptDeps;
+    const ctx = dispatchCtx;
+    const deps = dispatchDeps;
 
     const notification = buildExternalUserInputNotification(item.displayText);
     if (notification && ctx.chat) {
@@ -193,11 +219,11 @@ export async function dispatchNextQueuedPrompt(): Promise<void> {
       });
       if (!dispatched) {
         logger.warn(`[PromptQueue] Queued prompt was not dispatched: id=${item.id}`);
-        await requeueOrDrop(ctx, item);
+        await requeueOrDrop(ctx, item, deps);
       }
     } catch (err) {
       logger.error(`[PromptQueue] Failed to dispatch queued prompt: id=${item.id}`, err);
-      await requeueOrDrop(ctx, item);
+      await requeueOrDrop(ctx, item, deps);
     }
   } finally {
     dispatchInFlight = false;
@@ -209,11 +235,13 @@ export async function dispatchNextQueuedPrompt(): Promise<void> {
  * exhausted the item is dropped with a user-visible notice instead of being
  * retried (and re-echoed) forever.
  */
-async function requeueOrDrop(ctx: Context, item: QueuedPrompt): Promise<void> {
+async function requeueOrDrop(ctx: Context, item: QueuedPrompt, deps: ProcessPromptDeps): Promise<void> {
   if (promptQueue.requeueFront(item)) {
+    queuedItemOrigins.set(item.id, { ctx, deps });
     return;
   }
 
+  queuedItemOrigins.delete(item.id);
   logger.error(`[PromptQueue] Dropping queued prompt after repeated failures: id=${item.id}`);
   await replyWithKeyboard(ctx, t("error.generic"));
 }
@@ -229,5 +257,6 @@ async function replyWithKeyboard(ctx: Context, text: string): Promise<void> {
 export function __resetPromptQueueDispatchForTests(): void {
   promptDeps = null;
   queuedPromptContext = null;
+  queuedItemOrigins.clear();
   dispatchInFlight = false;
 }
