@@ -1,16 +1,23 @@
 import type { CommandContext, Context } from "grammy";
 import { isAllowedTelegramUser } from "../../config.js";
+import { opencodeClient } from "../../opencode/client.js";
 import {
   addExtraAllowedUserId,
+  clearUserSession,
   getExtraAllowedUserIds,
+  getUserSession,
   removeExtraAllowedUserId,
 } from "../../app/stores/settings-store.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 
 function parseUserId(raw: string): number | null {
-  const parsed = Number.parseInt(raw.trim(), 10);
-  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+  const trimmed = raw.trim();
+  if (!/^[1-9]\d*$/.test(trimmed)) {
+    return null;
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isSafeInteger(parsed)) {
     return null;
   }
   return parsed;
@@ -18,6 +25,26 @@ function parseUserId(raw: string): number | null {
 
 function formatUserId(userId: number): string {
   return `\`${userId}\``;
+}
+
+/**
+ * Drops the revoked user's personal lane session: deletes it server-side
+ * (best-effort) and clears the mapping, so a re-grant starts fresh and no
+ * session lingers for a user without access.
+ */
+async function revokeUserLaneSession(userId: number): Promise<void> {
+  const laneSession = getUserSession(userId);
+  if (laneSession) {
+    try {
+      await opencodeClient.session.delete({
+        sessionID: laneSession.id,
+        directory: laneSession.directory,
+      });
+    } catch (error) {
+      logger.warn(`[Bot] Failed to delete revoked user lane session: userId=${userId}`, error);
+    }
+  }
+  clearUserSession(userId);
 }
 
 function describeUser(from: { id?: number; username?: string; first_name?: string } | undefined): string | null {
@@ -73,6 +100,7 @@ export async function allowCommand(ctx: CommandContext<Context>): Promise<void> 
       return;
     }
     if (removeExtraAllowedUserId(target)) {
+      await revokeUserLaneSession(target);
       logger.info(`[Bot] Access revoked: userId=${target}`);
       await ctx.reply(t("allow.revoked", { user: formatUserId(target) }), {
         parse_mode: "Markdown",
@@ -95,7 +123,7 @@ export async function allowCommand(ctx: CommandContext<Context>): Promise<void> 
   }
 
   const target = parseUserId(sub);
-  if (!target) {
+  if (!target || rest.length > 0) {
     await ctx.reply(t("allow.invalid"));
     return;
   }

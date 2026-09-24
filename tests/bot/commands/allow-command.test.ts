@@ -8,6 +8,9 @@ const mocked = vi.hoisted(() => ({
   getExtraAllowedUserIdsMock: vi.fn((): number[] => []),
   addExtraAllowedUserIdMock: vi.fn(),
   removeExtraAllowedUserIdMock: vi.fn(),
+  getUserSessionMock: vi.fn(),
+  clearUserSessionMock: vi.fn(),
+  sessionDeleteMock: vi.fn(),
 }));
 
 vi.mock("../../../src/config.js", () => ({
@@ -25,6 +28,12 @@ vi.mock("../../../src/app/stores/settings-store.js", () => ({
   getExtraAllowedUserIds: mocked.getExtraAllowedUserIdsMock,
   addExtraAllowedUserId: mocked.addExtraAllowedUserIdMock,
   removeExtraAllowedUserId: mocked.removeExtraAllowedUserIdMock,
+  getUserSession: mocked.getUserSessionMock,
+  clearUserSession: mocked.clearUserSessionMock,
+}));
+
+vi.mock("../../../src/opencode/client.js", () => ({
+  opencodeClient: { session: { delete: mocked.sessionDeleteMock } },
 }));
 
 function createContext(text: string, replyFrom?: { id: number }): Context {
@@ -47,6 +56,9 @@ describe("bot/commands/allow-command", () => {
     mocked.getExtraAllowedUserIdsMock.mockReset().mockReturnValue([]);
     mocked.addExtraAllowedUserIdMock.mockReset().mockReturnValue(true);
     mocked.removeExtraAllowedUserIdMock.mockReset().mockReturnValue(true);
+    mocked.getUserSessionMock.mockReset().mockReturnValue(undefined);
+    mocked.clearUserSessionMock.mockReset();
+    mocked.sessionDeleteMock.mockReset().mockResolvedValue({ data: true, error: null });
   });
 
   it("refuses non-owners", async () => {
@@ -103,11 +115,74 @@ describe("bot/commands/allow-command", () => {
     );
   });
 
+  it("deletes the revoked user's lane session and clears the mapping", async () => {
+    mocked.getUserSessionMock.mockReturnValue({
+      id: "lane-1",
+      title: "Chat X",
+      directory: "D:/Repo",
+    });
+    const ctx = createContext("/allow remove 222");
+
+    await allowCommand(ctx as never);
+
+    expect(mocked.sessionDeleteMock).toHaveBeenCalledWith({
+      sessionID: "lane-1",
+      directory: "D:/Repo",
+    });
+    expect(mocked.clearUserSessionMock).toHaveBeenCalledWith(222);
+    expect(ctx.reply).toHaveBeenCalledWith(
+      t("allow.revoked", { user: "`222`" }),
+      { parse_mode: "Markdown" },
+    );
+  });
+
+  it("still revokes when the user has no lane session", async () => {
+    const ctx = createContext("/allow remove 222");
+
+    await allowCommand(ctx as never);
+
+    expect(mocked.sessionDeleteMock).not.toHaveBeenCalled();
+    expect(mocked.clearUserSessionMock).toHaveBeenCalledWith(222);
+    expect(ctx.reply).toHaveBeenCalledWith(
+      t("allow.revoked", { user: "`222`" }),
+      { parse_mode: "Markdown" },
+    );
+  });
+
   it("rejects invalid ids", async () => {
     const ctx = createContext("/allow abc");
 
     await allowCommand(ctx as never);
 
     expect(ctx.reply).toHaveBeenCalledWith(t("allow.invalid"));
+  });
+
+  it.each(["123abc", "0", "00", "-5", "42 extra"])(
+    "rejects malformed grant id %j",
+    async (badId) => {
+      const ctx = createContext(`/allow ${badId}`.trimEnd());
+
+      await allowCommand(ctx as never);
+
+      expect(ctx.reply).toHaveBeenCalledWith(t("allow.invalid"));
+      expect(mocked.addExtraAllowedUserIdMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["123abc", "0", "42 extra"])("rejects malformed revoke id %j", async (badId) => {
+    const ctx = createContext(`/allow remove ${badId}`);
+
+    await allowCommand(ctx as never);
+
+    expect(ctx.reply).toHaveBeenCalledWith(t("allow.invalid"));
+    expect(mocked.removeExtraAllowedUserIdMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts an id padded with spaces", async () => {
+    const ctx = createContext("/allow   42  ");
+
+    await allowCommand(ctx as never);
+
+    expect(mocked.addExtraAllowedUserIdMock).toHaveBeenCalledWith(42);
   });
 });
