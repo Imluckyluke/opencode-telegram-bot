@@ -6,6 +6,10 @@ import { ingestSessionInfoForCache } from "../../app/services/session-cache-serv
 import { getCurrentProject } from "../../app/stores/settings-store.js";
 import { getStoredAgent, resolveProjectAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredInlineModel } from "../../app/services/model-selection-service.js";
+import {
+  GUEST_SESSION_PERMISSIONS,
+  createSessionWithPermissions,
+} from "../../app/services/session-permissions.js";
 import { backgroundSessionTracker } from "../../app/managers/background-session-manager.js";
 import {
   GLOBAL_RUN_KEY,
@@ -85,7 +89,11 @@ async function createInlineSession(
   directory: string,
   question: string,
 ): Promise<InlineSession | null> {
-  const { data, error } = await opencodeClient.session.create({ directory });
+  const { data, error } = await createSessionWithPermissions(
+    directory,
+    inlineSessionTitle(question),
+    GUEST_SESSION_PERMISSIONS,
+  );
   if (error || !data?.id) {
     return null;
   }

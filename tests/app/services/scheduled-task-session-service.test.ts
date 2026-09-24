@@ -11,9 +11,9 @@ vi.mock("../../../src/utils/logger.js", () => ({
 }));
 
 import {
-  SCHEDULED_TASK_SESSION_PERMISSIONS,
   createUnattendedSession,
 } from "../../../src/app/services/scheduled-task-session-service.js";
+import { SCHEDULED_TASK_SESSION_PERMISSIONS } from "../../../src/app/services/session-permissions.js";
 
 describe("app/services/scheduled-task-session-service", () => {
   beforeEach(() => {

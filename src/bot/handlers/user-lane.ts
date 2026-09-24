@@ -37,6 +37,10 @@ import { t } from "../../i18n/index.js";
 import { isSessionBusy } from "./prompt.js";
 import { waitForAssistantCompletion } from "../inline/run-waiter.js";
 import { collectRunFiles } from "../inline/guest-run-files.js";
+import {
+  USER_LANE_SESSION_PERMISSIONS,
+  createSessionWithPermissions,
+} from "../../app/services/session-permissions.js";
 
 const USER_SESSION_TITLE_PREFIX = "Chat ";
 const USER_LANE_TEXT_LIMIT = 4000;
@@ -155,7 +159,11 @@ async function getOrCreateUserSession(
     logger.warn(`[UserLane] Stored user session is gone, recreating: user=${userId}`);
     clearUserSession(userId);
   }
-  const { data, error } = await opencodeClient.session.create({ directory });
+  const { data, error } = await createSessionWithPermissions(
+    directory,
+    `${USER_SESSION_TITLE_PREFIX}${label}`,
+    USER_LANE_SESSION_PERMISSIONS,
+  );
   if (error || !data?.id) {
     return null;
   }
