@@ -4,6 +4,7 @@ import { parseTaskSchedule } from "../../../src/app/services/scheduled-task-sche
 const mocked = vi.hoisted(() => ({
   sessionCreateMock: vi.fn(),
   sessionPromptMock: vi.fn(),
+  sessionAbortMock: vi.fn(),
   sessionDeleteMock: vi.fn(),
   cleanupIgnoresMock: vi.fn(),
   registerIgnoreMock: vi.fn(),
@@ -16,6 +17,7 @@ vi.mock("../../../src/opencode/client.js", () => ({
     session: {
       create: mocked.sessionCreateMock,
       prompt: mocked.sessionPromptMock,
+      abort: mocked.sessionAbortMock,
       delete: mocked.sessionDeleteMock,
     },
   },
@@ -39,6 +41,7 @@ describe("app/services/scheduled-task-schedule-parser-service", () => {
   beforeEach(() => {
     mocked.sessionCreateMock.mockReset();
     mocked.sessionPromptMock.mockReset();
+    mocked.sessionAbortMock.mockReset();
     mocked.sessionDeleteMock.mockReset();
     mocked.cleanupIgnoresMock.mockReset();
     mocked.registerIgnoreMock.mockReset();
@@ -50,6 +53,7 @@ describe("app/services/scheduled-task-schedule-parser-service", () => {
       error: null,
     });
     mocked.sessionDeleteMock.mockResolvedValue({ data: true, error: null });
+    mocked.sessionAbortMock.mockResolvedValue({ data: true, error: null });
     mocked.cleanupIgnoresMock.mockResolvedValue(0);
     mocked.registerIgnoreMock.mockResolvedValue(undefined);
   });
@@ -200,5 +204,28 @@ describe("app/services/scheduled-task-schedule-parser-service", () => {
     >;
     expect(promptOptions.model).toBeUndefined();
     expect(promptOptions.variant).toBeUndefined();
+  });
+
+  it("aborts and deletes the temp session when the parse hangs", async () => {
+    mocked.sessionPromptMock.mockImplementation(() => new Promise(() => {}));
+
+    await expect(parseTaskSchedule("every 5 minutes", "D:/Projects/Repo", undefined, 50)).rejects.toThrow(
+      /timed out/i,
+    );
+    expect(mocked.sessionAbortMock).toHaveBeenCalledWith({
+      sessionID: "temp-session",
+      directory: "D:/Projects/Repo",
+    });
+    expect(mocked.sessionDeleteMock).toHaveBeenCalledWith({ sessionID: "temp-session" });
+  });
+
+  it("still deletes the temp session when abort fails on timeout", async () => {
+    mocked.sessionPromptMock.mockImplementation(() => new Promise(() => {}));
+    mocked.sessionAbortMock.mockRejectedValue(new Error("abort failed"));
+
+    await expect(parseTaskSchedule("every 5 minutes", "D:/Projects/Repo", undefined, 50)).rejects.toThrow(
+      /timed out/i,
+    );
+    expect(mocked.sessionDeleteMock).toHaveBeenCalledWith({ sessionID: "temp-session" });
   });
 });

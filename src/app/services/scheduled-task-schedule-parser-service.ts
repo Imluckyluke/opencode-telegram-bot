@@ -8,6 +8,9 @@ import type { ParsedTaskSchedule, ScheduledTaskModel } from "../types/scheduled-
 
 const SCHEDULE_PARSE_SESSION_TITLE = "Scheduled task schedule parser";
 
+/** Maximum time one LLM schedule-parse run may take before it is aborted. */
+export const SCHEDULE_PARSE_TIMEOUT_MS = 120_000;
+
 function getLocalTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
@@ -135,8 +138,7 @@ function collectResponseText(
     .trim();
 }
 
-function buildSchedulePrompt(scheduleText: string, timezone: string): string {
-  const now = new Date().toISOString();
+function buildSchedulePrompt(scheduleText: string, timezone: string): string {  const now = new Date().toISOString();
 
   return [
     "Parse the following natural-language task schedule and return JSON only.",
@@ -154,10 +156,67 @@ function buildSchedulePrompt(scheduleText: string, timezone: string): string {
   ].join("\n");
 }
 
+/**
+ * Runs the blocking parser prompt with a timeout. On timeout the temporary
+ * session is aborted (best-effort) so no orphan LLM run keeps burning tokens,
+ * then a timeout error is thrown. Session deletion stays in the caller's
+ * finally block.
+ */
+async function promptWithTimeout(
+  promptOptions: {
+    sessionID: string;
+    directory: string;
+    system: string;
+    parts: Array<{ type: "text"; text: string }>;
+    model?: { providerID: string; modelID: string };
+    variant?: string;
+  },
+  sessionId: string,
+  directory: string,
+  timeoutMs: number,
+): Promise<{
+  data: { parts: Array<{ type?: string; text?: string; ignored?: boolean }> } | undefined;
+  error: unknown;
+}> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        reject(new Error(`Schedule parser timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+    });
+    const result = await Promise.race([opencodeClient.session.prompt(promptOptions), timeoutPromise]);
+    return result as {
+      data: { parts: Array<{ type?: string; text?: string; ignored?: boolean }> } | undefined;
+      error: unknown;
+    };
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Schedule parser timed out")) {
+      logger.warn(
+        `[ScheduledTaskScheduleParser] Parse timed out, aborting temporary session: sessionId=${sessionId}`,
+      );
+      try {
+        await opencodeClient.session.abort({ sessionID: sessionId, directory });
+      } catch (abortError) {
+        logger.warn(
+          `[ScheduledTaskScheduleParser] Failed to abort timed-out parser session: sessionId=${sessionId}`,
+          abortError,
+        );
+      }
+    }
+    throw error;
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
 export async function parseTaskSchedule(
   scheduleText: string,
   directory: string,
   model?: ScheduledTaskModel,
+  timeoutMs: number = SCHEDULE_PARSE_TIMEOUT_MS,
 ): Promise<ParsedTaskSchedule> {
   const trimmedScheduleText = scheduleText.trim();
   if (!trimmedScheduleText) {
@@ -217,8 +276,11 @@ export async function parseTaskSchedule(
       promptOptions.variant = model.variant;
     }
 
-    const { data: response, error: promptError } = await opencodeClient.session.prompt(
+    const { data: response, error: promptError } = await promptWithTimeout(
       promptOptions,
+      session.id,
+      session.directory,
+      timeoutMs,
     );
 
     if (promptError || !response) {
