@@ -134,8 +134,7 @@ describe("bot/menus/inline-menu", () => {
     expect(ctx.answerCallbackQuery).not.toHaveBeenCalled();
   });
 
-  it("rejects stale callback when menu kind does not match", async () => {
-    interactionManager.start({
+  it("rejects stale callback when menu kind does not match", async () => {    interactionManager.start({
       kind: "inline",
       expectedInput: "callback",
       metadata: {
@@ -147,6 +146,27 @@ describe("bot/menus/inline-menu", () => {
     const ctx = createCallbackContext("session:abc", 10);
 
     const result = await ensureActiveInlineMenu(ctx, "session");
+
+    expect(result).toBe(false);
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
+      text: t("inline.inactive_callback"),
+      show_alert: true,
+    });
+  });
+
+  it("rejects taps from a replaced menu message so indexes cannot resolve against new lists", async () => {
+    interactionManager.start({
+      kind: "inline",
+      expectedInput: "callback",
+      metadata: {
+        menuKind: "model",
+        messageId: 1000,
+      },
+    });
+
+    const ctx = createCallbackContext("model:pick:0", 500);
+
+    const result = await ensureActiveInlineMenu(ctx, "model");
 
     expect(result).toBe(false);
     expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
