@@ -182,10 +182,7 @@ export const es: I18nDictionary = {
   "settings.value.off": "Desactivado",
   "settings.saved": "✅ Ajuste guardado.",
 
-  "inline.status.title": "Bot status",
-  "inline.status.description": "Current project, session, and model",
   "inline.ask.title": "Ask current session",
-  "inline.ask.description": "{query}",
   "inline.posted.text": "\u23F3 {query}\n\nWorking on it\u2026",
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
@@ -226,6 +223,8 @@ export const es: I18nDictionary = {
   "deletesessions.confirm_yes": "✅ Sí, eliminar todo",
   "deletesessions.confirm_text": "⚠️ Se eliminarán todas las sesiones. Toca ✅ abajo para confirmar.",
   "restart.scheduled": "Restarting.",
+  "restart.confirm_text": "⚠️ Restart the bot process now? Tap ✅ below to confirm.",
+  "restart.confirm_yes": "✅ Yes, restart",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
   "inlinemodel.current": "Inline/guest model: {model}",
@@ -491,6 +490,7 @@ export const es: I18nDictionary = {
     "⚠️ La cola está llena ({max}). Elimina un mensaje o espera a que termine la tarea actual.",
   "queue.removed": "🗑 Mensaje eliminado de la cola.",
   "queue.not_found": "Este mensaje ya no está en la cola.",
+  "queue.cleared": "🗑 Queue cleared: {count} message(s) dropped.",
   "queue.disabled_hint": "La cola de mensajes se activa en /settings.",
   "keyboard.updated": "⌨️ Teclado actualizado",
 

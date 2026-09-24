@@ -182,10 +182,7 @@ export const pt: I18nDictionary = {
   "settings.value.off": "Desligado",
   "settings.saved": "✅ Configuração salva.",
 
-  "inline.status.title": "Bot status",
-  "inline.status.description": "Current project, session, and model",
   "inline.ask.title": "Ask current session",
-  "inline.ask.description": "{query}",
   "inline.posted.text": "\u23F3 {query}\n\nWorking on it\u2026",
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
@@ -226,6 +223,8 @@ export const pt: I18nDictionary = {
   "deletesessions.confirm_yes": "✅ Sim, excluir tudo",
   "deletesessions.confirm_text": "⚠️ Todas as sessões serão excluídas. Toque em ✅ abaixo para confirmar.",
   "restart.scheduled": "Restarting.",
+  "restart.confirm_text": "⚠️ Restart the bot process now? Tap ✅ below to confirm.",
+  "restart.confirm_yes": "✅ Yes, restart",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
   "inlinemodel.current": "Inline/guest model: {model}",
@@ -492,6 +491,7 @@ export const pt: I18nDictionary = {
     "⚠️ A fila está cheia ({max}). Remova uma mensagem ou aguarde o término da tarefa atual.",
   "queue.removed": "🗑 Mensagem removida da fila.",
   "queue.not_found": "Esta mensagem não está mais na fila.",
+  "queue.cleared": "🗑 Queue cleared: {count} message(s) dropped.",
   "queue.disabled_hint": "A fila de mensagens pode ser ativada em /settings.",
   "keyboard.updated": "⌨️ Teclado atualizado",
 

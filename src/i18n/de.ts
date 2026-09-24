@@ -183,10 +183,7 @@ export const de: I18nDictionary = {
   "settings.value.off": "Aus",
   "settings.saved": "✅ Einstellung gespeichert.",
 
-  "inline.status.title": "Bot status",
-  "inline.status.description": "Current project, session, and model",
   "inline.ask.title": "Ask current session",
-  "inline.ask.description": "{query}",
   "inline.posted.text": "\u23F3 {query}\n\nWorking on it\u2026",
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
@@ -227,6 +224,8 @@ export const de: I18nDictionary = {
   "deletesessions.confirm_yes": "✅ Ja, alle löschen",
   "deletesessions.confirm_text": "⚠️ Alle Sitzungen werden gelöscht. Zum Bestätigen unten auf ✅ tippen.",
   "restart.scheduled": "Restarting.",
+  "restart.confirm_text": "⚠️ Restart the bot process now? Tap ✅ below to confirm.",
+  "restart.confirm_yes": "✅ Yes, restart",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
   "inlinemodel.current": "Inline/guest model: {model}",
@@ -496,6 +495,7 @@ export const de: I18nDictionary = {
     "⚠️ Die Warteschlange ist voll ({max}). Entferne eine Nachricht oder warte, bis die aktuelle Aufgabe abgeschlossen ist.",
   "queue.removed": "🗑 Nachricht aus der Warteschlange entfernt.",
   "queue.not_found": "Diese Nachricht ist nicht mehr in der Warteschlange.",
+  "queue.cleared": "🗑 Queue cleared: {count} message(s) dropped.",
   "queue.disabled_hint": "Die Nachrichtenwarteschlange lässt sich in /settings aktivieren.",
   "keyboard.updated": "⌨️ Tastatur aktualisiert",
 

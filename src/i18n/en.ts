@@ -81,11 +81,10 @@ export const en = {
   "deletesessions.confirm_yes": "✅ Yes, delete all",
   "deletesessions.confirm_text": "⚠️ This will delete ALL sessions. Tap ✅ below to confirm.",
   "restart.scheduled": "🔄 Restarting… back in a moment.",
+  "restart.confirm_text": "⚠️ Restart the bot process now? In-flight runs will be lost. Tap ✅ below to confirm.",
+  "restart.confirm_yes": "✅ Yes, restart",
 
-  "inline.status.title": "📊 Bot status",
-  "inline.status.description": "Current project, session, and model",
   "inline.ask.title": "▶ Ask current session",
-  "inline.ask.description": "{query}",
   "inline.posted.text": "⏳ {query}\n\nWorking on it…",  "inline.no_project": "🏗 Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "⏹ Stopped — see the bot chat for details.",
   "inline.open_bot": "🤖 Open bot",
@@ -469,6 +468,7 @@ export const en = {
     "⚠️ Queued media is limited to {maxSizeMb} MiB. Wait for an item to send, then try again.",
   "queue.removed": "🗑 Message removed from the queue.",
   "queue.not_found": "This message is no longer in the queue.",
+  "queue.cleared": "🗑 Queue cleared on /abort: {count} message(s) dropped.",
   "queue.disabled_hint": "The message queue can be enabled in /settings.",
   "keyboard.updated": "⌨️ Keyboard updated",
 

@@ -184,10 +184,7 @@ export const fr: I18nDictionary = {
   "settings.value.off": "Désactivé",
   "settings.saved": "✅ Paramètre enregistré.",
 
-  "inline.status.title": "Bot status",
-  "inline.status.description": "Current project, session, and model",
   "inline.ask.title": "Ask current session",
-  "inline.ask.description": "{query}",
   "inline.posted.text": "\u23F3 {query}\n\nWorking on it\u2026",
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
@@ -228,6 +225,8 @@ export const fr: I18nDictionary = {
   "deletesessions.confirm_yes": "✅ Oui, tout supprimer",
   "deletesessions.confirm_text": "⚠️ Toutes les sessions seront supprimées. Touchez ✅ ci-dessous pour confirmer.",
   "restart.scheduled": "Restarting.",
+  "restart.confirm_text": "⚠️ Restart the bot process now? Tap ✅ below to confirm.",
+  "restart.confirm_yes": "✅ Yes, restart",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
   "inlinemodel.current": "Inline/guest model: {model}",
@@ -496,6 +495,7 @@ export const fr: I18nDictionary = {
     "⚠️ La file d'attente est pleine ({max}). Supprimez un message ou attendez la fin de la tâche en cours.",
   "queue.removed": "🗑 Message retiré de la file d'attente.",
   "queue.not_found": "Ce message n'est plus dans la file d'attente.",
+  "queue.cleared": "🗑 Queue cleared: {count} message(s) dropped.",
   "queue.disabled_hint": "La file d'attente des messages s'active dans /settings.",
   "keyboard.updated": "⌨️ Clavier mis à jour",
 

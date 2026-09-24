@@ -183,10 +183,7 @@ export const ko: I18nDictionary = {
   "settings.value.off": "끄기",
   "settings.saved": "✅ 설정이 저장되었습니다.",
 
-  "inline.status.title": "Bot status",
-  "inline.status.description": "Current project, session, and model",
   "inline.ask.title": "Ask current session",
-  "inline.ask.description": "{query}",
   "inline.posted.text": "\u23F3 {query}\n\nWorking on it\u2026",
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
@@ -227,6 +224,8 @@ export const ko: I18nDictionary = {
   "deletesessions.confirm_yes": "✅ 예, 모두 삭제",
   "deletesessions.confirm_text": "⚠️ 모든 세션이 삭제됩니다. 확인하려면 아래 ✅를 누르세요.",
   "restart.scheduled": "Restarting.",
+  "restart.confirm_text": "⚠️ Restart the bot process now? Tap ✅ below to confirm.",
+  "restart.confirm_yes": "✅ Yes, restart",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
   "inlinemodel.current": "Inline/guest model: {model}",
@@ -487,6 +486,7 @@ export const ko: I18nDictionary = {
     "⚠️ 대기열 미디어는 총 {maxSizeMb} MiB로 제한됩니다. 항목이 전송된 후 다시 시도하세요.",
   "queue.removed": "🗑 대기열에서 메시지를 삭제했습니다.",
   "queue.not_found": "이 메시지는 더 이상 대기열에 없습니다.",
+  "queue.cleared": "🗑 Queue cleared: {count} message(s) dropped.",
   "queue.disabled_hint": "메시지 대기열은 /settings에서 활성화할 수 있습니다.",
   "keyboard.updated": "⌨️ 키보드가 업데이트되었습니다",
 

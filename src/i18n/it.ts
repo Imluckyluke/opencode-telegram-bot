@@ -182,10 +182,7 @@ export const it: I18nDictionary = {
   "settings.value.off": "Off",
   "settings.saved": "✅ Impostazione salvata.",
 
-  "inline.status.title": "Bot status",
-  "inline.status.description": "Current project, session, and model",
   "inline.ask.title": "Ask current session",
-  "inline.ask.description": "{query}",
   "inline.posted.text": "\u23F3 {query}\n\nWorking on it\u2026",
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
@@ -226,6 +223,8 @@ export const it: I18nDictionary = {
   "deletesessions.confirm_yes": "✅ Sì, elimina tutto",
   "deletesessions.confirm_text": "⚠️ Tutte le sessioni saranno eliminate. Tocca ✅ qui sotto per confermare.",
   "restart.scheduled": "Restarting.",
+  "restart.confirm_text": "⚠️ Restart the bot process now? Tap ✅ below to confirm.",
+  "restart.confirm_yes": "✅ Yes, restart",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
   "inlinemodel.current": "Inline/guest model: {model}",
@@ -492,6 +491,7 @@ export const it: I18nDictionary = {
     "⚠️ I media in coda sono limitati a {maxSizeMb} MiB. Attendi l'invio di un elemento e riprova.",
   "queue.removed": "🗑 Messaggio rimosso dalla coda.",
   "queue.not_found": "Questo messaggio non è più in coda.",
+  "queue.cleared": "🗑 Queue cleared: {count} message(s) dropped.",
   "queue.disabled_hint": "La coda dei messaggi può essere attivata in /settings.",
   "keyboard.updated": "⌨️ Tastiera aggiornata",
 

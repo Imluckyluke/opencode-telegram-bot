@@ -163,10 +163,7 @@ export const zh: I18nDictionary = {
   "settings.value.off": "关闭",
   "settings.saved": "✅ 设置已保存。",
 
-  "inline.status.title": "Bot status",
-  "inline.status.description": "Current project, session, and model",
   "inline.ask.title": "Ask current session",
-  "inline.ask.description": "{query}",
   "inline.posted.text": "\u23F3 {query}\n\nWorking on it\u2026",
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
@@ -207,6 +204,8 @@ export const zh: I18nDictionary = {
   "deletesessions.confirm_yes": "✅ 是，全部删除",
   "deletesessions.confirm_text": "⚠️ 将删除所有会话。点击下面的 ✅ 确认。",
   "restart.scheduled": "Restarting.",
+  "restart.confirm_text": "⚠️ Restart the bot process now? Tap ✅ below to confirm.",
+  "restart.confirm_yes": "✅ Yes, restart",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
   "inlinemodel.current": "Inline/guest model: {model}",
@@ -440,6 +439,7 @@ export const zh: I18nDictionary = {
   "queue.media_limit": "⚠️ 队列媒体总大小限制为 {maxSizeMb} MiB。请等待一个项目发送后重试。",
   "queue.removed": "🗑 消息已从队列中移除。",
   "queue.not_found": "该消息已不在队列中。",
+  "queue.cleared": "🗑 Queue cleared: {count} message(s) dropped.",
   "queue.disabled_hint": "可在 /settings 中开启消息队列。",
   "keyboard.updated": "⌨️ 键盘已更新",
 

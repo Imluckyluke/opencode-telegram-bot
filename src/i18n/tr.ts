@@ -177,10 +177,7 @@ export const tr: I18nDictionary = {
   "settings.value.off": "Kapalı",
   "settings.saved": "✅ Ayar kaydedildi.",
 
-  "inline.status.title": "Bot status",
-  "inline.status.description": "Current project, session, and model",
   "inline.ask.title": "Ask current session",
-  "inline.ask.description": "{query}",
   "inline.posted.text": "\u23F3 {query}\n\nWorking on it\u2026",
   "inline.no_project": "Project is not selected. Open the bot chat and select one with /projects first.",
   "inline.interrupted": "Stopped. See the bot chat for details.",
@@ -221,6 +218,8 @@ export const tr: I18nDictionary = {
   "deletesessions.confirm_yes": "✅ Evet, tümünü sil",
   "deletesessions.confirm_text": "⚠️ Tüm oturumlar silinecek. Onaylamak için aşağıdaki ✅ düğmesine dokunun.",
   "restart.scheduled": "Restarting.",
+  "restart.confirm_text": "⚠️ Restart the bot process now? Tap ✅ below to confirm.",
+  "restart.confirm_yes": "✅ Yes, restart",
   "bot.video_unsupported": "Videos and GIFs are not supported yet.",
 
   "inlinemodel.current": "Inline/guest model: {model}",
@@ -475,6 +474,7 @@ export const tr: I18nDictionary = {
     "⚠️ Kuyruktaki medya {maxSizeMb} MiB ile sınırlıdır. Bir öğenin gönderilmesini bekleyip tekrar deneyin.",
   "queue.removed": "🗑 Mesaj kuyruktan kaldırıldı.",
   "queue.not_found": "Bu mesaj artık kuyrukta değil.",
+  "queue.cleared": "🗑 Queue cleared: {count} message(s) dropped.",
   "queue.disabled_hint": "Mesaj kuyruğu /settings içinden açılabilir.",
   "keyboard.updated": "⌨️ Klavye güncellendi",
 
