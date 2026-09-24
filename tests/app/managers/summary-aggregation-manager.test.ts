@@ -2149,7 +2149,7 @@ describe("summary/aggregator", () => {
     expect(filePayload.sessionId).toBe("session-1");
     expect(filePayload.tool).toBe("apply_patch");
     expect(filePayload.hasFileAttachment).toBe(true);
-    expect(filePayload.fileData.filename).toBe("edit_one.ts.txt");
+    expect(filePayload.fileData.filename).toBe("one.ts");
     expect(filePayload.fileData.buffer.toString("utf8")).toContain("Edit File/Path: src/one.ts");
   });
 
@@ -2209,7 +2209,7 @@ describe("summary/aggregator", () => {
     };
 
     expect(filePayload.hasFileAttachment).toBe(true);
-    expect(filePayload.fileData.filename).toBe("edit_README.md.txt");
+    expect(filePayload.fileData.filename).toBe("README.md");
     expect(filePayload.fileData.buffer.toString("utf8")).toContain("Edit File/Path: README.md");
   });
 

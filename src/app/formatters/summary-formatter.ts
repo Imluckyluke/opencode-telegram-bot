@@ -454,8 +454,7 @@ export function prepareCodeFile(
   const fullContent = header + processedContent;
 
   const buffer = Buffer.from(UTF8_BOM + fullContent, "utf8");
-  const basename = path.basename(filePath);
-  const filename = `${operation}_${basename}.txt`;
+  const filename = path.basename(filePath);
 
   return { buffer, filename, caption: "" };
 }

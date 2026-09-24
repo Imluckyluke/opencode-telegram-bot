@@ -48,7 +48,7 @@ describe("bot/inline/guest-run-files", () => {
     const files = await collectRunFiles("s-1", "/repo", 500);
 
     expect(files).toHaveLength(1);
-    expect(files[0]?.filename).toBe("write_a.py.txt");
+    expect(files[0]?.filename).toBe("a.py");
   });
 
   it("collects edit diffs and skips unfinished or unknown tools", async () => {
@@ -73,7 +73,7 @@ describe("bot/inline/guest-run-files", () => {
     const files = await collectRunFiles("s-1", "/repo", 500);
 
     expect(files).toHaveLength(1);
-    expect(files[0]?.filename).toBe("edit_b.py.txt");
+    expect(files[0]?.filename).toBe("b.py");
   });
 
   it("ignores messages from before the run and API errors", async () => {
@@ -104,7 +104,7 @@ describe("bot/inline/guest-run-files", () => {
       deleteMessage: deleteMessageMock,
       editMessageMediaInline: editMessageMediaInlineMock,
     } as never;
-    const files = [{ buffer: Buffer.from("data"), filename: "write_a.py.txt", caption: "" }];
+    const files = [{ buffer: Buffer.from("data"), filename: "a.py", caption: "" }];
 
     const delivered = await deliverFirstRunFileAsInlineMedia(api, 777, "inline-1", files, "Done");
 
@@ -128,8 +128,8 @@ describe("bot/inline/guest-run-files", () => {
       editMessageMediaInline: editMessageMediaInlineMock,
     } as never;
     const files = [
-      { buffer: Buffer.from("a"), filename: "write_a.py.txt", caption: "" },
-      { buffer: Buffer.from("b"), filename: "write_b.py.txt", caption: "" },
+      { buffer: Buffer.from("a"), filename: "a.py", caption: "" },
+      { buffer: Buffer.from("b"), filename: "b.py", caption: "" },
     ];
 
     await deliverFirstRunFileAsInlineMedia(api, 777, "inline-1", files, "Done");
@@ -138,7 +138,7 @@ describe("bot/inline/guest-run-files", () => {
       "inline-1",
       expect.objectContaining({
         media: "fid-1",
-        caption: expect.stringContaining("write_b.py.txt"),
+        caption: expect.stringContaining("b.py"),
       }),
     );
   });
@@ -166,7 +166,7 @@ describe("bot/inline/guest-run-files", () => {
       deleteMessage: vi.fn(),
       editMessageMediaInline: editMessageMediaInlineMock,
     } as never;
-    const files = [{ buffer: Buffer.from("a"), filename: "write_a.py.txt", caption: "" }];
+    const files = [{ buffer: Buffer.from("a"), filename: "a.py", caption: "" }];
 
     await expect(
       deliverFirstRunFileAsInlineMedia(api, 777, "inline-1", files, "Done"),

@@ -322,7 +322,7 @@ describe("bot/messages/summary-message-formatter", () => {
   it("prepares file payloads for write/edit and skips oversized content", () => {
     const writeFile = prepareCodeFile("const x = 1;", "src/app.ts", "write");
     expect(writeFile).not.toBeNull();
-    expect(writeFile?.filename).toBe("write_app.ts.txt");
+    expect(writeFile?.filename).toBe("app.ts");
     expect(writeFile?.buffer.toString("utf8")).toContain("Write File/Path: src/app.ts");
 
     const diff = [
@@ -338,7 +338,7 @@ describe("bot/messages/summary-message-formatter", () => {
     const editBody = editFile?.buffer.toString("utf8") ?? "";
 
     expect(editFile).not.toBeNull();
-    expect(editFile?.filename).toBe("edit_app.ts.txt");
+    expect(editFile?.filename).toBe("app.ts");
     expect(editBody).not.toContain("@@");
     expect(editBody).not.toContain("--- a/src/app.ts");
     expect(editBody).toContain(" line1");
