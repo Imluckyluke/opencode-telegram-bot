@@ -93,7 +93,7 @@ describe("bot/handlers/photo-handler", () => {
     expect(flushPendingPromptMock).toHaveBeenCalledWith(777);
     expect(replyMock).not.toHaveBeenCalled();
     expect(downloadMock).not.toHaveBeenCalled();
-    expect(getCapabilitiesMock).not.toHaveBeenCalled();
+    expect(getCapabilitiesMock).toHaveBeenCalledWith("test-provider", "test-model");
     expect(processPromptMock).toHaveBeenCalledWith(
       ctx,
       createIncomingPrompt("Describe this", {
@@ -128,5 +128,54 @@ describe("bot/handlers/photo-handler", () => {
       }),
       deps,
     );
+  });
+
+  it("forwards the caption as text when the model lacks image support", async () => {
+    const { ctx, replyMock } = createPhotoContext("Describe this");
+    const { deps, processPromptMock } = createDeps({
+      getModelCapabilities: vi.fn().mockResolvedValue({ input: {} }),
+    });
+
+    await handlePhotoMessage(ctx, deps);
+
+    expect(replyMock).toHaveBeenCalledWith(expect.stringContaining("image"));
+    expect(processPromptMock).toHaveBeenCalledWith(
+      ctx,
+      createIncomingPrompt("Describe this", {}),
+      deps,
+    );
+  });
+
+  it("drops a captionless photo when the model lacks image support", async () => {
+    const { ctx, replyMock } = createPhotoContext("");
+    const { deps, processPromptMock } = createDeps({
+      getModelCapabilities: vi.fn().mockResolvedValue({ input: {} }),
+    });
+
+    await handlePhotoMessage(ctx, deps);
+
+    expect(replyMock).toHaveBeenCalledWith(expect.stringContaining("image"));
+    expect(processPromptMock).not.toHaveBeenCalled();
+    expect(promptQueue.list()).toEqual([]);
+  });
+
+  it("queues caption text instead of the photo when busy and the model lacks image support", async () => {
+    vi.spyOn(settingsStore, "getPromptQueueEnabled").mockReturnValue(true);
+    foregroundSessionState.markBusy("session-1", "/repo");
+    const { ctx } = createPhotoContext("release screenshot");
+    const { deps, processPromptMock } = createDeps({
+      getModelCapabilities: vi.fn().mockResolvedValue(null),
+    });
+
+    await handlePhotoMessage(ctx, deps);
+
+    expect(processPromptMock).not.toHaveBeenCalled();
+    expect(promptQueue.list()).toEqual([
+      expect.objectContaining({
+        text: "release screenshot",
+        displayText: "release screenshot",
+        photos: [],
+      }),
+    ]);
   });
 });
