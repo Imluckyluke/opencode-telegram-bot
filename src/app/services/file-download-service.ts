@@ -48,8 +48,14 @@ export async function downloadTelegramFile(api: Api, fileId: string): Promise<Do
   const fetchOptions: NodeFetchRequestInit = {};
 
   if (config.telegram.proxyUrl) {
-    const { HttpsProxyAgent } = await import("https-proxy-agent");
-    fetchOptions.agent = new HttpsProxyAgent(config.telegram.proxyUrl);
+    const proxyUrl = config.telegram.proxyUrl;
+    if (proxyUrl.startsWith("socks")) {
+      const { SocksProxyAgent } = await import("socks-proxy-agent");
+      fetchOptions.agent = new SocksProxyAgent(proxyUrl);
+    } else {
+      const { HttpsProxyAgent } = await import("https-proxy-agent");
+      fetchOptions.agent = new HttpsProxyAgent(proxyUrl);
+    }
   } else if (config.telegram.forceIpv4) {
     fetchOptions.agent = new HttpsAgent({ family: 4, keepAlive: true });
   }

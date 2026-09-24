@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Api } from "grammy";
 import { Agent as HttpsAgent } from "https";
+import { HttpsProxyAgent } from "https-proxy-agent";
+import { SocksProxyAgent } from "socks-proxy-agent";
 import {
   toDataUri,
   formatFileSize,
@@ -314,6 +316,32 @@ describe("downloadTelegramFile reverse-proxy wiring", () => {
     const agent = (init as { agent?: unknown } | undefined)?.agent;
     expect(agent).toBeInstanceOf(HttpsAgent);
     expect((agent as HttpsAgent).options.family).toBe(4);
+  });
+
+  it("uses an HTTPS proxy agent when TELEGRAM_PROXY_URL is http", async () => {
+    vi.stubEnv("TELEGRAM_PROXY_URL", "http://127.0.0.1:8080");
+    const fetchMock = makeFetchStub();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { downloadTelegramFile } = await loadDownloadModule();
+    await downloadTelegramFile(makeApiStub(), "fid");
+
+    const call = defined(fetchMock.mock.calls[0]);
+    const [, init] = call;
+    expect((init as { agent?: unknown } | undefined)?.agent).toBeInstanceOf(HttpsProxyAgent);
+  });
+
+  it("uses a SOCKS proxy agent when TELEGRAM_PROXY_URL is socks", async () => {
+    vi.stubEnv("TELEGRAM_PROXY_URL", "socks5://127.0.0.1:1080");
+    const fetchMock = makeFetchStub();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { downloadTelegramFile } = await loadDownloadModule();
+    await downloadTelegramFile(makeApiStub(), "fid");
+
+    const call = defined(fetchMock.mock.calls[0]);
+    const [, init] = call;
+    expect((init as { agent?: unknown } | undefined)?.agent).toBeInstanceOf(SocksProxyAgent);
   });
 });
 
