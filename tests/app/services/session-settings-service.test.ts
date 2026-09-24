@@ -91,4 +91,20 @@ describe("app/services/session-settings-service", () => {
 
     expect(selectModel).not.toHaveBeenCalled();
   });
+
+  it.each([["⚡ Guest chat -100"], ["⚡ fix the bug"], ["Chat 222"]])(
+    "leaves global settings untouched for auxiliary session %j",
+    (title) => {
+      applySessionSettings(
+        makeSession({
+          title,
+          agent: "plan",
+          model: { providerID: "opencode", id: "muse-spark-1.2-contributor-free" },
+        }),
+      );
+
+      expect(selectAgent).not.toHaveBeenCalled();
+      expect(selectModel).not.toHaveBeenCalled();
+    },
+  );
 });
