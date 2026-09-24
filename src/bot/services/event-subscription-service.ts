@@ -1309,6 +1309,14 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       const normalizedMessage = message.trim() || t("common.unknown_error");
       if (shouldSuppressUserAbortSessionError(sessionId, normalizedMessage)) {
         logger.debug(`[Bot] Suppressed user-initiated abort error: session=${sessionId}`);
+        // Same streamer hygiene as a reported error: otherwise the progress
+        // and tool messages freeze mid-run with no further updates coming.
+        this.clearAssistantResponseSession(sessionId, "user_abort");
+        this.compactProgressStreamer.clearSession(sessionId, "user_abort");
+        await Promise.all([
+          this.toolMessageBatcher.flushSession(sessionId, "user_abort"),
+          this.toolCallStreamer.breakSession(sessionId, "user_abort"),
+        ]);
         foregroundSessionState.markIdle(sessionId);
         await scheduledTaskRuntime.flushDeferredDeliveries();
         return;

@@ -95,12 +95,13 @@ describe("bot/commands/abort", () => {
     mocked.markAttachedSessionIdleMock.mockResolvedValue(undefined);
     mocked.clearPromptResponseModeMock.mockReset();
     __resetUserAbortErrorSuppressionForTests();
+    promptQueue.__resetForTests();
+    promptAttachment.__resetForTests();
   });
 
   function markSessionBusy(): void {
     foregroundSessionState.markBusy("session-1", "D:/repo");
   }
-
   function expectAbortStateReleased(reason: string): void {
     expect(foregroundSessionState.isBusy()).toBe(false);
     expect(mocked.clearRunMock).toHaveBeenCalledWith("session-1", reason);
@@ -191,6 +192,90 @@ describe("bot/commands/abort", () => {
     await abortCommand(ctx as never);
 
     expect(promptQueue.size()).toBe(0);
+  });
+
+  it("notifies how many queued prompts were dropped", async () => {
+    mocked.currentSession = {
+      id: "session-1",
+      title: "Session",
+      directory: "D:\\Projects\\Repo",
+    };
+    mocked.abortMock.mockResolvedValue({ data: true, error: null });
+    mocked.statusMock.mockResolvedValue({
+      data: { "session-1": { type: "idle" } },
+      error: null,
+    });
+    promptQueue.add(createIncomingPrompt("first queued"));
+    promptQueue.add(createIncomingPrompt("second queued"));
+
+    const replyMock = vi.fn().mockResolvedValue({ message_id: 88 });
+    const ctx = {
+      chat: { id: 777 },
+      reply: replyMock,
+      api: { editMessageText: vi.fn().mockResolvedValue(undefined) },
+    } as unknown as Context;
+
+    await abortCommand(ctx as never);
+
+    expect(promptQueue.size()).toBe(0);
+    expect(replyMock).toHaveBeenCalledWith(t("queue.cleared", { count: "2" }));
+  });
+
+  it("stays silent about the queue when nothing was queued", async () => {
+    mocked.currentSession = {
+      id: "session-1",
+      title: "Session",
+      directory: "D:\\Projects\\Repo",
+    };
+    mocked.abortMock.mockResolvedValue({ data: true, error: null });
+    mocked.statusMock.mockResolvedValue({
+      data: { "session-1": { type: "idle" } },
+      error: null,
+    });
+
+    const replyMock = vi.fn().mockResolvedValue({ message_id: 88 });
+    const ctx = {
+      chat: { id: 777 },
+      reply: replyMock,
+      api: { editMessageText: vi.fn().mockResolvedValue(undefined) },
+    } as unknown as Context;
+
+    await abortCommand(ctx as never);
+
+    expect(replyMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("Queue cleared"),
+      expect.anything(),
+    );
+  });
+
+  it("retires the attachment confirmation button", async () => {
+    mocked.currentSession = {
+      id: "session-1",
+      title: "Session",
+      directory: "D:\\Projects\\Repo",
+    };
+    mocked.abortMock.mockResolvedValue({ data: true, error: null });
+    mocked.statusMock.mockResolvedValue({
+      data: { "session-1": { type: "idle" } },
+      error: null,
+    });
+    promptAttachment.set("D:\\Projects\\Repo\\src\\index.ts", "D:\\Projects\\Repo");
+    promptAttachment.setConfirmationMessageId(555);
+
+    const editMessageReplyMarkupMock = vi.fn().mockResolvedValue(undefined);
+    const ctx = {
+      chat: { id: 777 },
+      reply: vi.fn().mockResolvedValue({ message_id: 88 }),
+      api: {
+        editMessageText: vi.fn().mockResolvedValue(undefined),
+        editMessageReplyMarkup: editMessageReplyMarkupMock,
+      },
+    } as unknown as Context;
+
+    await abortCommand(ctx as never);
+
+    expect(promptAttachment.get()).toBeNull();
+    expect(editMessageReplyMarkupMock).toHaveBeenCalledWith(777, 555);
   });
 
   it("drops the pending attachment so it does not ride along on a later prompt", async () => {

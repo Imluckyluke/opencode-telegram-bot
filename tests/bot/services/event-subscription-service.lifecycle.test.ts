@@ -7,6 +7,9 @@ import type { Event } from "@opencode-ai/sdk/v2";
 import { setRuntimeMode } from "../../../src/runtime/mode.js";
 import { resetSingletonState } from "../../helpers/reset-singleton-state.js";
 import { defined } from "../../helpers/defined.js";
+import { ToolCallStreamer } from "../../../src/bot/streaming/tool-call-streamer.js";
+import { CompactProgressStreamer } from "../../../src/bot/streaming/compact-progress-streamer.js";
+import { ToolMessageBatcher } from "../../../src/app/formatters/tool-message-batcher.js";
 
 const mocked = vi.hoisted(() => ({
   subscribeToEvents: vi.fn(),
@@ -776,6 +779,9 @@ describe("bot/services/event-subscription-service lifecycle", () => {
         import("../../../src/app/managers/abort-suppression-manager.js"),
         import("../../../src/app/managers/foreground-session-state-manager.js"),
       ]);
+      const breakSpy = vi.spyOn(ToolCallStreamer.prototype, "breakSession");
+      const compactClearSpy = vi.spyOn(CompactProgressStreamer.prototype, "clearSession");
+      const batcherFlushSpy = vi.spyOn(ToolMessageBatcher.prototype, "flushSession");
       foregroundSessionState.markBusy("session-1", "D:/repo");
       markUserAbortRequested("session-1");
 
@@ -785,6 +791,12 @@ describe("bot/services/event-subscription-service lifecycle", () => {
         expect(foregroundSessionState.isBusy()).toBe(false);
       });
       expect(api.sendMessage).not.toHaveBeenCalled();
+      expect(breakSpy).toHaveBeenCalledWith("session-1", "user_abort");
+      expect(compactClearSpy).toHaveBeenCalledWith("session-1", "user_abort");
+      expect(batcherFlushSpy).toHaveBeenCalledWith("session-1", "user_abort");
+      breakSpy.mockRestore();
+      compactClearSpy.mockRestore();
+      batcherFlushSpy.mockRestore();
     });
 
     it("truncates an oversized session error", async () => {

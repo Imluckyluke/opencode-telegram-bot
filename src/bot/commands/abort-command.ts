@@ -78,10 +78,23 @@ export async function abortCurrentOperation(
 
   try {
     abortLocalStreaming();
+    const droppedQueuedCount = promptQueue.size();
     promptQueue.clear("abort_command");
     // abortLocalStreaming drops the waiting mode, so the attachment has to go with it -
     // otherwise it would ride along on the next, unrelated prompt with no confirmation left.
+    const pendingAttachment = promptAttachment.get();
     promptAttachment.clear("abort_command");
+
+    if (notifyUser && droppedQueuedCount > 0) {
+      await ctx.reply(t("queue.cleared", { count: String(droppedQueuedCount) }));
+    }
+    // Retire the /ls attach confirmation button: the attachment is gone, so
+    // the button must not linger and suggest otherwise.
+    if (pendingAttachment?.confirmationMessageId !== undefined && ctx.chat && ctx.api) {
+      await ctx.api
+        .editMessageReplyMarkup(ctx.chat.id, pendingAttachment.confirmationMessageId)
+        .catch(() => {});
+    }
 
     const currentSession = getCurrentSession();
 
