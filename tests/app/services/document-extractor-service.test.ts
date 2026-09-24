@@ -165,6 +165,63 @@ describe("extractDocument", () => {
     );
   });
 
+  it.each([
+    ["content", { content: "from content field" }, "from content field"],
+    ["markdown", { markdown: "# from markdown field" }, "# from markdown field"],
+    ["data", { data: "from data field" }, "from data field"],
+    ["bare JSON string", JSON.stringify("bare extracted text"), "bare extracted text"],
+  ])("negotiates alternate response shape %s", async (_label, body, expected) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(typeof body === "string" ? body : JSON.stringify(body), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const result = await extractDocument(Buffer.from("fake-document-data"), "application/pdf", "doc.pdf");
+
+    expect(result).toEqual({ text: expected });
+  });
+
+  it("accepts a text/plain body as raw extracted text", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("plain extracted text", {
+        status: 200,
+        headers: { "Content-Type": "text/plain" },
+      }),
+    );
+
+    const result = await extractDocument(Buffer.from("fake-document-data"), "application/pdf", "doc.pdf");
+
+    expect(result).toEqual({ text: "plain extracted text" });
+  });
+
+  it("rejects a non-JSON error page instead of stuffing it into the prompt", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("<html><body>proxy error</body></html>", {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+      }),
+    );
+
+    await expect(extractDocument(Buffer.from("fake"), "application/pdf", "doc.pdf")).rejects.toThrow(
+      "does not contain a text field",
+    );
+  });
+
+  it("throws when extracted text exceeds the char budget", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ text: "x".repeat(200 * 1024) }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await expect(extractDocument(Buffer.from("fake"), "application/pdf", "doc.pdf")).rejects.toThrow(
+      /too much/,
+    );
+  });
+
   it("throws on timeout", async () => {
     vi.spyOn(globalThis, "fetch").mockRejectedValue(
       new DOMException("The operation was aborted", "AbortError"),

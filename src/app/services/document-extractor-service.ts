@@ -11,6 +11,23 @@ export function isDocExtractorConfigured(): boolean {
   return Boolean(config.docExtractor.apiUrl);
 }
 
+function pickTextField(data: unknown): string | null {
+  if (typeof data === "string") {
+    return data;
+  }
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+    return null;
+  }
+  const record = data as Record<string, unknown>;
+  for (const key of ["text", "content", "markdown", "data"]) {
+    const value = record[key];
+    if (typeof value === "string") {
+      return value;
+    }
+  }
+  return null;
+}
+
 export async function extractDocument(
   fileBuffer: Buffer,
   mimeType: string,
@@ -54,13 +71,36 @@ export async function extractDocument(
       );
     }
 
-    const data = (await response.json()) as { text?: string };
+    const rawBody = await response.text().catch(() => "");
+    const contentType = response.headers?.get("content-type") ?? "";
+    let text: string | null = null;
+    try {
+      text = pickTextField(JSON.parse(rawBody));
+    } catch {
+      // Not JSON: accept a plain-text body, but never an HTML error page.
+      if (contentType.startsWith("text/") && !contentType.includes("html")) {
+        text = rawBody.trim() || null;
+      }
+    }
 
-    if (typeof data.text !== "string") {
+    if (typeof text !== "string" || !text) {
       throw new Error("Document extractor API response does not contain a text field");
     }
 
-    return { text: data.text };
+    // Char budget (same scale as text-file attachments): protects every
+    // caller — the guest path has no caller-side cap — from stuffing
+    // megabytes of extracted text into one prompt.
+    const budgetChars = config.files.maxFileSizeKb * 1024;
+    if (text.length > budgetChars) {
+      logger.warn(
+        `[DocExtractor] Extracted text exceeds budget: ${text.length} chars > ${budgetChars}`,
+      );
+      throw new Error(
+        `Document extractor returned too much text: ${text.length} chars (max ${budgetChars})`,
+      );
+    }
+
+    return { text };
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new Error(`Document extractor request timed out after ${REQUEST_TIMEOUT_MS}ms`);
