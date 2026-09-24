@@ -46,6 +46,7 @@ import {
 import type { IncomingPrompt } from "../../app/types/prompt.js";
 import { withAgentContext } from "../../app/services/agent-context-service.js";
 import { isAllowedTelegramUser } from "../../config.js";
+import { dispatchNextQueuedPrompt } from "./prompt-queue-dispatch.js";
 
 /** Module-level references for async callbacks that don't have ctx. */
 let botInstance: Bot<Context> | null = null;
@@ -83,6 +84,38 @@ export function consumePromptResponseMode(sessionId: string): PromptResponseMode
 function isSessionNotFoundError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error ?? "");
   return message.includes("Session not found");
+}
+
+/**
+ * Per-session entry mutex for processUserPrompt. The busy checks below all
+ * await network round-trips, so two concurrent prompts for one session can
+ * both observe "idle" and start two runs. The slot is acquired synchronously
+ * up front and handed to foregroundSessionState once the run is marked busy.
+ */
+const promptSlotsInFlight = new Set<string>();
+
+function tryAcquirePromptSlot(key: string): boolean {
+  if (promptSlotsInFlight.has(key)) {
+    return false;
+  }
+  promptSlotsInFlight.add(key);
+  return true;
+}
+
+function releasePromptSlot(key: string): void {
+  promptSlotsInFlight.delete(key);
+}
+
+/**
+ * Drains one queued prompt after a failed run. Skipped when the failed session
+ * is no longer current (deleted or switched): dispatching then would resurrect
+ * a session the user just left.
+ */
+function drainQueueIfSessionCurrent(sessionId: string): void {
+  if (getCurrentSession()?.id !== sessionId) {
+    return;
+  }
+  void dispatchNextQueuedPrompt();
 }
 
 async function checkSessionBusy(sessionId: string, directory: string): Promise<boolean> {
@@ -233,6 +266,34 @@ export async function processUserPrompt(
   botInstance = bot;
   chatIdInstance = ctx.chat!.id;
 
+  // Keyed by session when one exists, otherwise by project worktree so two
+  // concurrent first-prompts cannot create two sessions for one project.
+  let slotKey: string | null = null;
+  const acquireSlot = (key: string): boolean => {
+    if (slotKey === key) {
+      return true;
+    }
+    if (slotKey) {
+      releasePromptSlot(slotKey);
+    }
+    if (!tryAcquirePromptSlot(key)) {
+      slotKey = null;
+      return false;
+    }
+    slotKey = key;
+    return true;
+  };
+  const releaseSlot = (): void => {
+    if (slotKey) {
+      releasePromptSlot(slotKey);
+      slotKey = null;
+    }
+  };
+  if (!acquireSlot(getCurrentSession()?.id ?? `creating:${currentProject.worktree}`)) {
+    await ctx.reply(t("bot.session_busy"));
+    return false;
+  }
+
   let currentSession = getCurrentSession();
   let createdNewSession = false;
   // Fresh sessions cannot be busy; for existing ones this is filled by the
@@ -245,6 +306,7 @@ export async function processUserPrompt(
     );
     await resetMismatchedSessionContext();
     await ctx.reply(t("bot.session_reset_project_mismatch"));
+    releaseSlot();
     return false;
   }
 
@@ -274,6 +336,7 @@ export async function processUserPrompt(
 
     if (error || !session) {
       await ctx.reply(t("bot.create_session_error"));
+      releaseSlot();
       return false;
     }
 
@@ -296,12 +359,23 @@ export async function processUserPrompt(
     );
   }
 
-  await attachToSession({
-    bot,
-    chatId: ctx.chat!.id,
-    session: currentSession,
-    ensureEventSubscription,
-  });
+  // The session is final: migrate a provisional creating: key to the real id.
+  if (!acquireSlot(currentSession.id)) {
+    await ctx.reply(t("bot.session_busy"));
+    return false;
+  }
+
+  try {
+    await attachToSession({
+      bot,
+      chatId: ctx.chat!.id,
+      session: currentSession,
+      ensureEventSubscription,
+    });
+  } catch (err) {
+    releaseSlot();
+    throw err;
+  }
 
   if (createdNewSession) {
     const currentAgent = await resolveProjectAgent(getStoredAgent());
@@ -325,6 +399,7 @@ export async function processUserPrompt(
   if (sessionIsBusy) {
     logger.info(`[Bot] Ignoring new prompt: session ${currentSession.id} is busy`);
     await ctx.reply(t("bot.session_busy"));
+    releaseSlot();
     return false;
   }
 
@@ -333,6 +408,7 @@ export async function processUserPrompt(
     const storedModel = (deps.getStoredModel ?? getStoredModel)();
     const preparedInput = await prepareTelegramPhotos(ctx, input, deps, storedModel);
     if (!preparedInput) {
+      releaseSlot();
       return false;
     }
 
@@ -435,6 +511,9 @@ export async function processUserPrompt(
 
     foregroundSessionState.markBusy(currentSession.id, currentSession.directory);
     await markAttachedSessionBusy(currentSession.id);
+    // The foreground busy state guards the run from here: release the entry
+    // slot so a stuck run cannot wedge new prompts forever.
+    releaseSlot();
     assistantRunState.startRun(currentSession.id, {
       startedAt: Date.now(),
       configuredAgent: currentAgent,
@@ -473,6 +552,7 @@ export async function processUserPrompt(
           if (attachManager.isAttachedSession(currentSession.id)) {
             void bot.api.sendMessage(ctx.chat!.id, t("bot.prompt_send_error")).catch(() => {});
           }
+          drainQueueIfSessionCurrent(currentSession.id);
           return;
         }
 
@@ -490,15 +570,18 @@ export async function processUserPrompt(
         if (attachManager.isAttachedSession(currentSession.id)) {
           void bot.api.sendMessage(ctx.chat!.id, t("bot.prompt_send_error")).catch(() => {});
         }
+        drainQueueIfSessionCurrent(currentSession.id);
       },
     });
 
     return true;
   } catch (err) {
+    releaseSlot();
     if (currentSession) {
       foregroundSessionState.markIdle(currentSession.id);
       await markAttachedSessionIdle(currentSession.id);
       assistantRunState.clearRun(currentSession.id, "session_prompt_handler_error");
+      drainQueueIfSessionCurrent(currentSession.id);
     }
     logger.error("Error in prompt handler:", err);
     if (interactionManager.getSnapshot()) {

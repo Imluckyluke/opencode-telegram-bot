@@ -15,8 +15,7 @@ import { logger } from "../../../src/utils/logger.js";
 const mocked = vi.hoisted(() => ({
   resolvePendingAttachmentMock: vi.fn(),
   interactionClearMock: vi.fn(),
-  editMessageReplyMarkupMock: vi.fn(),
-  currentProject: { id: "project-1", worktree: "D:\\Projects\\Repo" },
+  editMessageReplyMarkupMock: vi.fn(),  currentProject: { id: "project-1", worktree: "D:\\Projects\\Repo" },
   currentSession: {
     id: "session-1",
     title: "Session",
@@ -33,6 +32,7 @@ const mocked = vi.hoisted(() => ({
   setBotAndChatIdMock: vi.fn(),
   attachToSessionMock: vi.fn(),
   getTtsModeMock: vi.fn(),
+  dispatchNextQueuedPromptMock: vi.fn(),
 }));
 
 vi.mock("../../../src/opencode/client.js", () => ({
@@ -164,6 +164,14 @@ vi.mock("../../../src/app/services/prompt-attachment-service.js", () => ({
   resolvePendingAttachment: mocked.resolvePendingAttachmentMock,
 }));
 
+vi.mock("../../../src/bot/handlers/prompt-queue-dispatch.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../src/bot/handlers/prompt-queue-dispatch.js")>();
+  return {
+    ...actual,
+    dispatchNextQueuedPrompt: mocked.dispatchNextQueuedPromptMock,
+  };
+});
+
 function createContext(): Context {
   return {
     chat: { id: 777 },
@@ -229,6 +237,7 @@ describe("bot/handlers/prompt", () => {
     mocked.attachToSessionMock.mockReset();
     mocked.getTtsModeMock.mockReset();
     mocked.getTtsModeMock.mockReturnValue("off");
+    mocked.dispatchNextQueuedPromptMock.mockReset();
     mocked.attachToSessionMock.mockResolvedValue({
       busy: false,
       alreadyAttached: false,
@@ -346,6 +355,31 @@ describe("bot/handlers/prompt", () => {
     );
   });
 
+  it("starts only one run when two prompts race for the same session", async () => {
+    let releaseStatus!: (value: unknown) => void;
+    const statusGate = new Promise((resolve) => {
+      releaseStatus = resolve as (value: unknown) => void;
+    });
+    mocked.sessionStatusMock.mockImplementation(() => statusGate);
+    const ctxA = createContext();
+    const ctxB = createContext();
+
+    const both = Promise.all([
+      processUserPrompt(ctxA, "first", createDeps()),
+      processUserPrompt(ctxB, "second", createDeps()),
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    releaseStatus({ data: { "session-1": { type: "idle" } }, error: null });
+    const [first, second] = await both;
+
+    expect(first).toBe(true);
+    expect(second).toBe(false);
+    await getScheduledBackgroundTask().task();
+    expect(mocked.sessionPromptAsyncMock).toHaveBeenCalledTimes(1);
+    expect(ctxB.reply).toHaveBeenCalledWith(t("bot.session_busy"));
+    expect(ctxA.reply).not.toHaveBeenCalledWith(t("bot.session_busy"));
+  });
+
   it("keeps the session on transient session.get errors instead of recreating", async () => {
     mocked.sessionStatusMock.mockResolvedValue({ data: {}, error: null });
     mocked.sessionGetMock.mockResolvedValue({
@@ -441,8 +475,67 @@ describe("bot/handlers/prompt", () => {
     errorSpy.mockRestore();
   });
 
-  it("does not notify the user when promptAsync fails while attached to another session", async () => {
+  it("drains the queue when promptAsync reports a start error", async () => {
     const ctx = createContext();
+    const deps = createDeps();
+
+    const handled = await processUserPrompt(ctx, "Review README", deps);
+
+    expect(handled).toBe(true);
+
+    const backgroundTask = getScheduledBackgroundTask();
+    backgroundTask.onSuccess?.({ error: new Error("request start failed") });
+
+    expect(mocked.dispatchNextQueuedPromptMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("drains the queue when promptAsync rejects before the run starts", async () => {
+    const ctx = createContext();
+    const deps = createDeps();
+
+    const handled = await processUserPrompt(ctx, "Review README", deps);
+
+    expect(handled).toBe(true);
+
+    const backgroundTask = getScheduledBackgroundTask();
+    const startError = new Error("network down");
+    mocked.sessionPromptAsyncMock.mockRejectedValueOnce(startError);
+
+    await backgroundTask.task().catch((error) => {
+      backgroundTask.onError?.(error);
+    });
+
+    expect(mocked.dispatchNextQueuedPromptMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not drain the queue on failure when the session is gone", async () => {
+    const ctx = createContext();
+    const deps = createDeps();
+
+    const handled = await processUserPrompt(ctx, "Review README", deps);
+
+    expect(handled).toBe(true);
+
+    mocked.currentSession = null;
+
+    const backgroundTask = getScheduledBackgroundTask();
+    backgroundTask.onError?.(new Error("network down"));
+
+    expect(mocked.dispatchNextQueuedPromptMock).not.toHaveBeenCalled();
+  });
+
+  it("drains the queue when the prompt handler itself throws", async () => {
+    mocked.resolvePendingAttachmentMock.mockRejectedValueOnce(new Error("resolver blew up"));
+    const ctx = createContext();
+
+    const handled = await processUserPrompt(ctx, "Review README", createDeps());
+
+    expect(handled).toBe(false);
+    expect(ctx.reply).toHaveBeenCalledWith(t("error.generic"));
+    expect(mocked.dispatchNextQueuedPromptMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not notify the user when promptAsync fails while attached to another session", async () => {    const ctx = createContext();
     const deps = createDeps();
 
     const handled = await processUserPrompt(ctx, "Review README", deps);
@@ -531,8 +624,7 @@ describe("bot/handlers/prompt", () => {
     );
   });
 
-  it("does not call OpenCode for an empty prompt without attachments", async () => {
-    const ctx = createContext();
+  it("does not call OpenCode for an empty prompt without attachments", async () => {    const ctx = createContext();
 
     const handled = await processIncomingPrompt(ctx, createIncomingPrompt(""), createDeps());
 
