@@ -3,6 +3,7 @@ import { opencodeClient } from "../../opencode/client.js";
 import { resolveProjectAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { setCurrentSession } from "../../app/services/session-service.js";
+import { switchSessionCleanup } from "../services/session-switch-cleanup.js";
 import { applySessionSettings } from "../../app/services/session-settings-service.js";
 import type { SessionInfo } from "../../app/types/session.js";
 import { clearSession, getCurrentProject, getCurrentSession } from "../../app/stores/settings-store.js";
@@ -97,6 +98,9 @@ async function selectSessionById(
   sessionId: string,
   options: SelectSessionByIdOptions,
 ): Promise<void> {
+  // A buffered merge chunk belongs to the previous session: drop it instead
+  // of flushing, which would race this switch and land in the new session.
+  switchSessionCleanup(ctx.chat?.id ?? null, "session_selected");
   const currentProject = getCurrentProject();
 
   if (!currentProject) {

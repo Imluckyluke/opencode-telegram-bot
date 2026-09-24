@@ -90,6 +90,25 @@ export function flushPendingPrompt(chatId: number): void {
   flushPending(chatId);
 }
 
+/**
+ * Discards a buffered prompt without sending it. Used when the chat switches
+ * to another session or project: the buffered chunk belongs to the previous
+ * context, and flushing it here would race the switch (processUserPrompt
+ * resolves the current session only when it runs).
+ */
+export function dropPendingPrompt(chatId: number): void {
+  const pending = pendingByChat.get(chatId);
+  if (!pending) {
+    return;
+  }
+
+  pendingByChat.delete(chatId);
+  clearTimeout(pending.timer);
+  logger.debug(
+    `[Bot] Dropped buffered prompt on context switch (chatId=${chatId}, parts=${pending.inputs.length})`,
+  );
+}
+
 /** Test helper: clears all buffered prompts and their timers. */
 export function __resetMessageMergerForTests(): void {
   for (const pending of pendingByChat.values()) {

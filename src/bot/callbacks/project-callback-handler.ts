@@ -3,6 +3,7 @@ import { clearAllInteractionState } from "../../app/managers/interaction-manager
 import { getProjects } from "../../app/services/project-service.js";
 import { isForegroundBusy } from "../../app/services/run-control-service.js";
 import { switchToProject } from "../../app/services/project-switch-service.js";
+import { switchSessionCleanup } from "../services/session-switch-cleanup.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 import { alert, failure } from "./feedback.js";
@@ -81,6 +82,9 @@ export async function handleProjectSelect(
 
     logger.info(`[Bot] Project selected: ${projectName} (id: ${projectId})`);
 
+    // Same switch race as sessions: drop a buffered merge chunk instead of
+    // letting it fire into the new project.
+    switchSessionCleanup(ctx.chat?.id ?? null, "project_selected");
     const keyboard = await switchToProject(ctx, selectedProject, "project_switched", {
       ensureEventSubscription: deps.ensureEventSubscription,
       presentation: createProjectSwitchPresentation(),

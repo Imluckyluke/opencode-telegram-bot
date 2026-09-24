@@ -4,6 +4,7 @@ import type { InteractionState } from "../../app/types/interaction.js";
 import { clearAllInteractionState, interactionManager } from "../../app/managers/interaction-manager.js";
 import { opencodeClient } from "../../opencode/client.js";
 import { setCurrentSession } from "../../app/services/session-service.js";
+import { switchSessionCleanup } from "../services/session-switch-cleanup.js";
 import { applySessionSettings } from "../../app/services/session-settings-service.js";
 import { getStoredAgent } from "../../app/services/agent-selection-service.js";
 import { getStoredModel } from "../../app/services/model-selection-service.js";
@@ -279,6 +280,9 @@ export async function handleMessagesCallback(
           directory: metadata.projectDirectory,
         };
 
+        // The fork becomes the current session: drop a buffered merge chunk
+        // so it cannot fire into the forked context.
+        switchSessionCleanup(ctx.chat?.id ?? null, "session_forked");
         setCurrentSession(sessionInfo);
         // Pull before attaching, so the pinned message rendered inside
         // attachToSession already carries the forked session's model.

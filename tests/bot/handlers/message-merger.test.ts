@@ -23,6 +23,7 @@ vi.mock("../../../src/utils/logger.js", () => ({
 
 import {
   queuePromptForMerging as queueIncomingPromptForMerging,
+  dropPendingPrompt,
   flushPendingPrompt,
   __resetMessageMergerForTests,
 } from "../../../src/bot/handlers/message-merger.js";
@@ -87,8 +88,24 @@ describe("message-merger", () => {
     expect(processUserPromptMock).toHaveBeenCalledWith(ctx, LARGE_TEXT, DEPS);
   });
 
-  it("merges quick consecutive messages into one prompt", () => {
+  it("drops a buffered prompt on context switch without sending it", () => {
     const ctx = makeContext(1);
+
+    queuePromptForMerging(ctx, LARGE_TEXT, DEPS, 1500);
+    dropPendingPrompt(1);
+    vi.advanceTimersByTime(5000);
+
+    expect(processUserPromptMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores drops for chats with nothing buffered", () => {
+    dropPendingPrompt(99);
+    vi.advanceTimersByTime(5000);
+
+    expect(processUserPromptMock).not.toHaveBeenCalled();
+  });
+
+  it("merges quick consecutive messages into one prompt", () => {    const ctx = makeContext(1);
 
     queuePromptForMerging(ctx, LARGE_TEXT, DEPS, 1500);
     vi.advanceTimersByTime(1000);

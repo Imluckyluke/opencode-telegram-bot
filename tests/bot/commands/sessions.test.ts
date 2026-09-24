@@ -67,6 +67,7 @@ vi.mock("../../../src/app/stores/settings-store.js", () => ({
 }));
 
 vi.mock("../../../src/app/services/session-service.js", () => ({
+  getCurrentSession: mocked.getCurrentSessionMock,
   setCurrentSession: mocked.setCurrentSessionMock,
 }));
 
