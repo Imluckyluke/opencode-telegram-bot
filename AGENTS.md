@@ -165,19 +165,14 @@ For multi-step tasks, state a brief plan:
 
 ### Bot commands
 
-The command list is centralized in `src/bot/commands/definitions.ts`.
+The command list is centralized in `src/bot/commands/definitions.ts` (currently 31 commands: status, language, new, abort, detach, sessions, messages, settings, projects, worktree, task, tasklist, rename, model, agent, variant, inlinemodel, allow, testmodels, disable, enable, deletesessions, restart, commands, skills, mcps, opencode_start, opencode_stop, open, ls, help).
 
 ```typescript
+// Shape of each entry (see definitions.ts for the full list):
 const COMMAND_DEFINITIONS: BotCommandI18nDefinition[] = [
   { command: "status", descriptionKey: "cmd.description.status" },
   { command: "new", descriptionKey: "cmd.description.new" },
-  { command: "abort", descriptionKey: "cmd.description.stop" },
-  { command: "sessions", descriptionKey: "cmd.description.sessions" },
-  { command: "projects", descriptionKey: "cmd.description.projects" },
-  { command: "rename", descriptionKey: "cmd.description.rename" },
-  { command: "opencode_start", descriptionKey: "cmd.description.opencode_start" },
-  { command: "opencode_stop", descriptionKey: "cmd.description.opencode_stop" },
-  { command: "help", descriptionKey: "cmd.description.help" },
+  // ... one entry per command
 ];
 ```
 

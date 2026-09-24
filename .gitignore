@@ -24,9 +24,10 @@ Thumbs.db
 .codex/
 .kilocode/
 .opencode/
-opencode.json
 .pi/
 .omp/
+# NOTE: opencode.json pins the server model and IS tracked on purpose,
+# even though editors suggest ignoring it. Do not add it back here.
 
 # Project specific
 logs/

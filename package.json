@@ -1,6 +1,6 @@
 {
   "name": "@grinev/opencode-telegram-bot",
-  "version": "0.25.3",
+  "version": "0.26.0",
   "description": "Telegram bot client for OpenCode to run and monitor coding tasks from chat.",
   "type": "module",
   "main": "./dist/index.js",
@@ -35,7 +35,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/grinev/opencode-telegram-bot.git"
+    "url": "git+https://github.com/Imluckyluke/opencode-telegram-bot.git"
   },
   "keywords": [
     "opencode",
@@ -48,9 +48,9 @@
   "author": "grinev",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/grinev/opencode-telegram-bot/issues"
+    "url": "https://github.com/Imluckyluke/opencode-telegram-bot/issues"
   },
-  "homepage": "https://github.com/grinev/opencode-telegram-bot#readme",
+  "homepage": "https://github.com/Imluckyluke/opencode-telegram-bot#readme",
   "dependencies": {
     "@google-cloud/text-to-speech": "^6.4.0",
     "@grammyjs/menu": "^1.3.1",

@@ -252,7 +252,15 @@ Configuration can be provided through process environment variables or an `.env`
 | `OPENCODE_SERVER_USERNAME`                 | Server auth username                                                                                                  |    No    | `opencode`               |
 | `OPENCODE_SERVER_PASSWORD`                 | Server auth password                                                                                                  |    No    | —                        |
 | `OPENCODE_MODEL_PROVIDER`                  | Default model provider                                                                                                |   Yes    | `opencode`               |
-| `OPENCODE_MODEL_ID`                        | Default model ID                                                                                                      |   Yes    | `big-pickle`             |
+| `OPENCODE_MODEL_ID`                        | Default model ID (must match `opencode.json`)                                                                         |   Yes    | `muse-spark-1.3-contributor-free` |
+| `INLINE_MODEL_PROVIDER`                    | Fast model provider for guest/lane answers (`/inlinemodel` overrides at runtime)                                      |    No    | *(follows default)*      |
+| `INLINE_MODEL_ID`                          | Fast model ID for guest/lane answers                                                                                  |    No    | *(follows default)*      |
+| `INLINE_MODEL_VARIANT`                     | Variant for the fast guest/lane model                                                                                 |    No    | —                        |
+| `AUTO_COMPACT_THRESHOLD_PERCENT`           | Auto-compact the session when context usage crosses this percent (1-100); `0` disables                                |    No    | `0`                      |
+| `AGENT_CONTEXT_NOTE`                       | Custom `[Note: ...]` prepended to every prompt; `false`/`0`/`off` disables                                            |    No    | *(built-in default)*     |
+| `GH_TOKEN`                                 | Fine-grained GitHub PAT (Contents:read/write) giving the agent git-push access; leave empty to disable                |    No    | —                        |
+| `GIT_USER_NAME`                            | Git author name used with `GH_TOKEN`                                                                                  |    No    | `opencode-bot`           |
+| `GIT_USER_EMAIL`                           | Git author email used with `GH_TOKEN`                                                                                 |    No    | `opencode-bot@local`     |
 | `BOT_LOCALE`                               | Bot UI language (supported locale code, e.g. `en`, `ar`, `de`, `es`, `fa`, `fr`, `id`, `it`, `ko`, `pt`, `ru`, `tr`, `zh`)  |    No    | `en`                     |
 | `SESSIONS_LIST_LIMIT`                      | Sessions per page in `/sessions`                                                                                      |    No    | `10`                     |
 | `MESSAGES_LIST_LIMIT`                      | User messages per page in `/messages`                                                                                 |    No    | `10`                     |
@@ -531,6 +539,21 @@ These need the bot process to see host project paths or to spawn/stop `opencode`
 `/projects`, `/sessions`, prompts, and live updates still go through the OpenCode HTTP API and work as usual.
 
 Port 4096 is **not** exposed by the bot image; it belongs to the OpenCode server, which runs separately.
+
+### Railway Deployment
+
+The repo ships everything Railway needs: `railway.toml` (Dockerfile build via `Dockerfile.railway`, restart on failure) and `entrypoint.railway.sh`, which starts **both** the OpenCode server and the bot in one container and supervises them (only the crashed child is restarted, with exponential backoff; after 25 rapid failures Railway's own restart policy takes over).
+
+1. Create a Railway service from this repo.
+2. Copy every variable from `.env.example` into Railway **Variables** (do not commit secrets). Required: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USER_ID`, `OPENCODE_SERVER_PASSWORD` (anything except `changeme`).
+3. Set the default model to match `opencode.json`: `OPENCODE_MODEL_PROVIDER=opencode`, `OPENCODE_MODEL_ID=muse-spark-1.3-contributor-free`.
+4. Deploy. `PORT` is set by Railway automatically and `OPENCODE_API_URL` is derived from it in the entrypoint — do not set either manually.
+
+Notes:
+
+- The entrypoint refuses to boot without the three required variables, so a misconfigured deploy fails fast with a clear log line (`missing TELEGRAM_BOT_TOKEN`, `set real OPENCODE_SERVER_PASSWORD`, ...).
+- Runtime state lives in `/app/data` (settings, logs, tmp). Mount a Railway volume there if you want state to survive redeploys.
+- Optional: `GH_TOKEN` (+ `GIT_USER_NAME` / `GIT_USER_EMAIL`) gives the agent git-push access via a credential helper; the token never appears in logs or the process table (the readiness probe authenticates through a temporary netrc file).
 
 ### Available Scripts
 

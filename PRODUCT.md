@@ -113,21 +113,30 @@ No public inbound ports are required for normal usage.
 Current command set:
 
 - `/status` - bot version, server, project, and session status
+- `/language` - switch the bot UI language
 - `/new` - create a new session
 - `/abort` - stop the current task
 - `/detach` - detach the bot from the current session without stopping it; a later command or prompt HTTP failure for that session is not posted to chat unless the bot has re-attached to it
 - `/sessions` - show and switch recent sessions
 - `/messages` - browse user messages in the current session
+- `/settings` - change bot settings
 - `/projects` - show and switch projects
 - `/worktree` - show and switch existing git worktrees for the current repository
-- `/settings` - change bot settings
 - `/task` - create a scheduled task
 - `/tasklist` - browse and delete scheduled tasks
 - `/rename` - rename current session
+- `/inlinemodel` - show or change the fast model used for guest/lane answers
+- `/allow` - grant or revoke a Telegram user (isolated personal chat session, no settings or commands)
+- `/testmodels` - probe free models sequentially and report ok/failed with reasons
+- `/disable` / `/enable` - master kill-switch for all bot operations
+- `/deletesessions` - delete sessions (single or wipe) with confirmation
+- `/restart` - restart the bot process (two-step confirmation)
 - `/commands` - browse and run custom commands (plus built-ins like `init` and `review`)
 - `/skills` - browse and run OpenCode skills
+- `/mcps` - browse available MCP servers
 - `/opencode_start` - start local OpenCode server
 - `/opencode_stop` - stop local OpenCode server; available during an active request and kills the local process even if health is hung
+- `/open` - add a project by browsing directories
 - `/help` - show command help
 - `/ls` - interactive file browser for the current project directory; a text file can be attached to the next prompt from its detail view
 
@@ -216,3 +225,12 @@ Open tasks for upcoming iterations:
 - [x] Guest files under 10MB (photos, office docs, text, voice transcripts), direct or via reply
 - [x] Separate fast model for guest answers (`/inlinemodel`, env defaults, main model untouched)
 - [x] Automatic session compaction at a configurable context threshold (`AUTO_COMPACT_THRESHOLD_PERCENT`)
+- [x] v0.26.0 hygiene: release notes, Railway docs, full env table, `/testmodels` handler tests, SOCKS file-download agent
+
+Open backlog (not started):
+
+- [ ] Live end-to-end verification against the deployed OpenCode server version (permission ruleset enforcement, guest file delivery)
+- [ ] Selective upstream review: OTB-111 drafted-reply ordering vs guest question flow; OTB-109 already covered by the SOCKS download fix
+- [ ] Non-English i18n for newer keys (`cmd.description.disable`, guest strings, restart/queue strings)
+- [ ] Scheduled-delivery durability across bot restarts
+- [ ] Silence the `model-test-service` 5s-timeout flake in full-suite runs
