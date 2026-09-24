@@ -51,9 +51,8 @@ Languages: English (`en`), العربية (`ar`), Deutsch (`de`), Español (`es`
 - **Docker support** — run the bot as a container while OpenCode stays on the host; see [Docker Deployment](#docker-deployment)
 - **Interactive file browser** — use `/ls` to browse files and directories inside the current project, open subdirectories, go back, and download files by tapping them
 - **Attach a file to your next prompt** — tap **📎 Attach to next prompt** on a text file in `/ls`, and it is sent to OpenCode together with your next message, once
-- **Inline mode** — ask from any chat with `@bot query`; the answer is streamed into place (enable Inline Mode in @BotFather)
-- **Guest mode** — mention the bot in groups it is not a member of to get in-place answers (enable guest mode in @BotFather)
-- **Fast model for quick answers** — inline/guest/personal-lane runs use a separate model (`/inlinemodel`)
+- **Guest mode** — mention the bot in groups it is not a member of to get in-place answers (enable guest mode in @BotFather). Each group keeps one persistent chat session with conversational memory; model questions arrive as numbered tables you answer by number or button; `/allow` grants guest access
+- **Fast model for quick answers** — guest/personal-lane runs use a separate model (`/inlinemodel`)
 - **Model health check** — probe free models with `/testmodels` and see which respond
 - **Auto-compact** — optionally compact the session automatically past a context threshold (`AUTO_COMPACT_THRESHOLD_PERCENT`)
 - **Master switch** — `/disable` stops all operations, `/enable` resumes; `/restart` reboots the process; `/deletesessions` wipes all sessions instantly
@@ -160,7 +159,7 @@ opencode-telegram config
 | `/agent`          | Select agent (plan/build)                               |
 | `/variant`        | Select model variant                                    |
 | `/language`       | Change bot language                                     |
-| `/inlinemodel`    | Model for inline/guest/personal-lane answers            |
+| `/inlinemodel`    | Model for guest/personal-lane answers                   |
 | `/allow`          | Grant, list, or revoke user access (owner only)         |
 | `/testmodels`     | Probe free models and report results (owner only)       |
 | `/disable`        | Disable all bot operations (owner only)                 |
@@ -431,7 +430,8 @@ The API contract is:
 - **Content-Type:** `multipart/form-data`
 - **Field:** `file` — the document binary
 - **Authorization:** `Bearer {DOC_EXTRACTOR_API_KEY}` (only sent when a key is configured)
-- **Response:** JSON `{ "text": "extracted content..." }`
+- **Response:** JSON `{ "text": "extracted content..." }` (`content`, `markdown`, `data`, or a bare JSON string are also accepted; a `text/*` non-JSON body is used as-is)
+- **Budget:** extracted text over `CODE_FILE_MAX_SIZE_KB` × 1024 chars is rejected, so one document cannot stuff megabytes into a prompt
 
 If the extractor is not configured and the model doesn't support documents, the bot replies with a notice and forwards only the caption text.
 
@@ -572,6 +572,13 @@ Port 4096 is **not** exposed by the bot image; it belongs to the OpenCode server
 
 - Make sure the CLI binary has execute permission: `chmod +x $(which opencode-telegram)`
 - Check that the config directory is writable: `~/.config/opencode-telegram-bot/`
+
+## Known Limitations
+
+- **Telegram inline mode (`@bot query`) was removed** — guest mode replaces it. Disable Inline Mode for the bot in @BotFather; code removal alone does not revoke the Telegram-side setting.
+- **`/restart` and `/disable` stay blocked while a task is running** — finish or `/abort` first. This is intentional: restarting mid-run would strand server-side state.
+- **Unsent scheduled-task deliveries are lost on process restart** — outcomes persist and stay visible in `/tasklist`, but a result produced while the process is down is not delivered later.
+- **`/allow` grants live in `settings.json`** — back it up together with your `.env` if you rebuild the machine.
 
 ## Contributing
 

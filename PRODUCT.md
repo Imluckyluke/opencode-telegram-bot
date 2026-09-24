@@ -208,11 +208,11 @@ Open tasks for upcoming iterations:
 - [x] Model search in model switcher
 - [x] Docker runtime support and deployment guide
 - [x] Add a bot settings command with in-chat UI
-- [x] Inline mode: ask from any chat, answer edited in place with the question on top; runs use a dedicated ⚡ Inline session so the DM chat stays silent
-- [x] Guest mode (BotFather): answer summoned questions in groups without membership; each ask runs in a fresh ⚡ session, caller must be whitelisted
-- [x] Tiered access: owner commands + `/allow` user grants; granted users can use but not reconfigure; inline/guest runs never mention the GitHub token
+- [x] Inline mode (REMOVED — guest mode replaces it): `@bot query` no longer works; disable Inline Mode for the bot in @BotFather
+- [x] Guest mode (BotFather): answer summoned questions in groups without membership; one persistent session per chat with conversational memory, numbered/button question answers, caller must be whitelisted
+- [x] Tiered access: owner commands + `/allow` user grants; granted users can use but not reconfigure; guest runs never mention the GitHub token
 - [x] `/testmodels`: probe free models sequentially and report ok/failed with reasons
 - [x] Guest photo support: direct photos, captioned photos, and replies on photos reach the model
 - [x] Guest files under 10MB (photos, office docs, text, voice transcripts), direct or via reply
-- [x] Separate fast model for inline/guest answers (`/inlinemodel`, env defaults, main model untouched)
+- [x] Separate fast model for guest answers (`/inlinemodel`, env defaults, main model untouched)
 - [x] Automatic session compaction at a configurable context threshold (`AUTO_COMPACT_THRESHOLD_PERCENT`)
