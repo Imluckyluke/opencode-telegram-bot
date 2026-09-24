@@ -10,6 +10,7 @@ import {
   registerScheduledTaskSessionIgnore,
 } from "./scheduled-task-session-ignore-service.js";
 import type { ScheduledTask, ScheduledTaskExecutionResult } from "../types/scheduled-task.js";
+import { createUnattendedSession } from "./scheduled-task-session-service.js";
 
 const SCHEDULED_TASK_SESSION_TITLE = "Scheduled task run";
 const EXECUTION_POLL_INTERVAL_MS = 2000;
@@ -540,10 +541,10 @@ export async function executeScheduledTask(
   try {
     await cleanupScheduledTaskSessionIgnores();
 
-    const { data: session, error: createError } = await opencodeClient.session.create({
-      directory: task.projectWorktree,
-      title: SCHEDULED_TASK_SESSION_TITLE,
-    });
+    const { data: session, error: createError } = await createUnattendedSession(
+      task.projectWorktree,
+      SCHEDULED_TASK_SESSION_TITLE,
+    );
 
     if (createError || !session) {
       throw createError || new Error("Failed to create temporary scheduled task session");

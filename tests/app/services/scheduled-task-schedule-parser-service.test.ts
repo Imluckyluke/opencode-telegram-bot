@@ -89,6 +89,7 @@ describe("app/services/scheduled-task-schedule-parser-service", () => {
     expect(mocked.sessionCreateMock).toHaveBeenCalledWith({
       directory: "D:/Projects/Repo",
       title: "Scheduled task schedule parser",
+      permission: expect.any(Array),
     });
     expect(mocked.cleanupIgnoresMock).toHaveBeenCalledTimes(1);
     expect(mocked.registerIgnoreMock).toHaveBeenCalledWith("temp-session");

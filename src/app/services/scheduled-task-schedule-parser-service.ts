@@ -1,4 +1,5 @@
 import { opencodeClient } from "../../opencode/client.js";
+import { createUnattendedSession } from "./scheduled-task-session-service.js";
 import { logger } from "../../utils/logger.js";
 import {
   cleanupScheduledTaskSessionIgnores,
@@ -237,10 +238,10 @@ export async function parseTaskSchedule(
     );
     await cleanupScheduledTaskSessionIgnores();
 
-    const { data: session, error: createError } = await opencodeClient.session.create({
-      directory: trimmedDirectory,
-      title: SCHEDULE_PARSE_SESSION_TITLE,
-    });
+    const { data: session, error: createError } = await createUnattendedSession(
+      trimmedDirectory,
+      SCHEDULE_PARSE_SESSION_TITLE,
+    );
 
     if (createError || !session) {
       throw createError || new Error("Failed to create temporary schedule parser session");
