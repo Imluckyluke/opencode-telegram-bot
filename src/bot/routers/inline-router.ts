@@ -2,11 +2,10 @@ import type { Bot, Context } from "grammy";
 import type { FilePartInput } from "@opencode-ai/sdk/v2";
 import { isAllowedUser } from "../../app/stores/settings-store.js";
 import { opencodeClient } from "../../opencode/client.js";
-import { getCurrentSession } from "../../app/services/session-service.js";
 import { ingestSessionInfoForCache } from "../../app/services/session-cache-service.js";
 import { getCurrentProject } from "../../app/stores/settings-store.js";
 import { getStoredAgent, resolveProjectAgent } from "../../app/services/agent-selection-service.js";
-import { getStoredInlineModel, getStoredModel } from "../../app/services/model-selection-service.js";
+import { getStoredInlineModel } from "../../app/services/model-selection-service.js";
 import { backgroundSessionTracker } from "../../app/managers/background-session-manager.js";
 import {
   GLOBAL_RUN_KEY,
@@ -46,8 +45,6 @@ import {
   submitGuestQuestionAnswer,
 } from "../inline/guest-questions.js";
 import {
-  buildInlineResults,
-  consumePendingInlineQuery,
   extractGuestDocument,
   extractGuestPhoto,
   extractGuestReplyText,
@@ -57,38 +54,18 @@ import {
   guestVoiceFilename,
   stripBotMention,
   truncateInlineText,
-  type InlineSnapshot,
 } from "../inline/inline-results.js";
 import { renderAssistantFinalPartsSafe } from "../messages/assistant-rendering.js";
-import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
-import { formatContextLine } from "../pinned/pinned-message-format.js";
 
 interface InlineRouterDeps {
   ensureEventSubscription: (directory: string) => Promise<void>;
 }
 
-function buildSnapshot(): InlineSnapshot {
-  const project = getCurrentProject();
-  const session = getCurrentSession();
-  const model = getStoredModel();
-  const contextInfo = pinnedMessageManager.getContextInfo();
-  return {
-    projectName: project?.worktree ?? null,
-    sessionTitle: session?.title ?? null,
-    modelLabel:
-      model.providerID && model.modelID ? `${model.providerID}/${model.modelID}` : null,
-    contextLine: contextInfo
-      ? formatContextLine(contextInfo.tokensUsed, contextInfo.tokensLimit)
-      : null,
-  };
-}
-
 /**
  * Guest chats keep ONE persistent session per group chat, so consecutive
- * summons in the same chat share conversational memory. (Inline answers keep
- * the previous behavior: a fresh session per tap.) Sessions are tracked in
- * guest-session-manager with TTL + LRU bounds; chat identity comes from the
- * server-set guest message chat id.
+ * summons in the same chat share conversational memory. Sessions are tracked
+ * in guest-session-manager with TTL + LRU bounds; chat identity comes from
+ * the server-set guest message chat id.
  */
 const INLINE_SESSION_TITLE_PREFIX = "⚡ ";
 
@@ -467,74 +444,10 @@ async function streamInlineAnswer(
 }
 
 export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps): void {
-  bot.on("inline_query", async (ctx) => {
-    const inlineQuery = ctx.inlineQuery;
-    if (!inlineQuery || !isAllowedUser(inlineQuery.from.id)) {
-      await ctx.answerInlineQuery([], { cache_time: 0, is_personal: true }).catch(() => {});
-      return;
-    }
-    logger.info(
-      `[Bot] Inline query: from=${inlineQuery.from.id}, queryLength=${(inlineQuery.query ?? "").length}`,
-    );
-    try {
-      const botUsername = bot.botInfo?.username ?? null;
-      if (!botUsername) {
-        logger.warn("[Bot] Bot username unknown, inline answers cannot be edited in place");
-      }
-      const results = buildInlineResults(inlineQuery.query ?? "", buildSnapshot(), botUsername);
-      await ctx.answerInlineQuery(results, { cache_time: 0, is_personal: true });
-    } catch (err) {
-      logger.error("[Bot] Error answering inline query:", err);
-      await ctx.answerInlineQuery([], { cache_time: 0, is_personal: true }).catch((error: unknown) => {
-        logger.warn("[Bot] Fallback empty inline answer failed:", error);
-      });
-    }
-  });
-
-  bot.on("chosen_inline_result", async (ctx) => {
-    const chosen = ctx.chosenInlineResult;
-    if (!chosen || !isAllowedUser(chosen.from.id)) {
-      return;
-    }
-    logger.info(
-      `[Bot] Inline chosen: from=${chosen.from.id}, result_id=${chosen.result_id}, hasInlineMessage=${Boolean(chosen.inline_message_id)}`,
-    );
-    const queryText = consumePendingInlineQuery(chosen.result_id);
-    if (!queryText) {
-      logger.warn(
-        `[Bot] Ignoring inline tap with unknown result id (typed before a restart?): result_id=${chosen.result_id}`,
-      );
-      return;
-    }
-    logger.info(`[Bot] Inline tap accepted: queryLength=${queryText.length}`);
-    const inlineMessageId = chosen.inline_message_id;
-    if (!inlineMessageId) {
-      logger.warn("[Bot] Inline tap has no inline_message_id, cannot answer in place");
-      return;
-    }
-    const notifyInline = (notice: string) => {
-      void editInlineMessage(bot.api, inlineMessageId, queryText, notice);
-    };
-    try {
-      const run = await runInlinePrompt(deps, bot.api, queryText, notifyInline);
-      if (run) {
-        void streamInlineAnswer(
-          bot.api,
-          inlineMessageId,
-          run.sessionId,
-          run.directory,
-          run.startedAt,
-          queryText,
-        ).finally(() => {
-          setInlineRunInFlight(false, run.runKey);
-        });
-      }
-    } catch (err) {
-      logger.error("[Bot] Error running inline prompt:", err);
-      notifyInline(t("error.generic"));
-    }
-  });
-
+  // NOTE: Telegram inline mode (@bot query) was removed; guest mode replaces
+  // it. Only guest_message is registered below. The shared run pipeline
+  // (runInlinePrompt, streamInlineAnswer, editInlineMessage) stays because
+  // guest runs and user lanes use it.
   bot.on("guest_message", async (ctx) => {
     const guest = ctx.guestMessage;
     // The summoner arrives as guest_bot_caller_user, or for direct summons

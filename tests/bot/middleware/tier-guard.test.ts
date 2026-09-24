@@ -107,24 +107,6 @@ describe("bot/middleware/tier-guard", () => {
     });
   });
 
-  it("denies inline queries for granted users", async () => {
-    mocked.isAllowedUserMock.mockReturnValue(true);
-    const next = vi.fn();
-    const ctx = {
-      from: { id: 999 },
-      inlineQuery: { id: "q", from: { id: 999 }, query: "hi", offset: "" },
-      answerInlineQuery: vi.fn().mockResolvedValue(undefined),
-    } as unknown as Context;
-
-    await tierGuardMiddleware(ctx, next);
-
-    expect(next).not.toHaveBeenCalled();
-    expect(ctx.answerInlineQuery).toHaveBeenCalledWith([], {
-      cache_time: 0,
-      is_personal: true,
-    });
-  });
-
   it("blocks everything but /enable when disabled", async () => {
     mocked.isAllowedTelegramUserMock.mockReturnValue(true);
     mocked.isBotDisabledMock.mockReturnValue(true);

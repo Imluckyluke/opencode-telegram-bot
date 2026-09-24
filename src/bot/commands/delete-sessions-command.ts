@@ -90,7 +90,7 @@ export async function handleDeleteSessionsCallback(ctx: Context): Promise<boolea
 
 async function executeDeleteSessions(ctx: Context): Promise<void> {
   const statusMessage = await ctx.reply(t("deletesessions.started")).catch(() => undefined);
-  // In-flight inline/guest waits poll sessions that are about to disappear:
+  // In-flight guest waits poll sessions that are about to disappear:
   // release them now so they end promptly instead of hanging to timeout.
   cancelInlineRuns();
   let deleted = 0;

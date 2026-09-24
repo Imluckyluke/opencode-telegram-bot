@@ -421,53 +421,26 @@ describe("interaction guard", () => {
   });
 });
 
-describe("interaction-guard-decision inline updates", () => {
+describe("interaction-guard-decision removed inline mode", () => {
   afterEach(() => {
     interactionManager.clear("inline_decision_test_reset");
     foregroundSessionState.clearAll("inline_decision_test_reset");
   });
 
-  it("allows inline queries with no active interaction", () => {
+  it("no longer classifies inline queries as inline input", () => {
     const decision = resolveInteractionGuardDecision({
       inlineQuery: { id: "q1", from: { id: 1 }, query: "hi", offset: "" },
     } as unknown as Context);
 
-    expect(decision.allow).toBe(true);
-    expect(decision.inputType).toBe("inline");
+    expect(decision.inputType).not.toBe("inline");
   });
 
-  it("allows chosen inline results with no active interaction", () => {
+  it("no longer classifies chosen inline results as inline input", () => {
     const decision = resolveInteractionGuardDecision({
       chosenInlineResult: { result_id: "ask:1", from: { id: 1 }, query: "hi" },
     } as unknown as Context);
 
-    expect(decision.allow).toBe(true);
-  });
-
-  it("allows inline updates while the session is busy", () => {
-    foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
-    const inlineQuery = {
-      inlineQuery: { id: "q1", from: { id: 1 }, query: "hi", offset: "" },
-    } as unknown as Context;
-    const chosen = {
-      chosenInlineResult: { result_id: "ask:1", from: { id: 1 }, query: "hi" },
-    } as unknown as Context;
-
-    expect(resolveInteractionGuardDecision(inlineQuery).allow).toBe(true);
-    expect(resolveInteractionGuardDecision(chosen).allow).toBe(true);
-  });
-
-  it("allows inline updates while an inline menu interaction is open", () => {
-    interactionManager.start({
-      kind: "inline",
-      expectedInput: "callback",
-      metadata: { menuKind: "model", messageId: 10 },
-    });
-    const chosen = {
-      chosenInlineResult: { result_id: "ask:1", from: { id: 1 }, query: "hi" },
-    } as unknown as Context;
-
-    expect(resolveInteractionGuardDecision(chosen).allow).toBe(true);
+    expect(decision.inputType).not.toBe("inline");
   });
 });
 

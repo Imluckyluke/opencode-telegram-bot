@@ -54,10 +54,9 @@ function classifyIncomingInput(ctx: Context): {
   inputType: IncomingInputType;
   command?: string;
 } {
-  // Inline mode updates carry no message/callback semantics of their own:
-  // answering is read-only and chosen runs enforce busy/interaction rules
-  // themselves in the inline router. Guest-mode summons behave the same way.
-  if (ctx.inlineQuery || ctx.chosenInlineResult || ctx.update?.guest_message) {
+  // Guest-mode summons behave like ordinary content: answering posts in
+  // place and runs enforce busy/interaction rules themselves in the router.
+  if (ctx.update?.guest_message) {
     return { inputType: "inline" };
   }
 
@@ -167,8 +166,8 @@ export function resolveInteractionGuardDecision(
   const { inputType, command } = classifyIncomingInput(ctx);
   const isBusy = foregroundSessionState.isBusy() || attachManager.isBusy();
 
-  // Inline updates never participate in menu/question flows: answering is
-  // read-only and chosen taps enforce their own busy/interaction rules.
+  // Guest summons never participate in menu/question flows: answering posts
+  // in place and runs enforce their own busy/interaction rules in the router.
   if (inputType === "inline") {
     return createAllowDecision(inputType, state);
   }

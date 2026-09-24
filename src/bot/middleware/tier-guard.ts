@@ -92,10 +92,6 @@ export async function tierGuardMiddleware(ctx: Context, next: NextFunction): Pro
     await ctx.answerCallbackQuery({ text: t("tier.blocked"), show_alert: true }).catch(() => {});
     return;
   }
-  if (ctx.inlineQuery) {
-    await ctx.answerInlineQuery([], { cache_time: 0, is_personal: true }).catch(() => {});
-    return;
-  }
   if (ctx.chat && ctx.message) {
     await ctx.reply(t("tier.blocked")).catch(() => {});
   }

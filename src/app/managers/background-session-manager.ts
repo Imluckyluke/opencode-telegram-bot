@@ -51,8 +51,8 @@ class BackgroundSessionTracker {
   }
 
   /**
-   * Excludes a session from background notifications (e.g. the dedicated
-   * inline session, whose results are delivered in place).
+   * Excludes a session from background notifications (e.g. guest sessions,
+   * whose results are delivered in place).
    */
   setMuted(sessionId: string, muted: boolean): void {
     if (!sessionId) {
