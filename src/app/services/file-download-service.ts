@@ -41,7 +41,9 @@ export async function downloadTelegramFile(api: Api, fileId: string): Promise<Do
   }
 
   const fileUrl = buildTelegramFileUrl(file.file_path);
-  logger.debug(`[FileDownload] Downloading from ${fileUrl.replace(config.telegram.token, "***")}`);
+  const redactedUrl =
+    config.telegram.token.length > 0 ? fileUrl.replace(config.telegram.token, "***") : fileUrl;
+  logger.debug(`[FileDownload] Downloading from ${redactedUrl}`);
 
   const fetchOptions: NodeFetchRequestInit = {};
 

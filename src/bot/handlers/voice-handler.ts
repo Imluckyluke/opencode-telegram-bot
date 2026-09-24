@@ -16,6 +16,7 @@ import { processUserPrompt, type ProcessPromptDeps } from "./prompt.js";
 import { createIncomingPrompt, type IncomingPrompt } from "../../app/types/prompt.js";
 import { flushPendingPrompt } from "./message-merger.js";
 import { logger } from "../../utils/logger.js";
+import { redactUrlCredentials } from "../../utils/url-redact.js";
 import { t } from "../../i18n/index.js";
 import { buildTelegramFileUrl, MAX_FILE_SIZE_BYTES } from "../../app/services/file-download-service.js";
 import { buildQuotedNotification } from "../../app/services/quoted-notification.js";
@@ -42,7 +43,7 @@ function getTelegramDownloadAgent(): https.RequestOptions["agent"] | undefined {
     ? new SocksProxyAgent(proxyUrl)
     : new HttpsProxyAgent(proxyUrl);
 
-  logger.info(`[Voice] Using Telegram download proxy: ${proxyUrl.replace(/\/\/.*@/, "//***@")}`);
+  logger.info(`[Voice] Using Telegram download proxy: ${redactUrlCredentials(proxyUrl)}`);
   return telegramDownloadAgent;
 }
 

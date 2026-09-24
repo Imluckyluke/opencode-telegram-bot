@@ -141,7 +141,7 @@ export async function startBotApp(): Promise<void> {
   if (logFilePath) {
     logger.info(`Logs are written to ${logFilePath}`);
   }
-  logger.info(`Allowed User IDs: ${(config.telegram.allowedUserIds ?? []).join(",")}`);
+  logger.debug(`Allowed User IDs: ${(config.telegram.allowedUserIds ?? []).join(",")}`);
   for (const warning of configLoadWarnings) {
     logger.warn(`[Config] ${warning}`);
   }
@@ -304,13 +304,13 @@ export async function startBotApp(): Promise<void> {
   try {
     // Explicit allowlist: guest_message is only delivered when listed
     // (like reactions/membership updates), so the default "all" is not enough.
+    // Inline mode was removed (guest mode replaces it), so inline_query and
+    // chosen_inline_result are intentionally absent.
     await bot.start({
       drop_pending_updates: true,
       allowed_updates: [
         "message",
         "callback_query",
-        "inline_query",
-        "chosen_inline_result",
         "guest_message",
       ],
       onStart: (botInfo) => {

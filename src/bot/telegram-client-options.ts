@@ -7,6 +7,7 @@ import type { Bot, Context } from "grammy";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { logger } from "../utils/logger.js";
+import { redactUrlCredentials } from "../utils/url-redact.js";
 
 export interface TelegramClientConfig {
   apiRoot: string;
@@ -56,10 +57,10 @@ export function createTelegramBotOptions(telegram: TelegramClientConfig): Telegr
 
     if (proxyUrl.startsWith("socks")) {
       agent = new SocksProxyAgent(proxyUrl);
-      logger.info(`[Bot] Using SOCKS proxy: ${proxyUrl.replace(/\/\/.*@/, "//***@")}`);
+      logger.info(`[Bot] Using SOCKS proxy: ${redactUrlCredentials(proxyUrl)}`);
     } else {
       agent = new HttpsProxyAgent(proxyUrl);
-      logger.info(`[Bot] Using HTTP/HTTPS proxy: ${proxyUrl.replace(/\/\/.*@/, "//***@")}`);
+      logger.info(`[Bot] Using HTTP/HTTPS proxy: ${redactUrlCredentials(proxyUrl)}`);
     }
 
     botOptions.client = botOptions.client ?? {};

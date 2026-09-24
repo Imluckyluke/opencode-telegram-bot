@@ -1,6 +1,7 @@
 import { config } from "../config.js";
 import { isContainerRuntime } from "../runtime/container.js";
 import { logger } from "../utils/logger.js";
+import { redactUrlCredentials } from "../utils/url-redact.js";
 import { opencodeClient } from "./client.js";
 import { opencodeReadyLifecycle } from "./ready-lifecycle.js";
 import {
@@ -84,7 +85,7 @@ export class OpencodeAutoRestartService {
     const localTarget = resolveLocalOpencodeTarget(config.opencode.apiUrl);
     if (!localTarget) {
       logger.warn(
-        `[OpenCodeAutoRestart] Disabled because OPENCODE_API_URL is not local: ${config.opencode.apiUrl}`,
+        `[OpenCodeAutoRestart] Disabled because OPENCODE_API_URL is not local: ${redactUrlCredentials(config.opencode.apiUrl)}`,
       );
       return false;
     }
