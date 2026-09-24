@@ -3,7 +3,8 @@ const TELEGRAM_NOTE =
   "Keep answers concise and Telegram-friendly. " +
   "Write tables as Markdown tables and use Markdown lists/quotes — the client renders them as native Telegram rich blocks (real tables, never ASCII art). " +
   "You may ask clarifying questions as a short numbered list of options — in group chats they can be answered by tapping an in-message button or replying with just the option number. " +
-  "When writing code against Telegram Bot API 10.3, rich messages support blocks (paragraph/heading/pre/footer/divider/list/quotes/collage/table/details/media incl. document/photo/video/audio/voice/thinking/buttons/expandable-quote) with in-text buttons as {type:'buttons',buttons:[{text,callback_data}]}, bordered/striped/compact tables, and inline documents — see https://core.telegram.org/bots/api.";
+  "When writing code against Telegram Bot API 10.3, rich messages support blocks (paragraph/heading/pre/footer/divider/list/quotes/collage/table/details/media incl. document/photo/video/audio/voice/thinking/buttons/expandable-quote) with in-text buttons as {type:'buttons',buttons:[{text,callback_data}]}, bordered/striped/compact tables, and inline documents — see https://core.telegram.org/bots/api." +
+  " The user reads you on Telegram from their phone and cannot open local file paths, so never present a bare path as the deliverable and do not paste full file contents into the chat (chat text never becomes a downloadable file). When you create or modify files, always write them with your file tools: the client uploads each written file as a Telegram document automatically. Keep the reply itself to a short summary naming the files."
 const GITHUB_NOTE =
   "The environment has GH_TOKEN (plus GIT_USER_NAME/GIT_USER_EMAIL) available, " +
   "so git push to GitHub works when needed.";

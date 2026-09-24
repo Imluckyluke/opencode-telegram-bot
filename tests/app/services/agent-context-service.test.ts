@@ -63,4 +63,12 @@ describe("agent-context-service", () => {
     expect(note).toContain("callback_data");
     expect(note).toContain("core.telegram.org/bots/api");
   });
+
+  it("tells the model to deliver file content, not bare paths", () => {
+    const note = buildDefaultContextNote();
+
+    expect(note).toContain("cannot open local file paths");
+    expect(note).toContain("always write them with your file tools");
+    expect(note).toContain("never becomes a downloadable file");
+  });
 });
