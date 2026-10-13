@@ -207,6 +207,7 @@ Agent picker behavior:
 - [x] Optional message queue for text, voice, photos, rich formatted messages with photos, documents, and media groups sent while the agent is busy, managed from the bottom keyboard
 - [x] Native Telegram rich message formatting for assistant replies (Bot API 10.1)
 - [x] Incoming Telegram rich formatted messages (Bot API 10.1): converted to Markdown, accepted anywhere text is accepted, with photos attached and unsupported message types answered explicitly
+- [x] Agent-authored in-text buttons (Bot API 10.3): `[label](btn:value)` links render as tappable buttons; a tap injects the value as the next prompt in the current session
 - [x] Startup either reaches Telegram polling or the process exits: transient Telegram failures are retried in-process; a bad token or other fatal startup error exits with code 1
 - [x] After a Telegram outage the bot answers again without restart; an undelivered assistant reply is not resent, and skipped stale messages are reported once
 

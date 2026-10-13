@@ -6,6 +6,7 @@ import {
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 import { handleAgentSelect } from "./agent-selection-callback-handler.js";
+import { handleAgentButtonCallback } from "./agent-button-callback-handler.js";
 import { handleCommandsCallback } from "./command-catalog-callback-handler.js";
 import { handleCompactConfirm } from "./context-control-callback-handler.js";
 import { handleDeleteSessionsCallback } from "../commands/delete-sessions-command.js";
@@ -65,6 +66,34 @@ function parseCallbackPrefix(data: string): string | null {
 
 export function registerCallbackRouter(bot: Bot<Context>, deps: CallbackRouterDeps): void {
   const routes = new Map<string, CallbackRoute>([
+    [
+      "ab",
+      {
+        name: "agent-button",
+        handlers: [
+          (ctx) =>
+            handleAgentButtonCallback(ctx, {
+              bot,
+              ensureEventSubscription: deps.ensureEventSubscription,
+            }),
+        ],
+        errorScope: "none",
+      },
+    ],
+    [
+      "abk",
+      {
+        name: "agent-button",
+        handlers: [
+          (ctx) =>
+            handleAgentButtonCallback(ctx, {
+              bot,
+              ensureEventSubscription: deps.ensureEventSubscription,
+            }),
+        ],
+        errorScope: "none",
+      },
+    ],
     [
       "agent",
       { name: "agent", handlers: [handleAgentSelect], errorScope: "interaction" },

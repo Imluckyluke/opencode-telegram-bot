@@ -1,6 +1,7 @@
-import type { RichBlockTableCell, RichText } from "grammy/types";
+import type { RichBlockTableCell, RichText, RichTextButton } from "grammy/types";
 import { logger } from "../../utils/logger.js";
-import { buildAlignedTableText, toBlockPlainText } from "./block-plain-text.js";
+import { agentButtonValueFromUrl, encodeAgentButtonCallback, isAgentButtonUrl, MAX_AGENT_BUTTON_LABEL_CHARS } from "../inline/agent-buttons.js";
+import { buildAlignedTableText, extractInlinePlainText, toBlockPlainText } from "./block-plain-text.js";
 import type {
   InlineNode,
   TableColumnAlign,
@@ -84,9 +85,15 @@ function toRichTextNodes(nodes: InlineNode[]): RichText[] {
       case "code":
         result.push({ type: "code", text: node.text });
         break;
-      case "link":
+      case "link": {
+        const button = toAgentButton(node);
+        if (button) {
+          result.push(button);
+          break;
+        }
         result.push({ type: "url", text: toRichText(node.text), url: node.url });
         break;
+      }
       default: {
         const unknownType = (node as { type?: unknown }).type;
         logger.warn("[TelegramRender] Unsupported inline node, falling back to plain text", {
@@ -103,8 +110,26 @@ function toRichTextNodes(nodes: InlineNode[]): RichText[] {
   return result;
 }
 
-export function toRichText(nodes: InlineNode[]): RichText {
-  const parts = toRichTextNodes(nodes);
+/**
+ * Turns a `[label](btn:value)` link into an in-text button. Returns null for
+ * regular links and for buttons without a usable label.
+ */
+function toAgentButton(node: Extract<InlineNode, { type: "link" }>): RichTextButton | null {
+  if (!isAgentButtonUrl(node.url)) {
+    return null;
+  }
+  const label = extractInlinePlainText(node.text).slice(0, MAX_AGENT_BUTTON_LABEL_CHARS);
+  if (!label) {
+    return null;
+  }
+  const value = agentButtonValueFromUrl(node.url, label);
+  if (!value) {
+    return null;
+  }
+  return { type: "button", button: { text: label, callback_data: encodeAgentButtonCallback(value) } };
+}
+
+export function toRichText(nodes: InlineNode[]): RichText {  const parts = toRichTextNodes(nodes);
   if (parts.length === 0) {
     return "";
   }
@@ -372,6 +397,8 @@ function countRichTextChars(text: RichText): number {
     case "reference":
     case "reference_link":
       return countRichTextChars(text.text);
+    case "button":
+      return countRichTextChars(text.button.text);
     case "custom_emoji":
       return text.alternative_text.length;
     case "mathematical_expression":
