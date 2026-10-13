@@ -5,8 +5,10 @@ import { randomBytes } from "node:crypto";
  *
  * The agent writes a markdown link `[label](btn:value)`; the render layer
  * turns it into an inline button, and tapping it injects `value` as the
- * user's next prompt. Short values ride inside `callback_data` (1-64 bytes),
- * longer ones are kept in a small in-memory overflow table.
+ * user's next prompt. Values with spaces need angle brackets:
+ * `[label](<btn:value with spaces>)`. Short values ride inside
+ * `callback_data` (1-64 bytes), longer ones are kept in a small in-memory
+ * overflow table.
  */
 
 /** Callback prefix for taps carrying the value inline. */
@@ -41,7 +43,45 @@ export function isAgentButtonUrl(url: string): boolean {
 /** The tap payload of a `btn:` link; falls back to the label when empty. */
 export function agentButtonValueFromUrl(url: string, label: string): string {
   const raw = url.slice(AGENT_BUTTON_URL_SCHEME.length).trim();
-  return raw ? raw : label;
+  if (!raw) {
+    return label;
+  }
+  try {
+    const decoded = decodeURIComponent(raw);
+    return decoded.trim() ? decoded.trim() : label;
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * Markdown link destinations cannot contain raw spaces unless wrapped in
+ * `<>`. The agent often writes `[label](btn:value with spaces)`, which
+ * remark would leave as plain text. Wrap such destinations in angle
+ * brackets before parsing so multi-word (e.g. Persian) values still become
+ * buttons. Fenced code blocks are left untouched.
+ */
+export function wrapAgentButtonDestinations(markdown: string): string {
+  const lines = markdown.split("\n");
+  let inFence = false;
+  const pattern = /\[([^\]]*)\]\(btn:([^<>)\n]*?)\)/g;
+  return lines
+    .map((line) => {
+      if (line.trimStart().startsWith("```")) {
+        inFence = !inFence;
+        return line;
+      }
+      if (inFence) {
+        return line;
+      }
+      return line.replace(pattern, (_match, label: string, dest: string) => {
+        if (!dest || !/[\s]/.test(dest)) {
+          return `[${label}](btn:${dest})`;
+        }
+        return `[${label}](<btn:${dest.trim()}>)`;
+      });
+    })
+    .join("\n");
 }
 
 function pruneOverflow(now: number): void {

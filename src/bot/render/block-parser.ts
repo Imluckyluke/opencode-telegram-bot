@@ -17,12 +17,8 @@ import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { extractInlinePlainText as extractInlineNodeText } from "./block-plain-text.js";
 import { normalizeMarkdownForTelegramBlockParsing } from "./markdown-normalizer.js";
-import type {
-  InlineNode,
-  TableColumnAlign,
-  TelegramBlock,
-  TelegramListItem,
-} from "./types.js";
+import { wrapAgentButtonDestinations } from "../inline/agent-buttons.js";
+import type { InlineNode, TableColumnAlign, TelegramBlock, TelegramListItem } from "./types.js";
 
 const markdownProcessor = unified().use(remarkParse).use(remarkGfm);
 
@@ -442,7 +438,9 @@ function parseRootContent(node: RootContent, depth = 0): TelegramBlock[] {
 }
 
 export function parseTelegramBlocks(markdown: string): TelegramBlock[] {
-  const normalized = normalizeMarkdownForTelegramBlockParsing(markdown).trim();
+  const normalized = wrapAgentButtonDestinations(
+    normalizeMarkdownForTelegramBlockParsing(markdown),
+  ).trim();
   if (!normalized) {
     return [];
   }

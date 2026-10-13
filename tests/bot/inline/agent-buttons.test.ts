@@ -6,6 +6,7 @@ import {
   isAgentButtonUrl,
   parseAgentButtonCallback,
   resolveAgentButtonValue,
+  wrapAgentButtonDestinations,
 } from "../../../src/bot/inline/agent-buttons.js";
 
 describe("bot/inline/agent-buttons", () => {
@@ -61,5 +62,18 @@ describe("bot/inline/agent-buttons", () => {
     vi.setSystemTime(new Date("2026-01-02T00:00:01Z"));
 
     expect(resolveAgentButtonValue(parsed)).toBeNull();
+  });
+
+  it("decodes percent-encoded values", () => {
+    expect(agentButtonValueFromUrl("btn:hello%20world", "hello")).toBe("hello world");
+  });
+
+  it("wraps multi-word destinations in angle brackets", () => {
+    expect(wrapAgentButtonDestinations("[a](btn:hello world)")).toBe("[a](<btn:hello world>)");
+    expect(wrapAgentButtonDestinations("[گزینه یک](btn:گزینه یک)")).toBe(
+      "[گزینه یک](<btn:گزینه یک>)",
+    );
+    expect(wrapAgentButtonDestinations("[a](btn:railway)")).toBe("[a](btn:railway)");
+    expect(wrapAgentButtonDestinations("```\n[a](btn:x y)\n```")).toBe("```\n[a](btn:x y)\n```");
   });
 });

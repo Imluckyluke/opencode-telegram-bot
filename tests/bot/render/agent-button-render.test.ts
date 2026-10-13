@@ -54,4 +54,11 @@ describe("bot/render/agent-button-render", () => {
         : "";
     expect(data.startsWith("abk:")).toBe(true);
   });
+
+  it("turns multi-word btn: links into buttons", () => {
+    const buttons = buttonsOf("[گزینه یک](btn:گزینه یک)");
+
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]?.button).toMatchObject({ text: "گزینه یک" });
+  });
 });

@@ -1,7 +1,16 @@
 import type { RichBlockTableCell, RichText, RichTextButton } from "grammy/types";
 import { logger } from "../../utils/logger.js";
-import { agentButtonValueFromUrl, encodeAgentButtonCallback, isAgentButtonUrl, MAX_AGENT_BUTTON_LABEL_CHARS } from "../inline/agent-buttons.js";
-import { buildAlignedTableText, extractInlinePlainText, toBlockPlainText } from "./block-plain-text.js";
+import {
+  agentButtonValueFromUrl,
+  encodeAgentButtonCallback,
+  isAgentButtonUrl,
+  MAX_AGENT_BUTTON_LABEL_CHARS,
+} from "../inline/agent-buttons.js";
+import {
+  buildAlignedTableText,
+  extractInlinePlainText,
+  toBlockPlainText,
+} from "./block-plain-text.js";
 import type {
   InlineNode,
   TableColumnAlign,
@@ -112,7 +121,8 @@ function toRichTextNodes(nodes: InlineNode[]): RichText[] {
 
 /**
  * Turns a `[label](btn:value)` link into an in-text button. Returns null for
- * regular links and for buttons without a usable label.
+ * regular links and for buttons without a usable label. Multi-word values
+ * arrive as `[label](<btn:value with spaces>)` (wrapped before parsing).
  */
 function toAgentButton(node: Extract<InlineNode, { type: "link" }>): RichTextButton | null {
   if (!isAgentButtonUrl(node.url)) {
@@ -126,10 +136,14 @@ function toAgentButton(node: Extract<InlineNode, { type: "link" }>): RichTextBut
   if (!value) {
     return null;
   }
-  return { type: "button", button: { text: label, callback_data: encodeAgentButtonCallback(value) } };
+  return {
+    type: "button",
+    button: { text: label, callback_data: encodeAgentButtonCallback(value) },
+  };
 }
 
-export function toRichText(nodes: InlineNode[]): RichText {  const parts = toRichTextNodes(nodes);
+export function toRichText(nodes: InlineNode[]): RichText {
+  const parts = toRichTextNodes(nodes);
   if (parts.length === 0) {
     return "";
   }
