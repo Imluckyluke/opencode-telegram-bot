@@ -109,6 +109,18 @@ function getOptionalBooleanEnvVar(key: string, defaultValue: boolean): boolean {
   return defaultValue;
 }
 
+export type OpencodeServerVersion = "v1" | "v2";
+
+const DEFAULT_OPENCODE_API_URLS: Record<OpencodeServerVersion, string> = {
+  v1: "http://localhost:4096",
+  v2: "http://127.0.0.1:49374",
+};
+
+function getOptionalOpencodeServerVersionEnvVar(key: string): OpencodeServerVersion {
+  const normalized = getEnvVar(key, false).trim().toLowerCase();
+  return normalized === "v2" ? "v2" : "v1";
+}
+
 function getOptionalMessageFormatModeEnvVar(
   key: string,
   defaultValue: MessageFormatMode,
@@ -281,8 +293,12 @@ export function isAllowedTelegramUser(userId: number | undefined | null): boolea
   return typeof userId === "number" && config.telegram.allowedUserIds.includes(userId);
 }
 
+const opencodeServerVersion = getOptionalOpencodeServerVersionEnvVar("OPENCODE_SERVER_VERSION");
+
 function getOpencodeApiUrl(): string {
-  return parseOpencodeApiUrl(getEnvVar("OPENCODE_API_URL", false).trim() || "http://localhost:4096");
+  return parseOpencodeApiUrl(
+    getEnvVar("OPENCODE_API_URL", false).trim() || DEFAULT_OPENCODE_API_URLS[opencodeServerVersion],
+  );
 }
 
 /** Validates a user-supplied OpenCode server URL (pure, exported for tests). */
@@ -323,6 +339,7 @@ function getAutoCompactThresholdPercent(): number {
 export const config = {
   telegram: buildTelegramConfig(),
   opencode: {
+    serverVersion: opencodeServerVersion,
     apiUrl: getOpencodeApiUrl(),
     username: getEnvVar("OPENCODE_SERVER_USERNAME", false) || "opencode",
     password: getEnvVar("OPENCODE_SERVER_PASSWORD", false),

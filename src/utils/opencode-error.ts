@@ -30,6 +30,11 @@ function hasServerUnavailableMarker(value: string): boolean {
   return SERVER_UNAVAILABLE_ERROR_MARKERS.some((marker) => lower.includes(marker));
 }
 
+/** A "not found" answer from OpenCode (V1 body, or the V2 adapter's equivalent). */
+export function isOpencodeNotFoundError(error: unknown): boolean {
+  return isRecord(error) && error.name === "NotFoundError";
+}
+
 /**
  * Walks the error `cause` chain looking for a "server unavailable" marker
  * (fetch failures, connection refused, ...). Mirrors the previous per-service
