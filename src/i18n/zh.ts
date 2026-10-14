@@ -18,6 +18,7 @@ export const zh: I18nDictionary = {
   "cmd.description.mcps": "MCP servers",
   "cmd.description.opencode_start": "启动 OpenCode 服务器",
   "cmd.description.opencode_stop": "停止 OpenCode 服务器",
+  "cmd.description.reload": "Reload OpenCode configuration",
   "cmd.description.ls": "列出目录内容",
   "cmd.description.help": "帮助",
 
@@ -330,6 +331,10 @@ export const zh: I18nDictionary = {
   "opencode_stop.still_running": "停止请求后服务器仍在响应。",
   "opencode_stop.success": "✅ OpenCode 服务器已成功停止",
   "opencode_stop.error": "🔴 停止服务器时发生错误。\n\n请查看应用日志了解详情。",
+  "reload.reloading": "🔄 Reloading OpenCode configuration...",
+  "reload.success": "✅ OpenCode configuration reloaded",
+  "reload.failed": "🔴 Failed to reload OpenCode configuration",
+  "reload.failed_with_error": "🔴 Failed to reload OpenCode configuration\n\nError: {error}",
 
   "agent.changed_message": "✅ Agent 已切换为：{name}",
   "agent.change_error_callback": "切换 Agent 失败",

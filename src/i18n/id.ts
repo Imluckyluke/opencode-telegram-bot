@@ -25,6 +25,7 @@ export const id: I18nDictionary = {
   "cmd.description.mcps": "Server MCP",
   "cmd.description.opencode_start": "Mulai server OpenCode",
   "cmd.description.opencode_stop": "Hentikan server OpenCode",
+  "cmd.description.reload": "Reload OpenCode configuration",
   "cmd.description.ls": "Daftar isi direktori",
   "cmd.description.help": "Bantuan",
 
@@ -359,6 +360,10 @@ export const id: I18nDictionary = {
   "opencode_stop.still_running": "Server masih merespons meski sudah diminta berhenti.",
   "opencode_stop.success": "✅ Server OpenCode berhasil dihentikan",
   "opencode_stop.error": "🔴 Gagal menghentikan server.\n\nPeriksa log aplikasi untuk detailnya.",
+  "reload.reloading": "🔄 Reloading OpenCode configuration...",
+  "reload.success": "✅ OpenCode configuration reloaded",
+  "reload.failed": "🔴 Failed to reload OpenCode configuration",
+  "reload.failed_with_error": "🔴 Failed to reload OpenCode configuration\n\nError: {error}",
 
   "agent.changed_message": "✅ Agent diubah menjadi: {name}",
   "agent.change_error_callback": "Gagal mengubah agent",

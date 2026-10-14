@@ -25,6 +25,7 @@ export const ko: I18nDictionary = {
   "cmd.description.mcps": "MCP 서버",
   "cmd.description.opencode_start": "OpenCode 서버 시작",
   "cmd.description.opencode_stop": "OpenCode 서버 중지",
+  "cmd.description.reload": "Reload OpenCode configuration",
   "cmd.description.ls": "디렉터리 내용 보기",
   "cmd.description.help": "도움말",
 
@@ -371,6 +372,10 @@ export const ko: I18nDictionary = {
   "opencode_stop.success": "✅ OpenCode 서버가 성공적으로 중지되었습니다",
   "opencode_stop.error":
     "🔴 서버 중지 중 오류가 발생했습니다.\n\n자세한 내용은 애플리케이션 로그를 확인해 주세요.",
+  "reload.reloading": "🔄 Reloading OpenCode configuration...",
+  "reload.success": "✅ OpenCode configuration reloaded",
+  "reload.failed": "🔴 Failed to reload OpenCode configuration",
+  "reload.failed_with_error": "🔴 Failed to reload OpenCode configuration\n\nError: {error}",
 
   "agent.changed_message": "✅ 에이전트가 변경되었습니다: {name}",
   "agent.change_error_callback": "에이전트 변경 실패",

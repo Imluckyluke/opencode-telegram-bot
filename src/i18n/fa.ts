@@ -18,6 +18,7 @@ export const fa: I18nDictionary = {
   "cmd.description.mcps": "مدیریت سرورهای MCP",
   "cmd.description.opencode_start": "روشن کردن سرور OpenCode",
   "cmd.description.opencode_stop": "خاموش کردن سرور OpenCode",
+  "cmd.description.reload": "بارگذاری دوباره پیکربندی OpenCode",
   "cmd.description.ls": "گشتن در فایل‌های پروژه و دانلود آن‌ها",
   "cmd.description.help": "راهنمای کامل بات",
 
@@ -341,6 +342,11 @@ export const fa: I18nDictionary = {
   "opencode_stop.still_running": "سرور پس از درخواست توقف هنوز پاسخ می‌دهد.",
   "opencode_stop.success": "✅ سرور OpenCode با موفقیت متوقف شد",
   "opencode_stop.error": "🔴 هنگام توقف سرور خطایی رخ داد.\n\nلاگ برنامه را بررسی کنید.",
+
+  "reload.reloading": "🔄 در حال بارگذاری دوباره پیکربندی OpenCode...",
+  "reload.success": "✅ پیکربندی OpenCode دوباره بارگذاری شد",
+  "reload.failed": "🔴 بارگذاری دوباره پیکربندی OpenCode ناموفق بود",
+  "reload.failed_with_error": "🔴 بارگذاری دوباره پیکربندی OpenCode ناموفق بود\n\nخطا: {error}",
 
   "agent.changed_message": "✅ ایجنت تغییر کرد به: {name}",
   "agent.change_error_callback": "تغییر ایجنت ناموفق بود",

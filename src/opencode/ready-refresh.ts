@@ -6,6 +6,14 @@ import { opencodeReadyLifecycle } from "./ready-lifecycle.js";
 
 let readyRefreshRegistered = false;
 
+/**
+ * A config reload registers providers again the way a server start does, so the stored
+ * model is reconciled against a freshly read catalog.
+ */
+export async function refreshModelCatalogAfterConfigReload(): Promise<void> {
+  await reconcileStoredModelSelection({ forceCatalogRefresh: true });
+}
+
 export async function isOpencodeServerHealthy(): Promise<boolean> {
   try {
     const { data, error } = await opencodeClient.global.health();

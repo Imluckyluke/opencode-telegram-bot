@@ -25,6 +25,7 @@ export const ar: I18nDictionary = {
   "cmd.description.mcps": "خوادم MCP",
   "cmd.description.opencode_start": "تشغيل خادم OpenCode",
   "cmd.description.opencode_stop": "إيقاف خادم OpenCode",
+  "cmd.description.reload": "Reload OpenCode configuration",
   "cmd.description.ls": "استعراض ملفات المجلد",
   "cmd.description.help": "المساعدة",
   "cmd.description.rename": "تغيير اسم الجلسة الحالية",
@@ -360,6 +361,10 @@ export const ar: I18nDictionary = {
   "opencode_stop.still_running": "لا يزال الخادم يستجيب بعد طلب الإيقاف.",
   "opencode_stop.success": "✅ تم إيقاف خادم OpenCode بنجاح",
   "opencode_stop.error": "🔴 حدث خطأ أثناء إيقاف الخادم.\n\nراجع سجلات التطبيق للتفاصيل.",
+  "reload.reloading": "🔄 Reloading OpenCode configuration...",
+  "reload.success": "✅ OpenCode configuration reloaded",
+  "reload.failed": "🔴 Failed to reload OpenCode configuration",
+  "reload.failed_with_error": "🔴 Failed to reload OpenCode configuration\n\nError: {error}",
 
   "agent.changed_message": "✅ تم تغيير الوكيل إلى: {name}",
   "agent.change_error_callback": "تعذر تغيير الوكيل",

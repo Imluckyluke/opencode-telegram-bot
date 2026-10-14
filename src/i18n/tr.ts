@@ -18,6 +18,7 @@ export const tr: I18nDictionary = {
   "cmd.description.mcps": "MCP sunucuları",
   "cmd.description.opencode_start": "OpenCode sunucusunu başlat",
   "cmd.description.opencode_stop": "OpenCode sunucusunu durdur",
+  "cmd.description.reload": "Reload OpenCode configuration",
   "cmd.description.ls": "Dizin içeriğini listele",
   "cmd.description.help": "Yardım",
 
@@ -359,6 +360,10 @@ export const tr: I18nDictionary = {
   "opencode_stop.success": "✅ OpenCode Sunucusu başarıyla durduruldu",
   "opencode_stop.error":
     "🔴 Sunucu durdurulurken bir hata oluştu.\n\nAyrıntılar için uygulama günlüklerini kontrol edin.",
+  "reload.reloading": "🔄 Reloading OpenCode configuration...",
+  "reload.success": "✅ OpenCode configuration reloaded",
+  "reload.failed": "🔴 Failed to reload OpenCode configuration",
+  "reload.failed_with_error": "🔴 Failed to reload OpenCode configuration\n\nError: {error}",
 
   "agent.changed_message": "✅ Ajan değiştirildi: {name}",
   "agent.change_error_callback": "Ajan değiştirilemedi",

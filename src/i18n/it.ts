@@ -18,6 +18,7 @@ export const it: I18nDictionary = {
   "cmd.description.mcps": "Server MCP",
   "cmd.description.opencode_start": "Avvia il server OpenCode",
   "cmd.description.opencode_stop": "Ferma il server OpenCode",
+  "cmd.description.reload": "Reload OpenCode configuration",
   "cmd.description.ls": "Elenca il contenuto della directory",
   "cmd.description.help": "Aiuto",
 
@@ -374,6 +375,10 @@ export const it: I18nDictionary = {
   "opencode_stop.success": "✅ Server OpenCode arrestato correttamente",
   "opencode_stop.error":
     "🔴 Si è verificato un errore durante l'arresto del server.\n\nControlla i log dell'applicazione per i dettagli.",
+  "reload.reloading": "🔄 Reloading OpenCode configuration...",
+  "reload.success": "✅ OpenCode configuration reloaded",
+  "reload.failed": "🔴 Failed to reload OpenCode configuration",
+  "reload.failed_with_error": "🔴 Failed to reload OpenCode configuration\n\nError: {error}",
 
   "agent.changed_message": "✅ Agente modificato in: {name}",
   "agent.change_error_callback": "Modifica dell'agente non riuscita",

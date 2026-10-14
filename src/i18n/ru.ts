@@ -18,6 +18,7 @@ export const ru: I18nDictionary = {
   "cmd.description.mcps": "MCP серверы",
   "cmd.description.opencode_start": "Запустить OpenCode сервер",
   "cmd.description.opencode_stop": "Остановить OpenCode сервер",
+  "cmd.description.reload": "Перезагрузить конфигурацию OpenCode",
   "cmd.description.ls": "Список содержимого каталога",
   "cmd.description.help": "Справка",
 
@@ -362,6 +363,10 @@ export const ru: I18nDictionary = {
   "opencode_stop.success": "✅ OpenCode Server успешно остановлен",
   "opencode_stop.error":
     "🔴 Произошла ошибка при остановке сервера.\n\nПроверьте логи приложения для подробностей.",
+  "reload.reloading": "🔄 Перезагружаю конфигурацию OpenCode...",
+  "reload.success": "✅ Конфигурация OpenCode перезагружена",
+  "reload.failed": "🔴 Не удалось перезагрузить конфигурацию OpenCode",
+  "reload.failed_with_error": "🔴 Не удалось перезагрузить конфигурацию OpenCode\n\nОшибка: {error}",
 
   "agent.changed_message": "✅ Агент изменен на: {name}",
   "agent.change_error_callback": "Ошибка при смене агента",
