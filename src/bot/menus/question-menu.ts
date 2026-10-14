@@ -221,17 +221,10 @@ async function sendAllAnswersToAgent(bot: Context["api"], chatId: number): Promi
   const allAnswers: string[][] = [];
 
   for (let i = 0; i < totalQuestions; i++) {
-    const customAnswer = questionManager.getCustomAnswer(i);
-    const selectedAnswer = questionManager.getSelectedAnswer(i);
+    const items = questionManager.getReplyItems(i);
 
-    // Priority: custom answer > selected options
-    const answer = customAnswer || selectedAnswer || "";
-
-    if (answer) {
-      // Split by newlines if multiple options were selected (in multiple choice mode)
-      // Each option is formatted as "* Label: Description"
-      const answerParts = answer.split("\n").filter((part) => part.trim());
-      allAnswers.push(answerParts);
+    if (items.length > 0) {
+      allAnswers.push(items);
     } else {
       // Empty answer for unanswered questions
       allAnswers.push([]);
@@ -400,7 +393,11 @@ function isHighSurrogate(codeUnit: number): boolean {
 }
 
 function buildQuestionKeyboard(
-  question: { options: Array<{ label: string; description: string }>; multiple?: boolean },
+  question: {
+    options: Array<{ label: string; description: string }>;
+    multiple?: boolean;
+    custom?: boolean;
+  },
   selectedOptions: Set<number>,
 ): InlineKeyboard {
   const keyboard = new InlineKeyboard();
@@ -425,8 +422,11 @@ function buildQuestionKeyboard(
     logger.debug(`[QuestionHandler] Added submit button`);
   }
 
-  keyboard.text(t("question.button.custom"), `question:custom:${questionIndex}`).row();
-  logger.debug(`[QuestionHandler] Added custom answer button`);
+  // A question without choices can only be answered with custom text
+  if (question.options.length === 0 || question.custom !== false) {
+    keyboard.text(t("question.button.custom"), `question:custom:${questionIndex}`).row();
+    logger.debug(`[QuestionHandler] Added custom answer button`);
+  }
 
   keyboard.text(t("question.button.cancel"), `question:cancel:${questionIndex}`);
   logger.debug(`[QuestionHandler] Added cancel button`);

@@ -98,6 +98,34 @@ class QuestionManager {
     return options.join("\n");
   }
 
+  /**
+   * The answer items sent to OpenCode for one question. A choice that carries a
+   * value is sent as that value (V2); one without is sent as its display line.
+   * Custom-answer priority matches historical behavior.
+   */
+  getReplyItems(questionIndex: number): string[] {
+    const question = this.state.questions[questionIndex];
+    if (!question) {
+      return [];
+    }
+
+    const customAnswer = this.getCustomAnswer(questionIndex);
+    if (customAnswer) {
+      return customAnswer.split("\n").filter((part) => part.trim());
+    }
+
+    return Array.from(this.getSelectedOptions(questionIndex)).flatMap((idx) => {
+      const opt = question.options[idx];
+      if (!opt) {
+        return [];
+      }
+      if (opt.value !== undefined) {
+        return [opt.value];
+      }
+      return [`* ${opt.label}: ${opt.description}`];
+    });
+  }
+
   setCustomAnswer(questionIndex: number, answer: string): void {
     logger.debug(
       `[QuestionManager] Custom answer received for question ${questionIndex}: ${answer}`,
