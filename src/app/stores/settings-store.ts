@@ -4,6 +4,7 @@ import type { ProjectInfo } from "../types/project.js";
 import type { SessionDirectoryCacheInfo, SessionInfo } from "../types/session.js";
 import { cloneScheduledTask, type ScheduledTask } from "../types/scheduled-task.js";
 import type {
+  PromptQueueMode,
   ResponseStreamingMode,
   ScheduledTaskSessionIgnoreInfo,
   Settings,
@@ -274,6 +275,28 @@ export function getPersistedLocale(): Locale | null {
 
 export function setPersistedLocale(locale: Locale): void {
   currentSettings.locale = locale;
+  void writeSettingsFile(currentSettings);
+}
+
+/**
+ * The message queue mode in effect for the configured OpenCode server. V1 keeps its
+ * released On/Off boolean (off by default); V2 stores its own mode (steer by default),
+ * so neither version's choice moves the other's.
+ */
+export function getPromptQueueMode(): PromptQueueMode {
+  if (config.opencode.serverVersion === "v2") {
+    return currentSettings.promptQueueMode ?? "steer";
+  }
+
+  return currentSettings.promptQueueEnabled === true ? "queue" : "off";
+}
+
+export function setPromptQueueMode(mode: PromptQueueMode): void {
+  if (config.opencode.serverVersion === "v2") {
+    currentSettings.promptQueueMode = mode;
+  } else {
+    currentSettings.promptQueueEnabled = mode !== "off";
+  }
   void writeSettingsFile(currentSettings);
 }
 

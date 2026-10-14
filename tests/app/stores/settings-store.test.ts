@@ -3,12 +3,14 @@ import path from "node:path";
 import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setRuntimeMode } from "../../../src/runtime/mode.js";
+import { config } from "../../../src/config.js";
 import type { ScheduledTask } from "../../../src/app/types/scheduled-task.js";
 import {
   __resetSettingsForTests,
   flushSettings,
   getCompactOutputMode,
   getPromptQueueEnabled,
+  getPromptQueueMode,
   getResponseStreamingMode,
   getSendDiffFileAttachments,
   getPinnedDashboardEnabled,
@@ -19,6 +21,7 @@ import {
   loadSettings,
   setCompactOutputMode,
   setPromptQueueEnabled,
+  setPromptQueueMode,
   setScheduledTasks,
   setResponseStreamingMode,
   setSendDiffFileAttachments,
@@ -34,6 +37,7 @@ describe("app/stores/settings-store", () => {
     tempHome = await mkdtemp(path.join(os.tmpdir(), "opencode-telegram-settings-store-"));
     process.env.OPENCODE_TELEGRAM_HOME = tempHome;
     setRuntimeMode("installed");
+    config.opencode.serverVersion = "v1";
     __resetSettingsForTests();
   });
 
@@ -119,6 +123,82 @@ describe("app/stores/settings-store", () => {
 
     expect(getPromptQueueEnabled()).toBe(true);
   });
+
+  it("is off by default on a V1 server", async () => {
+      config.opencode.serverVersion = "v1";
+      await loadSettings();
+
+      expect(getPromptQueueMode()).toBe("off");
+    });
+
+    it("is steer by default on a V2 server", async () => {
+      config.opencode.serverVersion = "v2";
+      await loadSettings();
+
+      expect(getPromptQueueMode()).toBe("steer");
+    });
+
+    it("reads the released promptQueueEnabled=true as the bot queue on a V1 server", async () => {
+      config.opencode.serverVersion = "v1";
+      await writeFile(
+        path.join(tempHome, "settings.json"),
+        JSON.stringify({ promptQueueEnabled: true }),
+      );
+
+      await loadSettings();
+
+      expect(getPromptQueueMode()).toBe("queue");
+    });
+
+    it.each([true, false])(
+      "starts in steer on a V2 server with promptQueueEnabled=%s and leaves settings.json as is",
+      async (oldValue) => {
+        config.opencode.serverVersion = "v2";
+        const settingsPath = path.join(tempHome, "settings.json");
+        const original = JSON.stringify({ promptQueueEnabled: oldValue });
+        await writeFile(settingsPath, original);
+
+        await loadSettings();
+        await flushSettings();
+
+        expect(getPromptQueueMode()).toBe("steer");
+        expect(await readFile(settingsPath, "utf-8")).toBe(original);
+      },
+    );
+
+    it("keeps the V1 and V2 choices apart across version switches", async () => {
+      const readSettings = async () =>
+        JSON.parse(await readFile(path.join(tempHome, "settings.json"), "utf-8"));
+
+      config.opencode.serverVersion = "v1";
+      await loadSettings();
+      setPromptQueueMode("queue");
+      await flushSettings();
+
+      config.opencode.serverVersion = "v2";
+      await loadSettings();
+      expect(getPromptQueueMode()).toBe("steer");
+      setPromptQueueMode("off");
+      await flushSettings();
+      expect(await readSettings()).toMatchObject({
+        promptQueueEnabled: true,
+        promptQueueMode: "off",
+      });
+
+      config.opencode.serverVersion = "v1";
+      await loadSettings();
+      expect(getPromptQueueMode()).toBe("queue");
+      setPromptQueueMode("off");
+      await flushSettings();
+
+      config.opencode.serverVersion = "v2";
+      await loadSettings();
+      expect(getPromptQueueMode()).toBe("off");
+      expect(await readSettings()).toMatchObject({
+        promptQueueEnabled: false,
+        promptQueueMode: "off",
+      });
+    });
 
   it("applies INITIAL_SETTINGS_PRESET for settings not yet persisted", async () => {
     vi.resetModules();
@@ -292,6 +372,37 @@ describe("app/stores/settings-store", () => {
       const settings = JSON.parse(await readFile(path.join(tempHome, "settings.json"), "utf-8"));
       expect(settings.promptQueueEnabled).toBe(true);
     });
+  });
+
+  it("does not let INITIAL_SETTINGS_PRESET override a stored promptQueueEnabled", async () => {
+    vi.resetModules();
+    vi.stubEnv("INITIAL_SETTINGS_PRESET", '{"promptQueueEnabled":false}');
+    await writeFile(
+      path.join(tempHome, "settings.json"),
+      JSON.stringify({ promptQueueEnabled: true }),
+    );
+
+    const store = await import("../../../src/app/stores/settings-store.js");
+    await store.loadSettings();
+
+    expect(store.getPromptQueueMode()).toBe("queue");
+
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it("seeds only the V1 queue from INITIAL_SETTINGS_PRESET promptQueueEnabled", async () => {
+    vi.resetModules();
+    vi.stubEnv("INITIAL_SETTINGS_PRESET", '{"promptQueueEnabled":true}');
+    vi.stubEnv("OPENCODE_SERVER_VERSION", "v2");
+
+    const store = await import("../../../src/app/stores/settings-store.js");
+    await store.loadSettings();
+
+    expect(store.getPromptQueueMode()).toBe("steer");
+
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 
   it("persists assistant run footer setting to settings.json", async () => {
