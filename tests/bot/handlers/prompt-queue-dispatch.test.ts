@@ -4,18 +4,33 @@ import { defined } from "../../helpers/defined.js";
 import { createIncomingPrompt } from "../../../src/app/types/prompt.js";
 
 const processUserPromptMock = vi.hoisted(() => vi.fn());
-const getPromptQueueEnabledMock = vi.hoisted(() => vi.fn());
+const admitPromptToInboxMock = vi.hoisted(() => vi.fn());
+const startInboxPromptRunMock = vi.hoisted(() => vi.fn());
+const getPromptQueueModeMock = vi.hoisted(() => vi.fn());
+const opencodeServerVersionMock = vi.hoisted(() => ({ value: "v1" }));
 const isForegroundBusyMock = vi.hoisted(() => vi.fn());
 const getKeyboardMock = vi.hoisted(() => vi.fn());
 const sendBotTextMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../src/bot/handlers/prompt.js", () => ({
   processUserPrompt: processUserPromptMock,
+  admitPromptToInbox: admitPromptToInboxMock,
+  startInboxPromptRun: startInboxPromptRunMock,
 }));
 
-vi.mock("../../../src/app/stores/settings-store.js", () => ({
-  getPromptQueueEnabled: getPromptQueueEnabledMock,
+vi.mock("../../../src/opencode/client.js", () => ({
+  get opencodeServerVersion() {
+    return opencodeServerVersionMock.value;
+  },
 }));
+
+vi.mock("../../../src/app/stores/settings-store.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../src/app/stores/settings-store.js")>();
+  return {
+    ...actual,
+    getPromptQueueMode: getPromptQueueModeMock,
+  };
+});
 
 vi.mock("../../../src/app/services/run-control-service.js", () => ({
   isForegroundBusy: isForegroundBusyMock,
@@ -69,7 +84,10 @@ describe("bot/handlers/prompt-queue-dispatch", () => {
     __resetPromptQueueDispatchForTests();
     replyMock = vi.fn().mockResolvedValue(undefined);
     processUserPromptMock.mockReset().mockResolvedValue(true);
-    getPromptQueueEnabledMock.mockReset().mockReturnValue(true);
+    admitPromptToInboxMock.mockReset().mockResolvedValue(null);
+    startInboxPromptRunMock.mockReset().mockResolvedValue(undefined);
+    getPromptQueueModeMock.mockReset().mockReturnValue("queue");
+    opencodeServerVersionMock.value = "v1";
     isForegroundBusyMock.mockReset().mockReturnValue(false);
     getKeyboardMock.mockReset().mockReturnValue(KEYBOARD);
     sendBotTextMock.mockReset().mockResolvedValue(undefined);
@@ -77,7 +95,7 @@ describe("bot/handlers/prompt-queue-dispatch", () => {
 
   describe("tryEnqueuePrompt", () => {
     it("does nothing when the setting is disabled", async () => {
-      getPromptQueueEnabledMock.mockReturnValue(false);
+      getPromptQueueModeMock.mockReturnValue("off");
 
       await expect(tryEnqueuePrompt(makeContext(), "do the thing")).resolves.toBe(false);
       expect(promptQueue.size()).toBe(0);
@@ -130,7 +148,7 @@ describe("bot/handlers/prompt-queue-dispatch", () => {
 
   describe("shouldSuggestPromptQueue", () => {
     it("suggests the queue for a plain prompt while the setting is disabled", () => {
-      getPromptQueueEnabledMock.mockReturnValue(false);
+      getPromptQueueModeMock.mockReturnValue("off");
 
       expect(shouldSuggestPromptQueue("do the thing")).toBe(true);
     });
@@ -140,7 +158,7 @@ describe("bot/handlers/prompt-queue-dispatch", () => {
     });
 
     it("stays quiet for commands, blank text, and button presses", () => {
-      getPromptQueueEnabledMock.mockReturnValue(false);
+      getPromptQueueModeMock.mockReturnValue("off");
 
       expect(shouldSuggestPromptQueue("/status")).toBe(false);
       expect(shouldSuggestPromptQueue("   ")).toBe(false);
@@ -341,6 +359,66 @@ describe("bot/handlers/prompt-queue-dispatch", () => {
       expect(processUserPromptMock.mock.calls[1]?.[1]).toMatchObject({ text: "second" });
       expect(sendBotTextMock.mock.calls[0]?.[0]).toMatchObject({ chatId: 1 });
       expect(sendBotTextMock.mock.calls[1]?.[0]).toMatchObject({ chatId: 2 });
+    });
+  });
+
+  describe("OpenCode V2 inbox", () => {
+    beforeEach(() => {
+      opencodeServerVersionMock.value = "v2";
+      initializePromptQueueDispatch(DEPS);
+    });
+
+    it("sends a busy-time prompt to the inbox and mirrors it", async () => {
+      admitPromptToInboxMock.mockResolvedValue({ sessionId: "ses-1", inboxId: "msg-1" });
+
+      await expect(tryEnqueuePrompt(makeContext(), "do the thing")).resolves.toBe(true);
+
+      expect(admitPromptToInboxMock).toHaveBeenCalledTimes(1);
+      expect(admitPromptToInboxMock.mock.calls[0]?.[3]).toBe("queue");
+      expect(promptQueue.findByInboxId("msg-1")).not.toBeNull();
+      expect(processUserPromptMock).not.toHaveBeenCalled();
+      expect(replyMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("uses steer delivery in steer mode", async () => {
+      getPromptQueueModeMock.mockReturnValue("steer");
+      admitPromptToInboxMock.mockResolvedValue({ sessionId: "ses-1", inboxId: "msg-1" });
+
+      await expect(tryEnqueuePrompt(makeContext(), "do the thing")).resolves.toBe(true);
+
+      expect(admitPromptToInboxMock.mock.calls[0]?.[3]).toBe("steer");
+    });
+
+    it("releases the reservation when admission fails", async () => {
+      admitPromptToInboxMock.mockResolvedValue(null);
+
+      await expect(tryEnqueuePrompt(makeContext(), "do the thing")).resolves.toBe(true);
+
+      expect(promptQueue.size()).toBe(0);
+      expect(promptQueue.isFull()).toBe(false);
+    });
+
+    it("rejects inbox prompts once the queue is full", async () => {
+      admitPromptToInboxMock.mockResolvedValue({ sessionId: "ses-1", inboxId: "msg-1" });
+      const ctx = makeContext();
+      for (let index = 0; index < MAX_QUEUED_PROMPTS; index++) {
+        await tryEnqueuePrompt(ctx, `prompt ${index}`);
+      }
+      replyMock.mockClear();
+
+      await expect(tryEnqueuePrompt(ctx, "overflow")).resolves.toBe(true);
+
+      expect(admitPromptToInboxMock).toHaveBeenCalledTimes(MAX_QUEUED_PROMPTS);
+      expect(replyMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("reconciles mirrors instead of dispatching on idle", async () => {
+      admitPromptToInboxMock.mockResolvedValue({ sessionId: "ses-1", inboxId: "msg-1" });
+      await tryEnqueuePrompt(makeContext(), "do the thing");
+
+      await dispatchNextQueuedPrompt();
+
+      expect(processUserPromptMock).not.toHaveBeenCalled();
     });
   });
 });

@@ -200,6 +200,8 @@ export const fa: I18nDictionary = {
   "settings.pin_session_dashboard.label": "سنجاق داشبورد نشست",
   "settings.tts.label": "پاسخ صوتی",
   "settings.prompt_queue.label": "صف پیام",
+  "settings.prompt_queue.queue": "صف",
+  "settings.prompt_queue.steer": "هدایت",
   "settings.bottom_keyboard.label": "کیبورد پایین",
   "settings.bottom_keyboard.removed": "⌨️ کیبورد پایین حذف شد.",
   "settings.value.on": "روشن",
@@ -459,6 +461,7 @@ export const fa: I18nDictionary = {
   "keyboard.variant_default": "💡 پیش‌فرض",
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added": "📥 به صف اضافه شد ({count}/{max}). وقتی وظیفه جاری تمام شود ارسال می‌شود.",
+  "queue.steer_added": "📥 به وظیفه جاری اضافه شد ({count}/{max}).",
   "queue.full": "⚠️ صف پر است ({max}). یک پیام را حذف کنید یا منتظر پایان وظیفه جاری بمانید.",
   "queue.media_limit":
     "⚠️ رسانه صف حداکثر {maxSizeMb} مگابایت است. منتظر ارسال یک مورد بمانید و دوباره تلاش کنید.",

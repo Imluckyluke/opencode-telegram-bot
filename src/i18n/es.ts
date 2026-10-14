@@ -176,6 +176,8 @@ export const es: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "Respuestas de audio",
   "settings.prompt_queue.label": "Cola de mensajes",
+  "settings.prompt_queue.queue": "Queue",
+  "settings.prompt_queue.steer": "Steer",
   "settings.bottom_keyboard.label": "Bottom keyboard",
   "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "Activado",
@@ -495,6 +497,7 @@ export const es: I18nDictionary = {
   "keyboard.variant_default": "💡 Predeterminado",
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added": "📥 Añadido a la cola ({count}/{max}). Se enviará cuando termine la tarea actual.",
+  "queue.steer_added": "📥 Added to the current task ({count}/{max}).",
   "queue.media_limit":
     "⚠️ Los archivos multimedia en cola están limitados a {maxSizeMb} MiB. Espera a que se envíe un elemento.",
   "queue.full":

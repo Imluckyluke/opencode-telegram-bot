@@ -177,6 +177,8 @@ export const ko: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "음성 답변",
   "settings.prompt_queue.label": "메시지 대기열",
+  "settings.prompt_queue.queue": "Queue",
+  "settings.prompt_queue.steer": "Steer",
   "settings.bottom_keyboard.label": "Bottom keyboard",
   "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "켜기",
@@ -491,6 +493,7 @@ export const ko: I18nDictionary = {
   "keyboard.variant_default": "💡 기본값",
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added": "📥 대기열에 추가되었습니다 ({count}/{max}). 현재 작업이 끝나면 전송됩니다.",
+  "queue.steer_added": "📥 Added to the current task ({count}/{max}).",
   "queue.full":
     "⚠️ 대기열이 가득 찼습니다 ({max}). 메시지를 삭제하거나 현재 작업이 끝날 때까지 기다려 주세요.",
   "queue.media_limit":

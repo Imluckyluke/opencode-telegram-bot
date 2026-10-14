@@ -377,6 +377,7 @@ describe("app/stores/settings-store", () => {
   it("does not let INITIAL_SETTINGS_PRESET override a stored promptQueueEnabled", async () => {
     vi.resetModules();
     vi.stubEnv("INITIAL_SETTINGS_PRESET", '{"promptQueueEnabled":false}');
+    vi.stubEnv("OPENCODE_SERVER_VERSION", "v1");
     await writeFile(
       path.join(tempHome, "settings.json"),
       JSON.stringify({ promptQueueEnabled: true }),

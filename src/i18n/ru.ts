@@ -167,6 +167,8 @@ export const ru: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Закреплять дашборд сессии",
   "settings.tts.label": "Аудиоответы",
   "settings.prompt_queue.label": "Очередь сообщений",
+  "settings.prompt_queue.queue": "Queue",
+  "settings.prompt_queue.steer": "Steer",
   "settings.bottom_keyboard.label": "Bottom keyboard",
   "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "Вкл",
@@ -483,6 +485,7 @@ export const ru: I18nDictionary = {
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added":
     "📥 Добавлено в очередь ({count}/{max}). Сообщение уйдёт после завершения текущей задачи.",
+  "queue.steer_added": "📥 Added to the current task ({count}/{max}).",
   "queue.full":
     "⚠️ Очередь заполнена ({max}). Удалите сообщение или дождитесь завершения текущей задачи.",
   "queue.media_limit":

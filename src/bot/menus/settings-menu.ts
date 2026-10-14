@@ -2,7 +2,7 @@ import { InlineKeyboard } from "grammy";
 import {
   getCompactOutputMode,
   getDeleteCompactProgressOnFinish,
-  getPromptQueueEnabled,
+  getPromptQueueMode,
   getResponseStreamingMode,
   getSendDiffFileAttachments,
   getPinnedDashboardEnabled,
@@ -13,7 +13,9 @@ import {
   type ResponseStreamingMode,
   type TtsMode,
 } from "../../app/stores/settings-store.js";
+import type { PromptQueueMode } from "../../app/types/settings.js";
 import { t } from "../../i18n/index.js";
+import { opencodeServerVersion } from "../../opencode/client.js";
 
 export const SETTINGS_CALLBACK_PREFIX = "settings:";
 export const SETTINGS_COMPACT_OUTPUT_CALLBACK = `${SETTINGS_CALLBACK_PREFIX}compact_output`;
@@ -49,6 +51,23 @@ export function formatResponseStreamingModeValue(mode: ResponseStreamingMode): s
     : t("settings.response_streaming.edit");
 }
 
+/** V2 names the three modes; V1 has only the bot's own queue, so it stays On/Off. */
+export function formatPromptQueueModeValue(mode: PromptQueueMode): string {
+  if (opencodeServerVersion !== "v2") {
+    return formatBooleanSettingValue(mode !== "off");
+  }
+
+  if (mode === "queue") {
+    return t("settings.prompt_queue.queue");
+  }
+
+  if (mode === "steer") {
+    return t("settings.prompt_queue.steer");
+  }
+
+  return t("settings.value.off");
+}
+
 export function buildSettingsMenuView(): { text: string; keyboard: InlineKeyboard } {
   const compactOutputMode = getCompactOutputMode();
   const deleteCompactProgressOnFinish = getDeleteCompactProgressOnFinish();
@@ -58,7 +77,7 @@ export function buildSettingsMenuView(): { text: string; keyboard: InlineKeyboar
   const showAssistantRunFooter = getShowAssistantRunFooter();
   const pinnedDashboardEnabled = getPinnedDashboardEnabled();
   const ttsMode = getTtsMode();
-  const promptQueueEnabled = getPromptQueueEnabled();
+  const promptQueueMode = getPromptQueueMode();
   const showBottomKeyboard = getShowBottomKeyboard();
   const keyboard = new InlineKeyboard()
     .text(
@@ -103,7 +122,7 @@ export function buildSettingsMenuView(): { text: string; keyboard: InlineKeyboar
     .text(`${t("settings.tts.label")}: ${formatTtsModeValue(ttsMode)}`, SETTINGS_TTS_CALLBACK)
     .row()
     .text(
-      `${t("settings.prompt_queue.label")}: ${formatBooleanSettingValue(promptQueueEnabled)}`,
+      `${t("settings.prompt_queue.label")}: ${formatPromptQueueModeValue(promptQueueMode)}`,
       SETTINGS_PROMPT_QUEUE_CALLBACK,
     )
     .row()

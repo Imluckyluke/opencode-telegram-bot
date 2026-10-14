@@ -177,6 +177,8 @@ export const id: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Sematkan dasbor sesi",
   "settings.tts.label": "Balasan audio",
   "settings.prompt_queue.label": "Antrean pesan",
+  "settings.prompt_queue.queue": "Queue",
+  "settings.prompt_queue.steer": "Steer",
   "settings.bottom_keyboard.label": "Bottom keyboard",
   "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "Aktif",
@@ -479,6 +481,7 @@ export const id: I18nDictionary = {
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added":
     "📥 Ditambahkan ke antrean ({count}/{max}). Akan dikirim setelah tugas saat ini selesai.",
+  "queue.steer_added": "📥 Added to the current task ({count}/{max}).",
   "queue.full": "⚠️ Antrean penuh ({max}). Hapus pesan atau tunggu tugas saat ini selesai.",
   "queue.media_limit":
     "⚠️ Media dalam antrean dibatasi {maxSizeMb} MiB. Tunggu hingga satu item terkirim, lalu coba lagi.",

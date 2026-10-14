@@ -202,6 +202,8 @@ export const en = {
   "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "Audio replies",
   "settings.prompt_queue.label": "Message queue",
+  "settings.prompt_queue.queue": "Queue",
+  "settings.prompt_queue.steer": "Steer",
   "settings.bottom_keyboard.label": "Bottom keyboard",
   "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "On",
@@ -473,6 +475,7 @@ export const en = {
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added":
     "📥 Added to queue ({count}/{max}). It will be sent when the current task finishes.",
+  "queue.steer_added": "📥 Added to the current task ({count}/{max}).",
   "queue.full":
     "⚠️ Queue is full ({max}). Remove a message or wait for the current task to finish.",
   "queue.media_limit":

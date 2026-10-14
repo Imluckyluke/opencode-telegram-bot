@@ -10,6 +10,7 @@ import { markAttachedSessionIdle } from "../../app/services/attach-service.js";
 import { clearPromptResponseMode } from "../handlers/prompt.js";
 import { markUserAbortRequested } from "../../app/managers/abort-suppression-manager.js";
 import { promptQueue } from "../../app/managers/prompt-queue-manager.js";
+import { withdrawPromptQueue } from "../../app/services/prompt-inbox-service.js";
 import { promptAttachment } from "../../app/managers/prompt-attachment-manager.js";
 
 type SessionState = "idle" | "busy" | "not-found";
@@ -79,7 +80,9 @@ export async function abortCurrentOperation(
   try {
     abortLocalStreaming();
     const droppedQueuedCount = promptQueue.size();
-    promptQueue.clear("abort_command");
+    // Awaited: a prompt still waiting in the OpenCode V2 inbox must not start a new turn
+    // once the current one is interrupted.
+    await withdrawPromptQueue("abort_command");
     // abortLocalStreaming drops the waiting mode, so the attachment has to go with it -
     // otherwise it would ride along on the next, unrelated prompt with no confirmation left.
     const pendingAttachment = promptAttachment.get();

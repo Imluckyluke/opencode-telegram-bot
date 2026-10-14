@@ -171,6 +171,8 @@ export const tr: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Oturum panosunu sabitle",
   "settings.tts.label": "Sesli yanıtlar",
   "settings.prompt_queue.label": "Mesaj kuyruğu",
+  "settings.prompt_queue.queue": "Queue",
+  "settings.prompt_queue.steer": "Steer",
   "settings.bottom_keyboard.label": "Bottom keyboard",
   "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "Açık",
@@ -479,6 +481,7 @@ export const tr: I18nDictionary = {
   "keyboard.variant_default": "💡 Varsayılan",
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added": "📥 Kuyruğa eklendi ({count}/{max}). Geçerli görev bittiğinde gönderilecek.",
+  "queue.steer_added": "📥 Added to the current task ({count}/{max}).",
   "queue.full":
     "⚠️ Kuyruk dolu ({max}). Bir mesajı kaldırın veya geçerli görevin bitmesini bekleyin.",
   "queue.media_limit":

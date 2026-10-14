@@ -12,7 +12,7 @@ import { isContainerRuntime } from "../../runtime/container.js";
 import { editBotText } from "../messages/telegram-text.js";
 import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
 import { attachManager } from "../../app/managers/attach-manager.js";
-import { promptQueue } from "../../app/managers/prompt-queue-manager.js";
+import { withdrawPromptQueue } from "../../app/services/prompt-inbox-service.js";
 import { clearAllInteractionState } from "../../app/managers/interaction-manager.js";
 import { markAttachedSessionIdle } from "../../app/services/attach-service.js";
 import { clearPromptResponseMode } from "../handlers/prompt.js";
@@ -48,7 +48,8 @@ async function releaseLocalStateAfterServerStop(
     clearPromptResponseMode(sessionId);
   }
 
-  promptQueue.clear(STOP_REASON);
+  // The OpenCode V2 inbox outlives the process, so waiting prompts are withdrawn first.
+  await withdrawPromptQueue(STOP_REASON);
   clearAllInteractionState(STOP_REASON);
   opencodeReadyLifecycle.notifyUnavailable(STOP_REASON);
 }
