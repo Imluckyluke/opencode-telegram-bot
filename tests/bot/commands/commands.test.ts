@@ -351,6 +351,37 @@ describe("bot/commands/commands", () => {
     });
   });
 
+  it("names a session it had to create as a new session while OpenCode has not named it", async () => {
+    mocked.currentSession = null;
+    mocked.sessionCreateMock.mockResolvedValueOnce({
+      data: { id: "session-2", title: "" },
+      error: null,
+    });
+    interactionManager.start({
+      kind: "custom",
+      expectedInput: "mixed",
+      metadata: {
+        flow: "commands",
+        stage: "confirm",
+        messageId: 400,
+        projectDirectory: "D:\\Projects\\Repo",
+        commandName: "poem",
+      },
+    });
+
+    const ctx = createCallbackContext("commands:execute", 400);
+    await handleCommandsCallback(ctx, createDeps());
+
+    expect(mocked.setCurrentSessionMock).toHaveBeenCalledWith({
+      id: "session-2",
+      title: "",
+      directory: "D:\\Projects\\Repo",
+    });
+    expect(ctx.reply).toHaveBeenCalledWith(
+      t("bot.session_created", { title: t("pinned.default_session_title") }),
+    );
+  });
+
   it("executes selected command with arguments from text message", async () => {
     interactionManager.start({
       kind: "custom",

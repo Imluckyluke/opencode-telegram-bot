@@ -1,6 +1,7 @@
 import { InlineKeyboard } from "grammy";
 import { opencodeClient } from "../../opencode/client.js";
 import { getDateLocale, t } from "../../i18n/index.js";
+import { formatSessionTitle } from "../../app/formatters/session-title-formatter.js";
 import { logger } from "../../utils/logger.js";
 
 export const SESSION_CALLBACK_PREFIX = "session:";
@@ -168,7 +169,7 @@ function buildSessionsKeyboard(pageData: SessionPage, pageSize: number): InlineK
 
   pageData.sessions.forEach((session, index) => {
     const date = new Date(session.time.created).toLocaleDateString(localeForDate);
-    const label = `${pageStartIndex + index + 1}. ${session.title} (${date})`;
+    const label = `${pageStartIndex + index + 1}. ${formatSessionTitle(session.title)} (${date})`;
     keyboard
       .text(label, `${SESSION_CALLBACK_PREFIX}${session.id}`)
       .text(t("sessions.button.delete"), `${SESSION_DELETE_CALLBACK_PREFIX}${session.id}`)

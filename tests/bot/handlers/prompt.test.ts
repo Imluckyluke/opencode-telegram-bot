@@ -283,6 +283,35 @@ describe("bot/handlers/prompt", () => {
     );
   });
 
+  it("names a session it had to create as a new session while OpenCode has not named it", async () => {
+    mocked.currentSession = null;
+    mocked.sessionCreateMock.mockResolvedValueOnce({
+      data: { id: "session-2", title: "" },
+      error: null,
+    });
+    const ctx = createContext();
+    const baseDeps = createDeps();
+    const deps: ProcessPromptDeps = {
+      ...baseDeps,
+      keyboardManager: {
+        ...baseDeps.keyboardManager,
+        getContextInfo: vi.fn(() => null),
+      } as unknown as AppContainer["keyboardManager"],
+    };
+
+    await processUserPrompt(ctx, "Review README", deps);
+
+    expect(mocked.attachToSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        session: { id: "session-2", title: "", directory: "D:\\Projects\\Repo" },
+      }),
+    );
+    expect(ctx.reply).toHaveBeenCalledWith(
+      t("bot.session_created", { title: t("pinned.default_session_title") }),
+      expect.anything(),
+    );
+  });
+
   it("starts prompts through promptAsync instead of the streaming prompt endpoint", async () => {
     const handled = await processUserPrompt(createContext(), "Review README", createDeps());
 

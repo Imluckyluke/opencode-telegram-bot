@@ -23,6 +23,7 @@ import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { formatErrorDetails } from "../../utils/error-format.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
+import { formatSessionTitle } from "../../app/formatters/session-title-formatter.js";
 import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
 import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
 import { attachManager } from "../../app/managers/attach-manager.js";
@@ -390,7 +391,7 @@ export async function processUserPrompt(
       ? createMainKeyboard(currentAgent, currentModel, contextInfo ?? undefined, variantName)
       : removeKeyboard();
 
-    await ctx.reply(t("bot.session_created", { title: currentSession.title }), {
+    await ctx.reply(t("bot.session_created", { title: formatSessionTitle(currentSession.title) }), {
       reply_markup: replyMarkup,
     });
   }

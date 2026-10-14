@@ -16,6 +16,7 @@ import { logger } from "../../utils/logger.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { config } from "../../config.js";
 import { t } from "../../i18n/index.js";
+import { formatSessionTitle } from "../../app/formatters/session-title-formatter.js";
 import { alert, failure } from "./feedback.js";
 import { attachToSession } from "../../app/services/attach-service.js";
 import { renderAssistantFinalPartsSafe } from "../messages/assistant-rendering.js";
@@ -188,7 +189,7 @@ async function selectSessionById(
     try {
       await ctx.api.sendMessage(
         chatId,
-        t("sessions.selected", { title: session.title }),
+        t("sessions.selected", { title: formatSessionTitle(session.title) }),
         keyboard ? { reply_markup: keyboard } : {},
       );
     } catch (err) {

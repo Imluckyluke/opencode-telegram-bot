@@ -5,6 +5,9 @@ import {
 } from "../stores/settings-store.js";
 import { promptQueue } from "../managers/prompt-queue-manager.js";
 import { promptAttachment } from "../managers/prompt-attachment-manager.js";
+import { opencodeClient } from "../../opencode/client.js";
+import { logger } from "../../utils/logger.js";
+import { isExpectedOpencodeUnavailableError } from "../../utils/opencode-error.js";
 import type { SessionInfo } from "../types/session.js";
 
 export type { SessionInfo };
@@ -22,6 +25,33 @@ export function setCurrentSession(sessionInfo: SessionInfo): void {
 
 export function getCurrentSession(): SessionInfo | null {
   return getSettingsSession() ?? null;
+}
+
+/**
+ * Title OpenCode has for the session now. The remembered one goes stale once
+ * OpenCode names a session after its first prompt, so it is only the fallback.
+ */
+export async function fetchSessionTitle(session: SessionInfo): Promise<string> {
+  try {
+    const { data, error } = await opencodeClient.session.get({
+      sessionID: session.id,
+      directory: session.directory,
+    });
+
+    if (!error && data) {
+      return data.title;
+    }
+
+    logger.debug(`[SessionService] Could not fetch title for session ${session.id}:`, error);
+  } catch (error) {
+    if (isExpectedOpencodeUnavailableError(error)) {
+      logger.debug("[SessionService] OpenCode server unavailable; using remembered session title");
+    } else {
+      logger.debug(`[SessionService] Could not fetch title for session ${session.id}:`, error);
+    }
+  }
+
+  return session.title;
 }
 
 export function clearSession(): void {

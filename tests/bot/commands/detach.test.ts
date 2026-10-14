@@ -8,6 +8,7 @@ const mocked = vi.hoisted(() => ({
   currentProject: { id: "project-1", worktree: "D:/repo" } as { id: string; worktree: string } | null,
   currentSession: null as { id: string; title: string; directory: string } | null,
   clearSessionMock: vi.fn(),
+  fetchSessionTitleMock: vi.fn(),
   detachAttachedSessionMock: vi.fn(),
   clearAllInteractionStateMock: vi.fn(),
   pinnedIsInitializedMock: vi.fn(() => true),
@@ -29,6 +30,7 @@ vi.mock("../../../src/app/stores/settings-store.js", () => ({
 vi.mock("../../../src/app/services/session-service.js", () => ({
   getCurrentSession: vi.fn(() => mocked.currentSession),
   clearSession: mocked.clearSessionMock,
+  fetchSessionTitle: mocked.fetchSessionTitleMock,
 }));
 
 vi.mock("../../../src/app/services/attach-service.js", () => ({
@@ -91,6 +93,8 @@ describe("bot/commands/detach", () => {
     };
 
     mocked.clearSessionMock.mockClear();
+    mocked.fetchSessionTitleMock.mockReset();
+    mocked.fetchSessionTitleMock.mockImplementation(async (session: { title: string }) => session.title);
     mocked.detachAttachedSessionMock.mockClear();
     mocked.clearAllInteractionStateMock.mockClear();
     mocked.pinnedIsInitializedMock.mockClear();
@@ -149,6 +153,39 @@ describe("bot/commands/detach", () => {
     expect(mocked.assistantClearRunMock).toHaveBeenCalledWith("session-idle", "detach_command");
     expect(ctx.reply).toHaveBeenCalledWith(
       t("detach.success", { title: "Idle Session" }),
+      expect.any(Object),
+    );
+  });
+
+  it("names the session with the title OpenCode has for it before detaching", async () => {
+    mocked.currentSession = { id: "session-1", title: "", directory: "D:/repo" };
+    mocked.fetchSessionTitleMock.mockResolvedValue("Generated title");
+    const ctx = createContext();
+
+    await detachCommand(ctx as never);
+
+    expect(mocked.fetchSessionTitleMock).toHaveBeenCalledWith({
+      id: "session-1",
+      title: "",
+      directory: "D:/repo",
+    });
+    expect(defined(mocked.fetchSessionTitleMock.mock.invocationCallOrder[0])).toBeLessThan(
+      defined(mocked.clearSessionMock.mock.invocationCallOrder[0]),
+    );
+    expect(ctx.reply).toHaveBeenCalledWith(
+      t("detach.success", { title: "Generated title" }),
+      expect.any(Object),
+    );
+  });
+
+  it("names a session OpenCode has not named yet as a new session", async () => {
+    mocked.fetchSessionTitleMock.mockResolvedValue("");
+    const ctx = createContext();
+
+    await detachCommand(ctx as never);
+
+    expect(ctx.reply).toHaveBeenCalledWith(
+      t("detach.success", { title: t("pinned.default_session_title") }),
       expect.any(Object),
     );
   });
