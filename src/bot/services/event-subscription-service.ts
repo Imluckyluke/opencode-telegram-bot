@@ -1218,7 +1218,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       }
       await this.sessionCompletionTasks.get(sessionId)?.catch(() => undefined);
 
-      const completedRun = assistantRunState.finishRun(sessionId, "session_idle");
+      const completedRun = assistantRunState.isResponseCompleted(sessionId)
+        ? assistantRunState.finishRun(sessionId, "session_idle")
+        : null;
       clearPromptResponseMode(sessionId);
 
       if (!this.botInstance || !this.chatIdInstance) {
