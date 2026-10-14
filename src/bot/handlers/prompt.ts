@@ -639,6 +639,16 @@ export async function processUserPrompt(
     });
     setPromptResponseMode(currentSession.id, responseMode);
 
+    // Show typing at once: the aggregator only starts its own indicator with
+    // the first assistant token, which can lag far behind on a loaded backend.
+    try {
+      void (bot.api.sendChatAction(ctx.chat!.id, "typing") as Promise<unknown>).catch((err) => {
+        logger.debug("[Bot] Failed to send immediate typing action:", err);
+      });
+    } catch (err) {
+      logger.debug("[Bot] Failed to send immediate typing action:", err);
+    }
+
     if (sentText) {
       externalUserInputSuppressionManager.register(currentSession.id, sentText);
     }

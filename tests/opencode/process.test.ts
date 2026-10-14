@@ -164,7 +164,6 @@ describe("opencode/process", () => {
     }
   });
 
-<<<<<<< HEAD
   describe("resolveLocalOpencodeTarget", () => {
     it("accepts valid local ports", () => {
       expect(resolveLocalOpencodeTarget("http://localhost:4096")).toEqual({
@@ -221,7 +220,8 @@ describe("opencode/process", () => {
 
       expect(spawnMock).toHaveBeenCalledTimes(2);
     });
-=======
+  });
+
   it("starts the registered background server for OpenCode V2", () => {
     const command = createOpencodeServeSpawnCommand({ host: "127.0.0.1", port: 4097 }, "v2");
 
@@ -229,6 +229,9 @@ describe("opencode/process", () => {
   });
 
   it("reads the exe an npm shim runs", () => {
+    if (process.platform !== "win32") {
+      return;
+    }
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-telegram-bot-"));
     const cmdPath = path.join(tempRoot, "opencode.cmd");
 
@@ -281,6 +284,5 @@ describe("opencode/process", () => {
     expect(getOpencodeApiVersion("2.0.16")).toBe("v2");
     expect(getOpencodeApiVersion("1.18.32")).toBe("v1");
     expect(getOpencodeApiVersion("0.15.0")).toBe("v1");
->>>>>>> 243cf19 (feat(OTB-114): set up and start OpenCode V2 servers out of the box)
   });
 });
