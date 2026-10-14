@@ -501,6 +501,8 @@ export const ar: I18nDictionary = {
   "subagent.line.status": "الحالة: {status}",
   "subagent.line.task": "المهمة: {task}",
   "subagent.line.agent": "الوكيل: {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "جارٍ العمل...",
   "subagent.working_with_details": "جارٍ العمل: {details}",
   "subagent.completed": "مكتملة",

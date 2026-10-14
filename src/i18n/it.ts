@@ -520,6 +520,8 @@ export const it: I18nDictionary = {
   "subagent.line.status": "Stato: {status}",
   "subagent.line.task": "Attività: {task}",
   "subagent.line.agent": "Agente: {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "Al lavoro...",
   "subagent.working_with_details": "Al lavoro: {details}",
   "subagent.completed": "Completato",

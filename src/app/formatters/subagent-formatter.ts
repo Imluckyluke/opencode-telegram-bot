@@ -9,14 +9,14 @@ import { formatCompactToolInfo } from "./summary-formatter.js";
 import type { SubagentInfo } from "../managers/summary-aggregation-manager.js";
 import type { ToolInfo } from "../managers/summary-aggregation-manager.js";
 
-function formatModelDisplayName(
-  providerID?: string | null,
-  modelID?: string | null,
-  variant?: string | null,
-): string {
-  const name = providerID && modelID ? `${providerID}/${modelID}` : t("pinned.unknown");
-  if (variant) {
-    return `${name} (${variant})`;
+function formatModelDisplayName(subagent: SubagentInfo): string | null {
+  if (!subagent.providerID || !subagent.modelID) {
+    return null;
+  }
+
+  const name = `${subagent.providerID}/${subagent.modelID}`;
+  if (subagent.variant) {
+    return `${name} (${subagent.variant})`;
   }
 
   return name;
@@ -122,24 +122,38 @@ function formatSubagentActivity(subagent: SubagentInfo, now: number): string {
   return `⚙️ ${t("subagent.working")}`;
 }
 
+/** The Task, Agent and Model lines that are known so far. */
+function formatHeaderLines(subagent: SubagentInfo): string[] {
+  const modelName = formatModelDisplayName(subagent);
+  return [
+    subagent.description ? t("subagent.line.task", { task: subagent.description }) : null,
+    subagent.agent ? t("subagent.line.agent", { agent: subagent.agent }) : null,
+    modelName ? t("pinned.line.model", { model: modelName }) : null,
+  ].filter((line): line is string => line !== null);
+}
+
 export async function renderSubagentCard(
   subagent: SubagentInfo,
   now: number = Date.now(),
 ): Promise<string> {
-  const modelName = formatModelDisplayName(
-    subagent.providerID,
-    subagent.modelID,
-    subagent.variant,
-  );
-  const lines = [
-    `🧩 ${t("subagent.line.task", { task: subagent.description })}`,
-    t("subagent.line.agent", { agent: subagent.agent }),
-    t("pinned.line.model", { model: modelName }),
-    "",
-    formatSubagentActivity(subagent, now),
-  ];
+  const headerLines = formatHeaderLines(subagent);
+  const isComplete = headerLines.length === 3;
+  const hasEnded = subagent.status === "completed" || subagent.status === "error";
 
-  return lines.join("\n");
+  // Until Task, Agent and Model are all known a running card is one line, so it never
+  // shows a placeholder or an empty label; an ended card keeps the lines it got.
+  if (!isComplete && !hasEnded) {
+    return subagent.description
+      ? `🧩 ${t("subagent.starting", { task: subagent.description })}`
+      : `🧩 ${t("subagent.starting_untitled")}`;
+  }
+
+  const activity = formatSubagentActivity(subagent, now);
+  if (headerLines.length === 0) {
+    return `🧩 ${activity}`;
+  }
+
+  return [`🧩 ${headerLines[0]}`, ...headerLines.slice(1), "", activity].join("\n");
 }
 
 export async function renderSubagentCards(

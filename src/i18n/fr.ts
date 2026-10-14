@@ -524,6 +524,8 @@ export const fr: I18nDictionary = {
   "subagent.line.status": "Statut : {status}",
   "subagent.line.task": "Tache : {task}",
   "subagent.line.agent": "Agent : {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "En cours...",
   "subagent.working_with_details": "En cours : {details}",
   "subagent.completed": "Terminee",

@@ -507,6 +507,8 @@ export const ru: I18nDictionary = {
   "subagent.line.status": "Статус: {status}",
   "subagent.line.task": "Задача: {task}",
   "subagent.line.agent": "Агент: {agent}",
+  "subagent.starting": "Запуск задачи: {task}",
+  "subagent.starting_untitled": "Запуск задачи...",
   "subagent.working": "В работе...",
   "subagent.working_with_details": "В работе: {details}",
   "subagent.completed": "Завершена",

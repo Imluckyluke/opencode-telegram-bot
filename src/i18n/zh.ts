@@ -468,6 +468,8 @@ export const zh: I18nDictionary = {
   "subagent.line.status": "状态: {status}",
   "subagent.line.task": "任务: {task}",
   "subagent.line.agent": "代理: {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "执行中...",
   "subagent.working_with_details": "执行中: {details}",
   "subagent.completed": "已完成",

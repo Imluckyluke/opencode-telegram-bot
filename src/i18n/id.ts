@@ -502,6 +502,8 @@ export const id: I18nDictionary = {
   "subagent.line.status": "Status: {status}",
   "subagent.line.task": "Tugas: {task}",
   "subagent.line.agent": "Agent: {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "Bekerja...",
   "subagent.working_with_details": "Bekerja: {details}",
   "subagent.completed": "Selesai",

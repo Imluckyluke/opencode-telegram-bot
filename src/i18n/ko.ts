@@ -515,6 +515,8 @@ export const ko: I18nDictionary = {
   "subagent.line.status": "상태: {status}",
   "subagent.line.task": "작업: {task}",
   "subagent.line.agent": "에이전트: {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "작업 중...",
   "subagent.working_with_details": "작업 중: {details}",
   "subagent.completed": "완료됨",

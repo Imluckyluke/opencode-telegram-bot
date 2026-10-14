@@ -329,6 +329,127 @@ describe("summary/subagent-formatter", () => {
     expect(text).not.toContain("22460fc65b183e6921717bba0c84ccfcf4b57982");
   });
 
+  describe("starting card", () => {
+    function buildPartial(
+      fields: Partial<{
+        agent: string;
+        description: string;
+        providerID: string;
+        modelID: string;
+        variant: string;
+        status: "pending" | "running" | "completed" | "error";
+        terminalMessage: string;
+        finishedAt: number;
+      }>,
+    ) {
+      return {
+        cardId: "card-1",
+        sessionId: "child-1",
+        parentSessionId: "root-1",
+        agent: "",
+        description: "",
+        prompt: "",
+        status: "running" as const,
+        tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0, cacheWrite: 0 },
+        cost: 0,
+        createdAt: 1_000_000,
+        updatedAt: 1_000_000,
+        ...fields,
+      };
+    }
+
+    it("shows one starting line with the task while the model is unknown", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCard(
+        buildPartial({ description: "task description", agent: "explore" }),
+      );
+
+      expect(text).toBe("🧩 Starting task: task description");
+    });
+
+    it("shows the starting line without a task while the task is unknown", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCard(
+        buildPartial({ agent: "explore", providerID: "openai", modelID: "gpt-5.4" }),
+      );
+
+      expect(text).toBe("🧩 Starting task...");
+    });
+
+    it("shows the starting line while the agent is unknown", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCard(
+        buildPartial({ description: "task description", providerID: "openai", modelID: "gpt-5.4" }),
+      );
+
+      expect(text).toBe("🧩 Starting task: task description");
+    });
+
+    it("localizes the starting line", async () => {
+      setRuntimeLocale("ru");
+
+      expect(await renderSubagentCard(buildPartial({ description: "описание" }))).toBe(
+        "🧩 Запуск задачи: описание",
+      );
+      expect(await renderSubagentCard(buildPartial({}))).toBe("🧩 Запуск задачи...");
+    });
+
+    it("keeps a pending card starting and never prints a placeholder model", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCard(
+        buildPartial({ description: "task description", agent: "explore", status: "pending", variant: "high" }),
+      );
+
+      expect(text).toBe("🧩 Starting task: task description");
+      expect(text).not.toContain("Unknown");
+    });
+
+    it("gives a card that ended while starting its final line with the known lines", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCard(
+        buildPartial({
+          description: "task description",
+          agent: "explore",
+          status: "completed",
+          finishedAt: 1_003_000,
+        }),
+      );
+
+      expect(text).toBe("🧩 Task: task description\nAgent: explore\n\n✅ Completed · 🕒 3s");
+    });
+
+    it("starts a failed card's lines with the first known one", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCard(
+        buildPartial({
+          agent: "explore",
+          providerID: "openai",
+          modelID: "gpt-5.4",
+          status: "error",
+          terminalMessage: "Permission denied",
+        }),
+      );
+
+      expect(text).toBe("🧩 Agent: explore\nModel: openai/gpt-5.4\n\n❌ Permission denied");
+    });
+
+    it("gives a card that ended knowing nothing its final line alone", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCard(
+        buildPartial({ status: "completed", finishedAt: 1_003_000 }),
+      );
+
+      expect(text).toBe("🧩 ✅ Completed · 🕒 3s");
+    });
+  });
+
   describe("elapsed time on the current tool step", () => {
     const now = 1_000_000;
 

@@ -21,6 +21,30 @@ function payloads(translate: ReturnType<typeof createV2EventTranslator>, events:
 }
 
 describe("opencode/v2/events", () => {
+  it("marks the idle of an interrupted execution and only that one", () => {
+    const translate = createV2EventTranslator();
+
+    const [interrupted, succeeded, failed] = [
+      "session.execution.interrupted",
+      "session.execution.succeeded",
+      "session.execution.failed",
+    ].map((type) =>
+      payloads(translate, [
+        event(
+          type,
+          type === "session.execution.failed"
+            ? { sessionID: SESSION, error: { type: "unknown", message: "boom" } }
+            : { sessionID: SESSION },
+          false,
+        ),
+      ]).find((item) => item.type === "session.idle"),
+    );
+
+    expect(interrupted?.properties).toEqual({ sessionID: SESSION, interrupted: true });
+    expect(succeeded?.properties).toEqual({ sessionID: SESSION });
+    expect(failed?.properties).toEqual({ sessionID: SESSION });
+  });
+
   it("turns a streamed V2 reply into the V1 message and part events", () => {
     const translate = createV2EventTranslator();
 
@@ -117,6 +141,79 @@ describe("opencode/v2/events", () => {
     });
   });
 
+  it("gives a V2 edit and a patch the V1 file-change metadata", () => {
+    const translate = createV2EventTranslator();
+    const file = { file: "src/a.ts", patch: "+x", status: "modified", additions: 1, deletions: 0 };
+
+    const [, , edited] = payloads(translate, [
+      event("session.tool.input.started", {
+        sessionID: SESSION,
+        assistantMessageID: MESSAGE,
+        id: "call-edit",
+        name: "edit",
+      }),
+      event("session.tool.called", {
+        sessionID: SESSION,
+        assistantMessageID: MESSAGE,
+        id: "call-edit",
+        input: { path: "src/a.ts" },
+        executed: false,
+      }),
+      event("session.tool.success", {
+        sessionID: SESSION,
+        assistantMessageID: MESSAGE,
+        id: "call-edit",
+        content: [],
+        metadata: { files: [file] },
+        executed: false,
+      }),
+    ]);
+    expect(edited).toMatchObject({
+      properties: {
+        part: {
+          tool: "edit",
+          state: { metadata: { diff: "+x", filediff: { file: "src/a.ts", additions: 1 } } },
+        },
+      },
+    });
+
+    const [, , , failed] = payloads(translate, [
+      event("session.tool.input.started", {
+        sessionID: SESSION,
+        assistantMessageID: MESSAGE,
+        id: "call-patch",
+        name: "patch",
+      }),
+      event("session.tool.called", {
+        sessionID: SESSION,
+        assistantMessageID: MESSAGE,
+        id: "call-patch",
+        input: { patchText: "*** Begin Patch" },
+        executed: false,
+      }),
+      event("session.tool.progress", {
+        sessionID: SESSION,
+        assistantMessageID: MESSAGE,
+        id: "call-patch",
+        metadata: { files: [file] },
+      }),
+      event("session.tool.failed", {
+        sessionID: SESSION,
+        assistantMessageID: MESSAGE,
+        id: "call-patch",
+        error: { type: "tool.execution", message: "patch verification failed" },
+      }),
+    ]);
+    expect(failed).toMatchObject({
+      properties: {
+        part: {
+          tool: "apply_patch",
+          state: { status: "error", metadata: { files: [{ relativePath: "src/a.ts" }] } },
+        },
+      },
+    });
+  });
+
   it("reports a failed run as a session error followed by idle", () => {
     const translate = createV2EventTranslator();
 
@@ -153,6 +250,46 @@ describe("opencode/v2/events", () => {
     expect(result.map((item) => item.type)).toEqual(["message.updated", "message.part.updated"]);
     expect(result[0]).toMatchObject({ properties: { info: { id: "msg-user", role: "user" } } });
     expect(result[1]).toMatchObject({ properties: { part: { text: "hello" } } });
+  });
+
+  describe("inbox items kept across subscriptions", () => {
+    const enqueued = event("session.inbox.enqueued", {
+      sessionID: SESSION,
+      inboxID: "msg-user",
+      item: { type: "user", payload: { text: "hello" }, delivery: "steer" },
+    });
+    const delivered = event("session.inbox.delivered", { sessionID: SESSION, inboxID: "msg-user" });
+
+    it("shows a prompt queued on one subscription and delivered on the next as a user message", () => {
+      const inbox = new Map();
+      payloads(createV2EventTranslator({ inbox }), [enqueued]);
+
+      const result = payloads(createV2EventTranslator({ inbox }), [delivered]);
+
+      expect(result.map((item) => item.type)).toEqual(["message.updated", "message.part.updated"]);
+      expect(result[0]).toMatchObject({ properties: { info: { id: "msg-user", role: "user" } } });
+      expect(result[1]).toMatchObject({ properties: { part: { text: "hello" } } });
+      expect(inbox.size).toBe(0);
+    });
+
+    it("forgets a cancelled prompt", () => {
+      const inbox = new Map();
+      const translate = createV2EventTranslator({ inbox });
+
+      payloads(translate, [
+        enqueued,
+        event("session.inbox.cancelled", { sessionID: SESSION, inboxID: "msg-user" }),
+      ]);
+
+      expect(inbox.size).toBe(0);
+      expect(payloads(translate, [delivered])).toEqual([]);
+    });
+
+    it("keeps the items to one subscription when none are passed in", () => {
+      payloads(createV2EventTranslator(), [enqueued]);
+
+      expect(payloads(createV2EventTranslator(), [delivered])).toEqual([]);
+    });
   });
 
   it("turns V2 permissions and forms into V1 permission and question events", () => {
@@ -234,6 +371,240 @@ describe("opencode/v2/events", () => {
       }),
     );
 
-    expect(envelope?.payload).toMatchObject({ properties: { part: { tool: "unknown" } } });
+    expect(envelope).toBeUndefined();
+  });
+
+  it("drops every event of a call it never saw start instead of naming it", () => {
+    const translate = createV2EventTranslator();
+    const base = { sessionID: SESSION, assistantMessageID: MESSAGE, id: "call-lost" };
+
+    const result = payloads(translate, [
+      event("session.tool.called", { ...base, input: { command: "ls" }, executed: false }),
+      event("session.tool.progress", { ...base, metadata: { output: "x" } }),
+      event("session.tool.success", {
+        ...base,
+        content: [{ type: "text", text: "done" }],
+        executed: true,
+      }),
+      event("session.tool.failed", {
+        ...base,
+        error: { type: "unknown", message: "interrupted" },
+        executed: false,
+      }),
+    ]);
+
+    expect(result).toEqual([]);
+  });
+
+  it("forgets the calls it knew once the stream connects again", () => {
+    const translate = createV2EventTranslator();
+    const base = { sessionID: SESSION, assistantMessageID: MESSAGE, id: "call-1" };
+    translate(event("session.tool.input.started", { ...base, name: "shell" }));
+    translate(event("server.connected", {}));
+
+    const result = payloads(translate, [
+      event("session.tool.failed", {
+        ...base,
+        error: { type: "unknown", message: "interrupted" },
+        executed: false,
+      }),
+    ]);
+
+    expect(result).toEqual([]);
+  });
+
+  it("marks the connect event with whether the server restarted, when told", () => {
+    const translate = createV2EventTranslator();
+
+    expect(translate(event("server.connected", {}), true)[0]?.payload).toMatchObject({
+      type: "server.connected",
+      properties: { restarted: true },
+    });
+    expect(translate(event("server.connected", {}), false)[0]?.payload).toMatchObject({
+      properties: { restarted: false },
+    });
+    expect(translate(event("server.connected", {}))[0]?.payload.properties).toEqual({});
+  });
+
+  describe("background operations", () => {
+    const base = { sessionID: SESSION, assistantMessageID: MESSAGE, id: "call-bg" };
+
+    function toolStates(result: ReturnType<typeof payloads>) {
+      return result
+        .filter((item) => item.type === "message.part.updated")
+        .map((item) => (item.properties as { part: { state: Record<string, unknown> } }).part.state);
+    }
+
+    function launchShell(translate: ReturnType<typeof createV2EventTranslator>) {
+      return payloads(translate, [
+        event("session.tool.input.started", { ...base, name: "shell" }),
+        event("session.tool.called", {
+          ...base,
+          input: { command: "sleep 90", background: true },
+          executed: false,
+        }),
+        event("session.tool.success", {
+          ...base,
+          content: [{ type: "text", text: "Command moved to the background" }],
+          metadata: { shellID: "sh-1", status: "running" },
+          executed: false,
+        }),
+      ]);
+    }
+
+    it("keeps a background command running when V2 reports it done at launch", () => {
+      const translate = createV2EventTranslator();
+
+      const states = toolStates(launchShell(translate));
+
+      expect(states.map((state) => state.status)).toEqual(["pending", "running", "running"]);
+      expect(states[2]).toMatchObject({
+        input: { command: "sleep 90", background: true },
+        metadata: { shellID: "sh-1", status: "running" },
+      });
+    });
+
+    it("completes the background command when its shell exits", () => {
+      const translate = createV2EventTranslator();
+      launchShell(translate);
+
+      const result = payloads(translate, [
+        event("shell.exited", { id: "sh-other", exit: 0, status: "exited" }),
+        event("shell.exited", { id: "sh-1", exit: 0, status: "exited" }),
+        event("shell.exited", { id: "sh-1", exit: 0, status: "exited" }),
+      ]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        properties: {
+          part: {
+            callID: "call-bg",
+            tool: "bash",
+            sessionID: SESSION,
+            messageID: MESSAGE,
+            state: {
+              status: "completed",
+              output: "Command moved to the background",
+              metadata: { shellID: "sh-1", status: "exited", exit: 0 },
+              time: { start: 1000, end: 1000 },
+            },
+          },
+        },
+      });
+    });
+
+    it("leaves a command that finished before its success as an ordinary completion", () => {
+      const translate = createV2EventTranslator();
+
+      const result = payloads(translate, [
+        event("session.tool.input.started", { ...base, name: "shell" }),
+        event("session.tool.success", {
+          ...base,
+          content: [],
+          metadata: { shellID: "sh-1", status: "completed" },
+          executed: false,
+        }),
+      ]);
+
+      expect(toolStates(result).map((state) => state.status)).toEqual(["pending", "completed"]);
+    });
+
+    function launchSubagent(translate: ReturnType<typeof createV2EventTranslator>) {
+      return payloads(translate, [
+        event("session.tool.input.started", { ...base, name: "subagent" }),
+        event("session.tool.called", {
+          ...base,
+          input: { description: "Scan", agent: "general", background: true },
+          executed: false,
+        }),
+        event("session.tool.success", {
+          ...base,
+          content: [{ type: "text", text: "The subagent is working in the background" }],
+          metadata: { sessionID: "child-1", status: "running" },
+          executed: false,
+        }),
+      ]);
+    }
+
+    it("keeps a background subagent's task running and names its child session", () => {
+      const translate = createV2EventTranslator();
+
+      const states = toolStates(launchSubagent(translate));
+
+      expect(states[2]).toMatchObject({
+        status: "running",
+        input: { background: true },
+        metadata: { sessionID: "child-1", sessionId: "child-1" },
+      });
+    });
+
+    it("names the child session of a foreground subagent while it runs and when it ends", () => {
+      const translate = createV2EventTranslator();
+
+      const states = toolStates(
+        payloads(translate, [
+          event("session.tool.input.started", { ...base, name: "subagent" }),
+          event("session.tool.called", {
+            ...base,
+            input: { description: "Scan", agent: "general" },
+            executed: false,
+          }),
+          event("session.tool.progress", { ...base, metadata: { sessionID: "child-1" } }),
+          event("session.tool.success", {
+            ...base,
+            content: [{ type: "text", text: "Done" }],
+            metadata: { sessionID: "child-1" },
+            executed: true,
+          }),
+        ]),
+      );
+
+      expect(states[2]).toMatchObject({
+        status: "running",
+        metadata: { sessionID: "child-1", sessionId: "child-1" },
+      });
+      expect(states[3]).toMatchObject({
+        status: "completed",
+        metadata: { sessionID: "child-1", sessionId: "child-1" },
+      });
+    });
+
+    it("completes the parent's task after the child session ends", () => {
+      const translate = createV2EventTranslator();
+      launchSubagent(translate);
+
+      const result = payloads(translate, [
+        event("session.execution.succeeded", { sessionID: "child-1" }, false),
+      ]);
+
+      expect(result.map((item) => item.type)).toEqual([
+        "session.status",
+        "session.idle",
+        "message.part.updated",
+      ]);
+      expect(result[1]).toMatchObject({ properties: { sessionID: "child-1" } });
+      expect(result[2]).toMatchObject({
+        properties: {
+          part: { callID: "call-bg", tool: "task", sessionID: SESSION, state: { status: "completed" } },
+        },
+      });
+    });
+
+    it("fails the parent's task when the child session fails", () => {
+      const translate = createV2EventTranslator();
+      launchSubagent(translate);
+
+      const result = payloads(translate, [
+        event(
+          "session.execution.failed",
+          { sessionID: "child-1", error: { type: "unknown", message: "boom" } },
+          false,
+        ),
+      ]);
+
+      expect(result.at(-1)).toMatchObject({
+        properties: { part: { callID: "call-bg", state: { status: "error", error: "boom" } } },
+      });
+    });
   });
 });

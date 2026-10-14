@@ -503,6 +503,8 @@ export const tr: I18nDictionary = {
   "subagent.line.status": "Durum: {status}",
   "subagent.line.task": "Görev: {task}",
   "subagent.line.agent": "Ajan: {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "Çalışıyor...",
   "subagent.working_with_details": "Çalışıyor: {details}",
   "subagent.completed": "Tamamlandı",

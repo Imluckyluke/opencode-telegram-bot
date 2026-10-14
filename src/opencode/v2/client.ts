@@ -1,5 +1,11 @@
 import type { Event, FilePartInput, OpencodeClient, TextPartInput } from "@opencode-ai/sdk/v2";
-import { OpenCode, type FormInfo, type OpenCodeClient } from "@opencode/client";
+import {
+  OpenCode,
+  type FormInfo,
+  type OpenCodeClient,
+  type SessionInboxItem,
+} from "@opencode/client";
+import { Service } from "@opencode/client/service";
 import { createV2EventTranslator, type V1GlobalEvent } from "./events.js";
 import {
   toFormAnswer,
@@ -18,12 +24,14 @@ import {
   type V1MessageWithParts,
 } from "./mappers.js";
 
-type Result<T> = { data: T; error: undefined } | { data: undefined; error: unknown };
+export type Result<T> = { data: T; error: undefined } | { data: undefined; error: unknown };
 
 interface V2ClientOptions {
   baseUrl: string;
   headers?: Record<string, string>;
 }
+
+export type V2InboxDelivery = "steer" | "queue";
 
 interface PromptParams {
   sessionID: string;
@@ -32,6 +40,40 @@ interface PromptParams {
   variant?: string;
   system?: string;
   parts: Array<TextPartInput | FilePartInput>;
+  /** Where the prompt waits while the session is busy; the default is `queue`. */
+  delivery?: V2InboxDelivery;
+}
+
+/**
+ * The V2-only operations of the adapter, on top of the V1 client surface. Feature code
+ * reaches them only after checking that the configured server is V2.
+ */
+export interface V2ClientExtension {
+  session: {
+    /** Sends a prompt into the session inbox and returns the id it waits under. */
+    promptAsync: (
+      params: PromptParams & { directory?: string; delivery: V2InboxDelivery },
+    ) => Promise<Result<{ inboxID: string }>>;
+    inbox: {
+      /** Ids of the messages still waiting in the session inbox. */
+      list: (params: { sessionID: string }) => Promise<Result<string[]>>;
+      cancel: (params: { sessionID: string; inboxID: string }) => Promise<Result<true>>;
+    };
+  };
+  location: {
+    /**
+     * Rebuilds every loaded location from a fresh config; pending permissions and forms are
+     * cancelled, running sessions continue. Resolves once the rebuilds settle.
+     */
+    reload: () => Promise<Result<true>>;
+  };
+  file: {
+    /**
+     * Paths of the entries of a folder as the server's own filesystem lists it. No location
+     * is loaded for the folder, so listing one that is gone registers nothing on the server.
+     */
+    list: (params: { path: string }) => Promise<Result<string[]>>;
+  };
 }
 
 interface CommandParams {
@@ -48,6 +90,7 @@ const MESSAGE_PAGE_SIZE = 200;
 const MAX_MESSAGE_PAGES = 50;
 const COMPLETION_POLL_INTERVAL_MS = 250;
 const COMPLETION_POLL_ATTEMPTS = 40;
+const SERVER_IDENTITY_TIMEOUT_MS = 2_000;
 
 function isNotFound(error: Error): boolean {
   // Declared answers are named after their tag (SessionNotFoundError, ...); an undeclared
@@ -99,7 +142,8 @@ const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 /**
  * The OpenCode V2 server behind the client surface the bot already speaks: the methods the
  * bot calls, with V1 request and result shapes, and the V2 event stream translated into V1
- * events. Only that surface is implemented; everything else is absent.
+ * events. Only that surface is implemented, plus the typed V2-only operations in
+ * `V2ClientExtension`; everything else is absent.
  */
 export function createV2OpencodeClient(options: V2ClientOptions): OpencodeClient {
   const client: OpenCodeClient = OpenCode.make({
@@ -111,10 +155,42 @@ export function createV2OpencodeClient(options: V2ClientOptions): OpencodeClient
   // both are learned from the lists and the event stream.
   const forms = new Map<string, FormInfo>();
   const permissionSessions = new Map<string, string>();
+  // A message queued before the event stream reconnected is delivered on the new stream.
+  const inboxItems = new Map<string, SessionInboxItem>();
 
   const rememberForm = (form: FormInfo) => {
     forms.set(form.id, form);
   };
+
+  // The process behind the last stream connection: a different one on the next connection
+  // means the server restarted in between.
+  let lastServerPid: number | null = null;
+
+  /** Whether the server restarted since the previous connection; undefined when unknown. */
+  async function readServerRestart(): Promise<boolean | undefined> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const info = await Promise.race([
+        client.server.info(),
+        new Promise<null>((resolve) => {
+          timer = setTimeout(() => resolve(null), SERVER_IDENTITY_TIMEOUT_MS);
+        }),
+      ]);
+      if (!info) {
+        // The server behind this connection is unknown: the next answer cannot be compared.
+        lastServerPid = null;
+        return undefined;
+      }
+      const previousPid = lastServerPid;
+      lastServerPid = info.pid;
+      return previousPid === null ? undefined : previousPid !== info.pid;
+    } catch {
+      lastServerPid = null;
+      return undefined;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
 
   async function applySelection(
     sessionID: string,
@@ -154,7 +230,7 @@ export function createV2OpencodeClient(options: V2ClientOptions): OpencodeClient
       sessionID: params.sessionID,
       text: params.system ? `${params.system}\n\n${text}` : text,
       ...(files.length > 0 ? { files } : {}),
-      delivery: "queue",
+      delivery: params.delivery ?? "queue",
     });
   }
 
@@ -248,6 +324,7 @@ export function createV2OpencodeClient(options: V2ClientOptions): OpencodeClient
   function translatedStream(signal?: AbortSignal): AsyncGenerator<V1GlobalEvent> {
     const translate = createV2EventTranslator({
       onForm: rememberForm,
+      inbox: inboxItems,
     });
     const queue: V1GlobalEvent[] = [];
     let wake: (() => void) | null = null;
@@ -282,7 +359,10 @@ export function createV2OpencodeClient(options: V2ClientOptions): OpencodeClient
           ...(signal ? { signal } : {}),
           onActivity,
         })) {
-          for (const translated of translate(event)) {
+          // Read before the connect is handed on, so it is known ahead of the events after it.
+          const restarted =
+            event.type === "server.connected" ? await readServerRestart() : undefined;
+          for (const translated of translate(event, restarted)) {
             if (translated.payload.type === "permission.asked") {
               permissionSessions.set(
                 translated.payload.properties.id,
@@ -344,6 +424,19 @@ export function createV2OpencodeClient(options: V2ClientOptions): OpencodeClient
     },
     project: {
       list: () => run(async () => (await client.project.list()).map(toV1Project)),
+    },
+    location: {
+      reload: () =>
+        run(async () => {
+          await client.location.reload();
+          return true as const;
+        }),
+    },
+    file: {
+      list: (params: { path: string }) =>
+        run(async () =>
+          (await client.file.list({ path: params.path })).data.map((entry) => entry.path),
+        ),
     },
     experimental: {
       session: {
@@ -421,9 +514,25 @@ export function createV2OpencodeClient(options: V2ClientOptions): OpencodeClient
         }),
       promptAsync: (params: PromptParams) =>
         run(async () => {
-          await admitPrompt(params);
-          return undefined;
+          const admitted = await admitPrompt(params);
+          return params.delivery ? { inboxID: admitted.id } : undefined;
         }),
+      inbox: {
+        list: (params: { sessionID: string }) =>
+          run(async () =>
+            (await client.session.inbox.list({ sessionID: params.sessionID })).map(
+              (item) => item.id,
+            ),
+          ),
+        cancel: (params: { sessionID: string; inboxID: string }) =>
+          run(async () => {
+            await client.session.inbox.cancel({
+              sessionID: params.sessionID,
+              inboxID: params.inboxID,
+            });
+            return true as const;
+          }),
+      },
       prompt: (params: PromptParams) =>
         run(async () => {
           await admitPrompt(params);
@@ -573,4 +682,16 @@ export function createV2OpencodeClient(options: V2ClientOptions): OpencodeClient
 
   // The adapter implements exactly the part of the V1 client surface the bot calls.
   return adapter as unknown as OpencodeClient;
+}
+
+/**
+ * URL of the V2 background server registered for this user, or null when no registered
+ * server answers. There is one per user: a new registered server replaces it.
+ */
+export async function findRegisteredV2ServerUrl(): Promise<string | null> {
+  try {
+    return (await Service.discover())?.url ?? null;
+  } catch {
+    return null;
+  }
 }

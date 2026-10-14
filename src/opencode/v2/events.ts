@@ -6,6 +6,7 @@ import {
   toV1Permission,
   toV1Question,
   toV1ToolInput,
+  toV1ToolMetadata,
   toV1ToolName,
 } from "./mappers.js";
 
@@ -16,6 +17,19 @@ export interface V1GlobalEvent {
 }
 
 type ToolInput = Record<string, unknown>;
+
+/** A V1 idle, plus the mark of an execution that was interrupted rather than finished. */
+type IdleEventProperties = Extract<Event, { type: "session.idle" }>["properties"] & {
+  interrupted?: true;
+};
+
+/**
+ * A V1 connect, plus whether the server behind it is another process than the one the
+ * previous connection reached; absent when that cannot be told.
+ */
+export interface ConnectedEventProperties {
+  restarted?: boolean;
+}
 
 interface AssistantMessageState {
   sessionID: string;
@@ -35,6 +49,12 @@ interface ToolCallState {
   start: number;
 }
 
+/** A tool V2 reported done at launch while the operation it started keeps running. */
+interface BackgroundCallState extends ToolCallState {
+  callID: string;
+  output: string;
+}
+
 interface SessionState {
   directory?: string;
   projectID?: string;
@@ -46,17 +66,23 @@ interface SessionState {
 export interface V2EventTranslatorOptions {
   /** Receives every form the stream announces, so replies can map answers back. */
   onForm?: (form: FormInfo) => void;
+  /** Inbox items announced so far, kept by the caller across subscriptions. */
+  inbox?: Map<string, SessionInboxItem>;
 }
 
 /**
  * Translates the V2 event stream into the V1 events the bot consumes. One translator
- * belongs to one subscription, so partial state never leaks across reconnects.
+ * belongs to one subscription, so partial state never leaks across reconnects. Inbox
+ * items are the exception when the caller passes them in: a message queued before a
+ * reconnect is delivered on the next subscription, and its pickup needs the item.
  */
 export function createV2EventTranslator(options: V2EventTranslatorOptions = {}) {
   const sessions = new Map<string, SessionState>();
   const messages = new Map<string, AssistantMessageState>();
   const tools = new Map<string, ToolCallState>();
-  const inbox = new Map<string, SessionInboxItem>();
+  // Keyed by what announces the real end: `shell:<shell id>` or `session:<child session id>`.
+  const backgroundCalls = new Map<string, BackgroundCallState>();
+  const inbox = options.inbox ?? new Map<string, SessionInboxItem>();
 
   const rememberDirectory = (sessionID: string, directory: string | undefined) => {
     if (!directory) {
@@ -139,8 +165,11 @@ export function createV2EventTranslator(options: V2EventTranslatorOptions = {}) 
     properties: { sessionID: part.sessionID, part, time },
   });
 
-  const toolPart = (callID: string, state: ToolState): Part | null => {
-    const call = tools.get(callID);
+  const toolPart = (
+    callID: string,
+    state: ToolState,
+    call: ToolCallState | undefined = tools.get(callID),
+  ): Part | null => {
     if (!call) {
       return null;
     }
@@ -155,36 +184,70 @@ export function createV2EventTranslator(options: V2EventTranslatorOptions = {}) 
     };
   };
 
-  const ensureToolCall = (
-    sessionID: string,
-    messageID: string,
-    callID: string,
-    created: number,
-  ) => {
-    let call = tools.get(callID);
-    if (!call) {
-      call = { sessionID, messageID, tool: "unknown", input: {}, metadata: {}, start: created };
-      tools.set(callID, call);
-    }
-    return call;
+  const idleEvents = (sessionID: string, id: string, interrupted = false): Event[] => {
+    // V1 has no way to say a turn was stopped: the idle of an interrupted execution carries it.
+    const idleProperties: IdleEventProperties = interrupted
+      ? { sessionID, interrupted: true }
+      : { sessionID };
+    return [
+      {
+        id: `${id}:status`,
+        type: "session.status",
+        properties: { sessionID, status: { type: "idle" } },
+      },
+      { id: `${id}:idle`, type: "session.idle", properties: idleProperties },
+    ];
   };
 
-  const idleEvents = (sessionID: string, id: string): Event[] => [
-    {
-      id: `${id}:status`,
-      type: "session.status",
-      properties: { sessionID, status: { type: "idle" } },
-    },
-    { id: `${id}:idle`, type: "session.idle", properties: { sessionID } },
-  ];
+  const backgroundKey = (metadata: Record<string, unknown>): string | null => {
+    if (typeof metadata.shellID === "string") {
+      return `shell:${metadata.shellID}`;
+    }
+    if (typeof metadata.sessionID === "string") {
+      return `session:${metadata.sessionID}`;
+    }
+    return null;
+  };
 
-  const translatePayload = (event: OpenCodeEvent): Event[] => {
+  /** The completion V2 never sends for a background call, built when its operation ends. */
+  const endBackgroundCall = (
+    key: string,
+    created: number,
+    end: { error: string } | { metadata: Record<string, unknown> },
+  ): Event[] => {
+    const call = backgroundCalls.get(key);
+    if (!call) {
+      return [];
+    }
+    backgroundCalls.delete(key);
+    const time = { start: call.start, end: created };
+    const state: ToolState =
+      "error" in end
+        ? { status: "error", input: call.input, error: end.error, metadata: call.metadata, time }
+        : {
+            status: "completed",
+            input: call.input,
+            output: call.output,
+            title: "",
+            metadata: { ...call.metadata, ...end.metadata },
+            time,
+          };
+    const part = toolPart(call.callID, state, call);
+    return part ? [partUpdated(part, created)] : [];
+  };
+
+  const translatePayload = (event: OpenCodeEvent, restarted?: boolean): Event[] => {
     const created =
       "created" in event && typeof event.created === "number" ? event.created : Date.now();
 
     switch (event.type) {
-      case "server.connected":
-        return [{ id: event.id, type: "server.connected", properties: {} }];
+      case "server.connected": {
+        // Calls started before this connection never get a start here: their later events
+        // are dropped rather than shown under a made-up name.
+        tools.clear();
+        const properties: ConnectedEventProperties = restarted === undefined ? {} : { restarted };
+        return [{ id: event.id, type: "server.connected", properties } as Event];
+      }
 
       case "session.created": {
         const data = event.data;
@@ -254,9 +317,17 @@ export function createV2EventTranslator(options: V2EventTranslatorOptions = {}) 
           },
         ];
 
+      // A background subagent ends with its child session; its parent's task call ends there too.
       case "session.execution.succeeded":
       case "session.execution.interrupted":
-        return idleEvents(event.data.sessionID, event.id);
+        return [
+          ...idleEvents(
+            event.data.sessionID,
+            event.id,
+            event.type === "session.execution.interrupted",
+          ),
+          ...endBackgroundCall(`session:${event.data.sessionID}`, created, { metadata: {} }),
+        ];
 
       case "session.execution.failed":
         return [
@@ -269,7 +340,18 @@ export function createV2EventTranslator(options: V2EventTranslatorOptions = {}) 
             },
           },
           ...idleEvents(event.data.sessionID, event.id),
+          ...endBackgroundCall(`session:${event.data.sessionID}`, created, {
+            error: event.data.error.message,
+          }),
         ];
+
+      case "shell.exited":
+        return endBackgroundCall(`shell:${event.data.id}`, created, {
+          metadata: {
+            status: event.data.status,
+            ...(event.data.exit !== undefined ? { exit: event.data.exit } : {}),
+          },
+        });
 
       case "session.retry.scheduled":
         return [
@@ -290,6 +372,10 @@ export function createV2EventTranslator(options: V2EventTranslatorOptions = {}) 
 
       case "session.inbox.enqueued":
         inbox.set(event.data.inboxID, event.data.item);
+        return [];
+
+      case "session.inbox.cancelled":
+        inbox.delete(event.data.inboxID);
         return [];
 
       case "session.inbox.delivered": {
@@ -452,15 +538,24 @@ export function createV2EventTranslator(options: V2EventTranslatorOptions = {}) 
 
       case "session.tool.input.started": {
         const data = event.data;
-        const call = ensureToolCall(data.sessionID, data.assistantMessageID, data.id, created);
-        call.tool = toV1ToolName(data.name);
+        tools.set(data.id, {
+          sessionID: data.sessionID,
+          messageID: data.assistantMessageID,
+          tool: toV1ToolName(data.name),
+          input: {},
+          metadata: {},
+          start: created,
+        });
         const part = toolPart(data.id, { status: "pending", input: {}, raw: "" });
         return part ? [partUpdated(part, created)] : [];
       }
 
       case "session.tool.called": {
         const data = event.data;
-        const call = ensureToolCall(data.sessionID, data.assistantMessageID, data.id, created);
+        const call = tools.get(data.id);
+        if (!call) {
+          return [];
+        }
         call.input = toV1ToolInput(call.tool, data.input);
         call.start = created;
         const part = toolPart(data.id, {
@@ -474,8 +569,11 @@ export function createV2EventTranslator(options: V2EventTranslatorOptions = {}) 
 
       case "session.tool.progress": {
         const data = event.data;
-        const call = ensureToolCall(data.sessionID, data.assistantMessageID, data.id, created);
-        call.metadata = { ...call.metadata, ...data.metadata };
+        const call = tools.get(data.id);
+        if (!call) {
+          return [];
+        }
+        call.metadata = toV1ToolMetadata(call.tool, { ...call.metadata, ...data.metadata });
         const part = toolPart(data.id, {
           status: "running",
           input: call.input,
@@ -487,27 +585,56 @@ export function createV2EventTranslator(options: V2EventTranslatorOptions = {}) 
 
       case "session.tool.success": {
         const data = event.data;
-        const call = ensureToolCall(data.sessionID, data.assistantMessageID, data.id, created);
-        const part = toolPart(data.id, {
-          status: "completed",
-          input: call.input,
-          output: toolContentText(data.content),
-          title: "",
-          metadata: { ...call.metadata, ...(data.metadata ?? {}) },
-          time: { start: call.start, end: created },
+        const call = tools.get(data.id);
+        if (!call) {
+          return [];
+        }
+        const metadata = toV1ToolMetadata(call.tool, {
+          ...call.metadata,
+          ...(data.metadata ?? {}),
         });
+        const output = toolContentText(data.content);
         tools.delete(data.id);
+
+        // V2 reports a background command or subagent done as soon as it is launched; it
+        // stays a running tool here until the operation itself ends.
+        const key = metadata.status === "running" ? backgroundKey(metadata) : null;
+        if (key) {
+          backgroundCalls.set(key, { ...call, metadata, callID: data.id, output });
+          const part = toolPart(
+            data.id,
+            { status: "running", input: call.input, metadata, time: { start: call.start } },
+            call,
+          );
+          return part ? [partUpdated(part, created)] : [];
+        }
+
+        const part = toolPart(
+          data.id,
+          {
+            status: "completed",
+            input: call.input,
+            output,
+            title: "",
+            metadata,
+            time: { start: call.start, end: created },
+          },
+          call,
+        );
         return part ? [partUpdated(part, created)] : [];
       }
 
       case "session.tool.failed": {
         const data = event.data;
-        const call = ensureToolCall(data.sessionID, data.assistantMessageID, data.id, created);
+        const call = tools.get(data.id);
+        if (!call) {
+          return [];
+        }
         const part = toolPart(data.id, {
           status: "error",
           input: call.input,
           error: data.error.message,
-          metadata: { ...call.metadata, ...(data.metadata ?? {}) },
+          metadata: toV1ToolMetadata(call.tool, { ...call.metadata, ...(data.metadata ?? {}) }),
           time: { start: call.start, end: created },
         });
         tools.delete(data.id);
@@ -570,7 +697,8 @@ export function createV2EventTranslator(options: V2EventTranslatorOptions = {}) 
     }
   };
 
-  return (event: OpenCodeEvent): V1GlobalEvent[] => {
+  /** `restarted` is the connect event's mark, when the caller could tell. */
+  return (event: OpenCodeEvent, restarted?: boolean): V1GlobalEvent[] => {
     const location = "location" in event ? event.location?.directory : undefined;
     const data = "data" in event ? (event.data as { sessionID?: unknown }) : undefined;
     const sessionID = typeof data?.sessionID === "string" ? data.sessionID : undefined;
@@ -578,7 +706,7 @@ export function createV2EventTranslator(options: V2EventTranslatorOptions = {}) 
       rememberDirectory(sessionID, location);
     }
     const directory = location ?? (sessionID ? sessions.get(sessionID)?.directory : undefined);
-    return translatePayload(event).map((payload) => ({
+    return translatePayload(event, restarted).map((payload) => ({
       ...(directory ? { directory } : {}),
       payload,
     }));

@@ -479,6 +479,8 @@ export const fa: I18nDictionary = {
   "pinned.line.context": "کانتکست: {used} / {limit} ({percent}٪)",
   "pinned.line.cost": "هزینه: {cost} خرج شد",
   "subagent.header": "زیرایجنت {agent}: {description}",
+  "subagent.starting": "شروع وظیفه: {task}",
+  "subagent.starting_untitled": "شروع وظیفه...",
   "subagent.line.status": "وضعیت: {status}",
   "subagent.line.task": "وظیفه: {task}",
   "subagent.line.agent": "ایجنت: {agent}",

@@ -497,6 +497,8 @@ export const en = {
   "subagent.line.status": "Status: {status}",
   "subagent.line.task": "Task: {task}",
   "subagent.line.agent": "Agent: {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "Working...",
   "subagent.working_with_details": "Working: {details}",
   "subagent.completed": "Completed",
