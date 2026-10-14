@@ -164,7 +164,7 @@ function emitPermissionAsked(
 
 function emitBashTool(
   summaryAggregator: { processEvent(event: Event): void },
-  status: "running" | "completed" | "error",
+  status: "pending" | "running" | "completed" | "error",
   options: { callId?: string; command?: string } = {},
 ): void {
   const callId = options.callId ?? "call-bash";
@@ -178,13 +178,17 @@ function emitBashTool(
         type: "tool",
         callID: callId,
         tool: "bash",
-        state: {
-          status,
-          input: { command: options.command ?? "npm test" },
-          metadata: {},
-          ...(status === "completed" ? { output: "ok" } : {}),
-          ...(status === "error" ? { error: "command failed" } : {}),
-        },
+        // A pending call is still being composed: OpenCode has no arguments for it yet.
+        state:
+          status === "pending"
+            ? { status, input: {}, raw: "" }
+            : {
+                status,
+                input: { command: options.command ?? "npm test" },
+                metadata: {},
+                ...(status === "completed" ? { output: "ok" } : {}),
+                ...(status === "error" ? { error: "command failed" } : {}),
+              },
       },
     },
   } as unknown as Event);
