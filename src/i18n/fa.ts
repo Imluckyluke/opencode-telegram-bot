@@ -386,8 +386,8 @@ export const fa: I18nDictionary = {
   "variant.menu.error": "🔴 دریافت فهرست واریانت‌ها ناموفق بود",
 
   "context.button.confirm": "✅ بله، فشرده‌سازی کانتکست",
-  "context.button.details_compact": "جزئیات کانتکست",
-  "context.button.close": "بستن",
+  "context.button.details_compact": "📦 جزئیات کانتکست",
+  "context.button.close": "❌ بستن",
   "context.details.title": "📊 جزئیات کانتکست",
   "context.details.window": "پنجره: {used} / {limit} ({percent}٪)",
   "context.details.token_breakdown": "تفکیک توکن آخرین پاسخ دستیار:",
