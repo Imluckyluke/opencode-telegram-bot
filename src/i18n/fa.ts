@@ -487,6 +487,7 @@ export const fa: I18nDictionary = {
   "subagent.working": "در حال کار...",
   "subagent.working_with_details": "در حال کار: {details}",
   "subagent.completed": "تمام شد",
+  "subagent.interrupted": "متوقف شد",
   "subagent.failed": "وظیفه ناموفق بود",
   "subagent.status.pending": "در انتظار",
   "subagent.status.running": "در حال اجرا",

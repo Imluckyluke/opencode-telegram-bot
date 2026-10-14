@@ -506,6 +506,7 @@ export const ar: I18nDictionary = {
   "subagent.working": "جارٍ العمل...",
   "subagent.working_with_details": "جارٍ العمل: {details}",
   "subagent.completed": "مكتملة",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "فشلت المهمة",
   "subagent.status.pending": "قيد الانتظار",
   "subagent.status.running": "قيد التشغيل",

@@ -507,6 +507,7 @@ export const id: I18nDictionary = {
   "subagent.working": "Bekerja...",
   "subagent.working_with_details": "Bekerja: {details}",
   "subagent.completed": "Selesai",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "Tugas gagal",
   "subagent.status.pending": "tertunda",
   "subagent.status.running": "berjalan",

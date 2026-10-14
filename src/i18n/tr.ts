@@ -508,6 +508,7 @@ export const tr: I18nDictionary = {
   "subagent.working": "Çalışıyor...",
   "subagent.working_with_details": "Çalışıyor: {details}",
   "subagent.completed": "Tamamlandı",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "Görev başarısız oldu",
   "subagent.status.pending": "bekliyor",
   "subagent.status.running": "çalışıyor",

@@ -512,6 +512,7 @@ export const ru: I18nDictionary = {
   "subagent.working": "В работе...",
   "subagent.working_with_details": "В работе: {details}",
   "subagent.completed": "Завершена",
+  "subagent.interrupted": "Прервана",
   "subagent.failed": "Ошибка задачи",
   "subagent.status.pending": "ожидание",
   "subagent.status.running": "в работе",

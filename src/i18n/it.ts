@@ -525,6 +525,7 @@ export const it: I18nDictionary = {
   "subagent.working": "Al lavoro...",
   "subagent.working_with_details": "Al lavoro: {details}",
   "subagent.completed": "Completato",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "Attività non riuscita",
   "subagent.status.pending": "in attesa",
   "subagent.status.running": "in esecuzione",

@@ -571,5 +571,51 @@ describe("summary/subagent-formatter", () => {
       expect(text).toContain("✅ Completed");
       expect(text).not.toContain("🕒");
     });
+
+    describe("an interrupted subagent", () => {
+      function buildInterrupted(finishedAt: number) {
+        return { ...buildFinished(finishedAt), status: "interrupted" as const };
+      }
+
+      it("ends with the interrupted line and how long it ran, in place of the activity", async () => {
+        setRuntimeLocale("en");
+
+        const text = await renderSubagentCards([buildInterrupted(createdAt + 5000)], createdAt);
+
+        expect(text.split("\n").at(-1)).toBe("⏹ Interrupted · 🕒 5s");
+        expect(text).toContain("Task: task description");
+        expect(text).not.toContain("✅");
+        expect(text).not.toContain("❌");
+      });
+
+      it("keeps the duration frozen on later re-renders", async () => {
+        setRuntimeLocale("en");
+        const card = buildInterrupted(createdAt + 5000);
+
+        const later = await renderSubagentCards([card], createdAt + 900_000);
+
+        expect(later).toContain("⏹ Interrupted · 🕒 5s");
+      });
+
+      it("localizes the interrupted line", async () => {
+        setRuntimeLocale("ru");
+
+        const text = await renderSubagentCards([buildInterrupted(createdAt + 5000)], createdAt);
+
+        expect(text).toContain("⏹ Прервана · 🕒 5s");
+      });
+
+      it("gives a card interrupted while starting its final line with the known lines", async () => {
+        setRuntimeLocale("en");
+        const card = { ...buildInterrupted(createdAt + 5000), providerID: undefined };
+
+        const text = await renderSubagentCards([card], createdAt);
+
+        expect(text).not.toContain("Starting task");
+        expect(text).toContain("Task: task description");
+        expect(text).not.toContain("Model:");
+        expect(text).toContain("⏹ Interrupted · 🕒 5s");
+      });
+    });
   });
 });

@@ -93,19 +93,23 @@ function formatToolElapsed(subagent: SubagentInfo, now: number): string | null {
   return formatDuration(bucketElapsedMs(elapsedMs));
 }
 
+function formatEndedLine(subagent: SubagentInfo, line: string): string {
+  if (subagent.finishedAt === undefined) {
+    return line;
+  }
+
+  // No threshold here: this is one line per subagent rather than a stream of
+  // updates, matching how the assistant run footer always reports its time.
+  return appendDuration(line, formatDuration(subagent.finishedAt - subagent.createdAt));
+}
+
 function formatSubagentActivity(subagent: SubagentInfo, now: number): string {
   if (subagent.status === "completed") {
-    const completed = `✅ ${t("subagent.completed")}`;
-    if (subagent.finishedAt === undefined) {
-      return completed;
-    }
+    return formatEndedLine(subagent, `✅ ${t("subagent.completed")}`);
+  }
 
-    // No threshold here: this is one line per subagent rather than a stream of
-    // updates, matching how the assistant run footer always reports its time.
-    return appendDuration(
-      completed,
-      formatDuration(subagent.finishedAt - subagent.createdAt),
-    );
+  if (subagent.status === "interrupted") {
+    return formatEndedLine(subagent, `⏹ ${t("subagent.interrupted")}`);
   }
 
   if (subagent.status === "error") {
@@ -138,7 +142,10 @@ export async function renderSubagentCard(
 ): Promise<string> {
   const headerLines = formatHeaderLines(subagent);
   const isComplete = headerLines.length === 3;
-  const hasEnded = subagent.status === "completed" || subagent.status === "error";
+  const hasEnded =
+    subagent.status === "completed" ||
+    subagent.status === "error" ||
+    subagent.status === "interrupted";
 
   // Until Task, Agent and Model are all known a running card is one line, so it never
   // shows a placeholder or an empty label; an ended card keeps the lines it got.

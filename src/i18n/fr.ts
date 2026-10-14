@@ -529,6 +529,7 @@ export const fr: I18nDictionary = {
   "subagent.working": "En cours...",
   "subagent.working_with_details": "En cours : {details}",
   "subagent.completed": "Terminee",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "Echec de la tache",
   "subagent.status.pending": "en attente",
   "subagent.status.running": "en cours",

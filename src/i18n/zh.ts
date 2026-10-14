@@ -473,6 +473,7 @@ export const zh: I18nDictionary = {
   "subagent.working": "执行中...",
   "subagent.working_with_details": "执行中: {details}",
   "subagent.completed": "已完成",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "任务失败",
   "subagent.status.pending": "等待中",
   "subagent.status.running": "运行中",

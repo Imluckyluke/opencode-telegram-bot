@@ -520,6 +520,7 @@ export const ko: I18nDictionary = {
   "subagent.working": "작업 중...",
   "subagent.working_with_details": "작업 중: {details}",
   "subagent.completed": "완료됨",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "작업 실패",
   "subagent.status.pending": "대기 중",
   "subagent.status.running": "실행 중",

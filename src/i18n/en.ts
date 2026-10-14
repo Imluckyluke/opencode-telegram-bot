@@ -502,6 +502,7 @@ export const en = {
   "subagent.working": "Working...",
   "subagent.working_with_details": "Working: {details}",
   "subagent.completed": "Completed",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "Task failed",
   "subagent.status.pending": "pending",
   "subagent.status.running": "running",

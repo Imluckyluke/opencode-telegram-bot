@@ -123,7 +123,7 @@ type TokensCallback = (tokens: TokensInfo, isCompleted: boolean) => void;
 
 type CostCallback = (cost: number) => void;
 
-export type SubagentStatus = "pending" | "running" | "completed" | "error";
+export type SubagentStatus = "pending" | "running" | "completed" | "error" | "interrupted";
 
 export interface SubagentInfo {
   cardId: string;
@@ -1142,7 +1142,7 @@ class SummaryAggregator {
 
   private setSubagentTerminalStatus(
     sessionId: string,
-    status: Extract<SubagentStatus, "completed" | "error">,
+    status: Extract<SubagentStatus, "completed" | "error" | "interrupted">,
     terminalMessage?: string,
   ): void {
     const cardId = this.subagentCardIdBySessionId.get(sessionId);
