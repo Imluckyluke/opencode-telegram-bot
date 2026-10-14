@@ -508,6 +508,99 @@ describe("summary/subagent-formatter", () => {
     });
   });
 
+  describe("a nested subagent launch", () => {
+    const now = 1_000_000;
+
+    function buildSubagent(overrides: Record<string, unknown>) {
+      return {
+        cardId: "card-1",
+        sessionId: "child-1",
+        parentSessionId: "root-1",
+        agent: "general",
+        description: "Delegate counting",
+        prompt: "Delegate counting",
+        status: "running" as const,
+        providerID: "openai",
+        modelID: "gpt-5.4",
+        tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0, cacheWrite: 0 },
+        cost: 0,
+        createdAt: now,
+        updatedAt: now,
+        ...overrides,
+      };
+    }
+
+    it("shows only that a task runs, never its description or prompt", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCard(
+        buildSubagent({
+          currentTool: "task",
+          currentToolInput: {
+            description: "Count Kotlin files",
+            prompt: "Count the number of Kotlin files under src/main",
+            subagent_type: "general",
+          },
+          currentToolStartedAt: now - 1_000,
+        }),
+        now,
+      );
+
+      expect(text.split("\n").at(-1)).toBe("🤖 Running Task");
+      expect(text).not.toContain("Count Kotlin files");
+    });
+
+    it("shows no launch line while the launch call is still composed", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCard(
+        buildSubagent({ currentTool: "task", currentToolInput: {}, currentToolStartedAt: now }),
+        now,
+      );
+
+      expect(text.split("\n").at(-1)).toBe("⚙️ Working...");
+    });
+
+    it("times the launch line from the launch's own start", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCard(
+        buildSubagent({
+          currentTool: "task",
+          currentToolInput: { prompt: "Count" },
+          currentToolStartedAt: now - 45_000,
+        }),
+        now,
+      );
+
+      expect(text.split("\n").at(-1)).toBe("🤖 Running Task · 🕒 40s");
+    });
+
+    it("falls back to a launch still running when nothing newer is on the line", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCard(buildSubagent({ launchStartedAt: now - 25_000 }), now);
+
+      expect(text.split("\n").at(-1)).toBe("🤖 Running Task · 🕒 20s");
+    });
+
+    it("keeps a newer tool on the line over a launch still running", async () => {
+      setRuntimeLocale("en");
+
+      const text = await renderSubagentCard(
+        buildSubagent({
+          currentTool: "bash",
+          currentToolInput: { command: "npm test" },
+          currentToolStartedAt: now,
+          launchStartedAt: now - 25_000,
+        }),
+        now,
+      );
+
+      expect(text.split("\n").at(-1)).toBe("💻 bash npm test");
+    });
+  });
+
   describe("total run time of a finished subagent", () => {
     const createdAt = 1_000_000;
 

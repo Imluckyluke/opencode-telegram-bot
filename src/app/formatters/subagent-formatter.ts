@@ -50,6 +50,12 @@ function formatToolStep(subagent: SubagentInfo): string {
     return "";
   }
 
+  // A nested subagent launch says only that one runs, once its arguments are known.
+  if (subagent.currentTool === "task") {
+    const hasArguments = Object.keys(subagent.currentToolInput ?? {}).length > 0;
+    return hasArguments ? t("progress.compact.task") : "";
+  }
+
   const toolTitle = shouldPreferInputDetails(subagent.currentTool, subagent.currentToolInput)
     ? undefined
     : subagent.currentToolTitle;
@@ -80,12 +86,12 @@ function formatToolStep(subagent: SubagentInfo): string {
   return formatted;
 }
 
-function formatToolElapsed(subagent: SubagentInfo, now: number): string | null {
-  if (subagent.currentToolStartedAt === undefined) {
+function formatToolElapsed(startedAt: number | undefined, now: number): string | null {
+  if (startedAt === undefined) {
     return null;
   }
 
-  const elapsedMs = now - subagent.currentToolStartedAt;
+  const elapsedMs = now - startedAt;
   if (elapsedMs < TOOL_ELAPSED_THRESHOLD_MS) {
     return null;
   }
@@ -119,8 +125,15 @@ function formatSubagentActivity(subagent: SubagentInfo, now: number): string {
 
   const toolStep = formatToolStep(subagent);
   if (toolStep) {
-    const elapsed = formatToolElapsed(subagent, now);
+    const elapsed = formatToolElapsed(subagent.currentToolStartedAt, now);
     return elapsed ? appendDuration(toolStep, elapsed) : toolStep;
+  }
+
+  // Nothing newer on the line: a nested subagent it launched still runs.
+  if (subagent.launchStartedAt !== undefined) {
+    const launchLine = t("progress.compact.task");
+    const elapsed = formatToolElapsed(subagent.launchStartedAt, now);
+    return elapsed ? appendDuration(launchLine, elapsed) : launchLine;
   }
 
   return `⚙️ ${t("subagent.working")}`;

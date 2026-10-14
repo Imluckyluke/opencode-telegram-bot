@@ -144,6 +144,7 @@ export interface SubagentInfo {
   currentToolTitle?: string | undefined;
   currentToolCallId?: string | undefined;
   currentToolStartedAt?: number | undefined;
+  launchStartedAt?: number | undefined;
   terminalMessage?: string | undefined;
   createdAt: number;
   finishedAt?: number | undefined;
