@@ -31,6 +31,13 @@ describe("bot/render/agent-button-render", () => {
     expect(buttons[1]?.button).toMatchObject({ text: "VPS", callback_data: "ab:vps" });
   });
 
+  it("does not split an emoji when cutting a long label", () => {
+    const label = `${"a".repeat(63)}😀tail`;
+    const [button] = buttonsOf(`[${label}](btn:go)`);
+
+    expect(button?.button.text).toBe("a".repeat(63));
+  });
+
   it("keeps the label in the plain-text fallback", () => {
     const parts = renderTelegramBlocks("Pick [Railway](btn:railway) now");
 

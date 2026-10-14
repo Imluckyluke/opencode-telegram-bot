@@ -527,6 +527,29 @@ describe("bot/commands/messages", () => {
     expect(interactionManager.getSnapshot()).toBeNull();
   });
 
+  it("treats an SDK error result from revert as a failure", async () => {
+    interactionManager.start({
+      kind: "custom",
+      expectedInput: "callback",
+      metadata: {
+        flow: "messages",
+        stage: "detail",
+        messageId: 600,
+        projectDirectory: "D:\\Projects\\Repo",
+        sessionId: "session-1",
+        messages: [{ id: "msg-1", text: "test prompt", created: 1000 }],
+        page: 0,
+        selectedIndex: 0,
+      },
+    });
+    mocked.sessionRevertMock.mockResolvedValue({ error: { message: "nope" } });
+
+    const ctx = createCallbackContext("messages:revert", 600);
+    await handleMessagesCallback(ctx, testDeps);
+
+    expect(ctx.editMessageText).toHaveBeenCalledWith(t("messages.revert_error"));
+  });
+
   it("rejects revert from list stage", async () => {
     const messages = [{ id: "msg-1", text: "test prompt", created: 1000 }];
     interactionManager.start({

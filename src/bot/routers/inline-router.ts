@@ -631,6 +631,9 @@ export function registerInlineRouter(bot: Bot<Context>, deps: InlineRouterDeps):
             clearPendingGuestQuestion(chatId);
           }
           setInlineRunInFlight(false, run.runKey);
+        }).catch((err: unknown) => {
+          // `.finally` rethrows: without this the rejection would be unhandled.
+          logger.error("[Bot] Error streaming guest answer:", err);
         });
       }
     } catch (err) {

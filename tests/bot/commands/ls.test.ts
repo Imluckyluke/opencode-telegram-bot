@@ -221,6 +221,33 @@ describe("bot/commands/ls", () => {
     expect(ctx.reply).toHaveBeenCalledWith(`❌ ${t("ls.access_denied")}`);
   });
 
+  it("resolves a relative path argument against the project root", async () => {
+    const ctx = {
+      chat: { id: 123 },
+      from: { id: 42 },
+      match: "docs",
+      reply: vi.fn().mockResolvedValue({ message_id: 77 }),
+    } as unknown as Context;
+
+    await lsCommand(ctx as never);
+
+    expect(mocked.readdirMock).toHaveBeenCalledWith("/repo/project/docs", { withFileTypes: true });
+  });
+
+  it("rejects a relative path that traverses out of the project", async () => {
+    const ctx = {
+      chat: { id: 123 },
+      from: { id: 42 },
+      match: "../../etc",
+      reply: vi.fn().mockResolvedValue({ message_id: 77 }),
+    } as unknown as Context;
+
+    await lsCommand(ctx as never);
+
+    expect(mocked.readdirMock).not.toHaveBeenCalled();
+    expect(ctx.reply).toHaveBeenCalledWith(`❌ ${t("ls.access_denied")}`);
+  });
+
   it("shows an error when the target directory cannot be listed", async () => {
     mocked.readdirMock.mockRejectedValue(new Error("Permission denied"));
 

@@ -11,6 +11,7 @@ import {
   extractInlinePlainText,
   toBlockPlainText,
 } from "./block-plain-text.js";
+import { truncateTextSafe } from "./text-splitter.js";
 import type {
   InlineNode,
   TableColumnAlign,
@@ -128,7 +129,7 @@ function toAgentButton(node: Extract<InlineNode, { type: "link" }>): RichTextBut
   if (!isAgentButtonUrl(node.url)) {
     return null;
   }
-  const label = extractInlinePlainText(node.text).slice(0, MAX_AGENT_BUTTON_LABEL_CHARS);
+  const label = truncateTextSafe(extractInlinePlainText(node.text), MAX_AGENT_BUTTON_LABEL_CHARS);
   if (!label) {
     return null;
   }

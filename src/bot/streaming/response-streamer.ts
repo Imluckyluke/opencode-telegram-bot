@@ -574,7 +574,20 @@ export class ResponseStreamer {
     for (let index = state.telegramMessageIds.length - 1; index >= payload.parts.length; index--) {
       const messageId = state.telegramMessageIds[index];
       if (messageId) {
-        await this.deleteText(messageId);
+        try {
+          await this.deleteText(messageId);
+        } catch (error) {
+          // Rate limits must be retried by the caller; any other failure
+          // (message already deleted by the user, too old to delete) only
+          // leaves a stale trailing part and must not break the stream.
+          if (getRetryAfterMs(error) !== null) {
+            throw error;
+          }
+          logger.warn(
+            `[ResponseStreamer] Failed to delete surplus stream part: session=${state.sessionId}, message=${state.messageId}, telegramMessageId=${messageId}`,
+            error,
+          );
+        }
       }
       state.telegramMessageIds.pop();
       state.lastSentSignatures.pop();

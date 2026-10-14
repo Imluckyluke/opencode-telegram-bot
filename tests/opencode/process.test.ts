@@ -212,6 +212,18 @@ describe("opencode/process", () => {
       expect(second).not.toBeUndefined();
     });
 
+    it("forgets the tracked child after it exits", () => {
+      const child = fakeChild(process.pid);
+      spawnMock.mockReturnValue(child);
+
+      startLocalOpencodeServer({ host: "localhost", port: 4096 });
+      const exitCall = child.once.mock.calls.find(([event]) => event === "exit");
+      (exitCall?.[1] as () => void)();
+      startLocalOpencodeServer({ host: "localhost", port: 4096 });
+
+      expect(spawnMock).toHaveBeenCalledTimes(2);
+    });
+
     it("tracks ports independently", () => {
       spawnMock.mockReturnValue(fakeChild(process.pid));
 

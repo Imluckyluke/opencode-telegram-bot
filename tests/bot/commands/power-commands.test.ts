@@ -130,6 +130,7 @@ describe("bot/commands/delete-sessions-command", () => {
       callbackQuery: { data },
       answerCallbackQuery: vi.fn().mockResolvedValue(undefined),
       deleteMessage: vi.fn().mockResolvedValue(undefined),
+      editMessageReplyMarkup: vi.fn().mockResolvedValue(undefined),
       reply: vi.fn().mockResolvedValue({ message_id: 7 }),
       api: { editMessageText: vi.fn().mockResolvedValue(undefined) },
     } as unknown as Context;
@@ -205,6 +206,37 @@ describe("bot/commands/delete-sessions-command", () => {
       expect.any(Number),
       t("deletesessions.done", { deleted: 2, failed: 0 }),
     );
+  });
+
+  it("counts SDK error results as failures, not deletions", async () => {
+    mocked.sessionDeleteMock
+      .mockResolvedValueOnce({ data: undefined, error: { message: "boom" } })
+      .mockResolvedValueOnce({ data: {}, error: null });
+    const ctx = createCallbackContext("deletesessions:confirm");
+
+    await handleDeleteSessionsCallback(ctx as never);
+
+    expect(ctx.api.editMessageText).toHaveBeenCalledWith(
+      111,
+      expect.any(Number),
+      t("deletesessions.done", { deleted: 1, failed: 1 }),
+    );
+  });
+
+  it("does not run a second wipe while one is in progress", async () => {
+    let releaseList: (value: unknown) => void = () => {};
+    mocked.sessionListMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        releaseList = resolve;
+      }),
+    );
+    const first = handleDeleteSessionsCallback(createCallbackContext("deletesessions:confirm") as never);
+    const secondCtx = createCallbackContext("deletesessions:confirm");
+    await handleDeleteSessionsCallback(secondCtx as never);
+    expect(secondCtx.answerCallbackQuery).toHaveBeenCalledWith({ text: t("deletesessions.started") });
+    releaseList({ data: [{ id: "s1" }], error: null });
+    await first;
+    expect(mocked.sessionDeleteMock).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to a fresh message when the status notice fails to send", async () => {
