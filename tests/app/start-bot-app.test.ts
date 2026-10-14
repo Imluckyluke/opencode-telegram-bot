@@ -30,6 +30,9 @@ const mocked = vi.hoisted(() => ({
     opencode: {
       apiUrl: "http://localhost:4096",
     },
+    health: {
+      port: 0,
+    },
     telegram: {
       allowedUserId: 123,
       allowedUserIds: [123],

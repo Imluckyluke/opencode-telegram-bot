@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
@@ -38,6 +38,7 @@ import {
   refreshSessionCacheAfterOpencodeReady,
   refreshSessionCacheIfOpencodeReady,
 } from "../../src/opencode/ready-refresh.js";
+import { opencodeReadyLifecycle } from "../../src/opencode/ready-lifecycle.js";
 
 describe("opencode/ready-refresh", () => {
   beforeEach(() => {
@@ -48,7 +49,11 @@ describe("opencode/ready-refresh", () => {
     mocked.loggerWarnMock.mockReset();
 
     mocked.warmupSessionDirectoryCacheMock.mockResolvedValue(undefined);
-    mocked.reconcileStoredModelSelectionMock.mockResolvedValue(undefined);
+    mocked.reconcileStoredModelSelectionMock.mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("skips refresh with a short warning when OpenCode server is unavailable", async () => {
@@ -103,5 +108,69 @@ describe("opencode/ready-refresh", () => {
       "[OpenCodeReady] Failed to refresh model catalog: reason=opencode_start_success",
       expect.any(Error),
     );
+  });
+
+  it("retries the model catalog refresh until a non-empty catalog is read", async () => {
+    vi.useFakeTimers();
+    mocked.reconcileStoredModelSelectionMock
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+
+    const refresh = refreshSessionCacheAfterOpencodeReady("opencode_start_success");
+    await vi.advanceTimersByTimeAsync(1000);
+    await refresh;
+
+    expect(mocked.reconcileStoredModelSelectionMock).toHaveBeenCalledTimes(3);
+    expect(mocked.reconcileStoredModelSelectionMock).toHaveBeenLastCalledWith({
+      forceCatalogRefresh: true,
+    });
+    expect(mocked.loggerWarnMock).not.toHaveBeenCalled();
+  });
+
+  it("stops waiting for the model catalog after the time limit", async () => {
+    vi.useFakeTimers();
+    mocked.reconcileStoredModelSelectionMock.mockResolvedValue(false);
+
+    let finished = false;
+    const refresh = refreshSessionCacheAfterOpencodeReady("auto_restart_interval").then(() => {
+      finished = true;
+    });
+
+    await vi.advanceTimersByTimeAsync(2500);
+    expect(finished).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await refresh;
+
+    expect(finished).toBe(true);
+    expect(mocked.reconcileStoredModelSelectionMock).toHaveBeenCalledTimes(7);
+    expect(mocked.loggerWarnMock).toHaveBeenCalledWith(
+      "[OpenCodeReady] Model catalog still unavailable after 3000ms: reason=auto_restart_interval",
+    );
+  });
+
+  it("runs ready handlers registered later only after the model catalog is available", async () => {
+    vi.useFakeTimers();
+    mocked.reconcileStoredModelSelectionMock.mockResolvedValueOnce(false).mockResolvedValue(true);
+    opencodeReadyLifecycle.__resetForTests();
+    const order: string[] = [];
+    const offRefresh = opencodeReadyLifecycle.onReady(async (reason) => {
+      await refreshSessionCacheAfterOpencodeReady(reason);
+      order.push("refresh");
+    });
+    const offRestore = opencodeReadyLifecycle.onReady(() => {
+      order.push("restore");
+    });
+
+    const notify = opencodeReadyLifecycle.notifyReady("opencode_start_success");
+    await vi.advanceTimersByTimeAsync(500);
+    await notify;
+    offRefresh();
+    offRestore();
+    opencodeReadyLifecycle.__resetForTests();
+
+    expect(mocked.reconcileStoredModelSelectionMock).toHaveBeenCalledTimes(2);
+    expect(order).toEqual(["refresh", "restore"]);
   });
 });

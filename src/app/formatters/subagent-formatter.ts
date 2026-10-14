@@ -9,14 +9,14 @@ import { formatCompactToolInfo } from "./summary-formatter.js";
 import type { SubagentInfo } from "../managers/summary-aggregation-manager.js";
 import type { ToolInfo } from "../managers/summary-aggregation-manager.js";
 
-function formatModelDisplayName(
-  providerID?: string | null,
-  modelID?: string | null,
-  variant?: string | null,
-): string {
-  const name = providerID && modelID ? `${providerID}/${modelID}` : t("pinned.unknown");
-  if (variant) {
-    return `${name} (${variant})`;
+function formatModelDisplayName(subagent: SubagentInfo): string | null {
+  if (!subagent.providerID || !subagent.modelID) {
+    return null;
+  }
+
+  const name = `${subagent.providerID}/${subagent.modelID}`;
+  if (subagent.variant) {
+    return `${name} (${subagent.variant})`;
   }
 
   return name;
@@ -50,6 +50,12 @@ function formatToolStep(subagent: SubagentInfo): string {
     return "";
   }
 
+  // A nested subagent launch says only that one runs, once its arguments are known.
+  if (subagent.currentTool === "task") {
+    const hasArguments = Object.keys(subagent.currentToolInput ?? {}).length > 0;
+    return hasArguments ? t("progress.compact.task") : "";
+  }
+
   const toolTitle = shouldPreferInputDetails(subagent.currentTool, subagent.currentToolInput)
     ? undefined
     : subagent.currentToolTitle;
@@ -80,12 +86,12 @@ function formatToolStep(subagent: SubagentInfo): string {
   return formatted;
 }
 
-function formatToolElapsed(subagent: SubagentInfo, now: number): string | null {
-  if (subagent.currentToolStartedAt === undefined) {
+function formatToolElapsed(startedAt: number | undefined, now: number): string | null {
+  if (startedAt === undefined) {
     return null;
   }
 
-  const elapsedMs = now - subagent.currentToolStartedAt;
+  const elapsedMs = now - startedAt;
   if (elapsedMs < TOOL_ELAPSED_THRESHOLD_MS) {
     return null;
   }
@@ -93,19 +99,23 @@ function formatToolElapsed(subagent: SubagentInfo, now: number): string | null {
   return formatDuration(bucketElapsedMs(elapsedMs));
 }
 
+function formatEndedLine(subagent: SubagentInfo, line: string): string {
+  if (subagent.finishedAt === undefined) {
+    return line;
+  }
+
+  // No threshold here: this is one line per subagent rather than a stream of
+  // updates, matching how the assistant run footer always reports its time.
+  return appendDuration(line, formatDuration(subagent.finishedAt - subagent.createdAt));
+}
+
 function formatSubagentActivity(subagent: SubagentInfo, now: number): string {
   if (subagent.status === "completed") {
-    const completed = `✅ ${t("subagent.completed")}`;
-    if (subagent.finishedAt === undefined) {
-      return completed;
-    }
+    return formatEndedLine(subagent, `✅ ${t("subagent.completed")}`);
+  }
 
-    // No threshold here: this is one line per subagent rather than a stream of
-    // updates, matching how the assistant run footer always reports its time.
-    return appendDuration(
-      completed,
-      formatDuration(subagent.finishedAt - subagent.createdAt),
-    );
+  if (subagent.status === "interrupted") {
+    return formatEndedLine(subagent, `⏹ ${t("subagent.interrupted")}`);
   }
 
   if (subagent.status === "error") {
@@ -115,31 +125,55 @@ function formatSubagentActivity(subagent: SubagentInfo, now: number): string {
 
   const toolStep = formatToolStep(subagent);
   if (toolStep) {
-    const elapsed = formatToolElapsed(subagent, now);
+    const elapsed = formatToolElapsed(subagent.currentToolStartedAt, now);
     return elapsed ? appendDuration(toolStep, elapsed) : toolStep;
   }
 
+  // Nothing newer on the line: a nested subagent it launched still runs.
+  if (subagent.launchStartedAt !== undefined) {
+    const launchLine = t("progress.compact.task");
+    const elapsed = formatToolElapsed(subagent.launchStartedAt, now);
+    return elapsed ? appendDuration(launchLine, elapsed) : launchLine;
+  }
+
   return `⚙️ ${t("subagent.working")}`;
+}
+
+/** The Task, Agent and Model lines that are known so far. */
+function formatHeaderLines(subagent: SubagentInfo): string[] {
+  const modelName = formatModelDisplayName(subagent);
+  return [
+    subagent.description ? t("subagent.line.task", { task: subagent.description }) : null,
+    subagent.agent ? t("subagent.line.agent", { agent: subagent.agent }) : null,
+    modelName ? t("pinned.line.model", { model: modelName }) : null,
+  ].filter((line): line is string => line !== null);
 }
 
 export async function renderSubagentCard(
   subagent: SubagentInfo,
   now: number = Date.now(),
 ): Promise<string> {
-  const modelName = formatModelDisplayName(
-    subagent.providerID,
-    subagent.modelID,
-    subagent.variant,
-  );
-  const lines = [
-    `🧩 ${t("subagent.line.task", { task: subagent.description })}`,
-    t("subagent.line.agent", { agent: subagent.agent }),
-    t("pinned.line.model", { model: modelName }),
-    "",
-    formatSubagentActivity(subagent, now),
-  ];
+  const headerLines = formatHeaderLines(subagent);
+  const isComplete = headerLines.length === 3;
+  const hasEnded =
+    subagent.status === "completed" ||
+    subagent.status === "error" ||
+    subagent.status === "interrupted";
 
-  return lines.join("\n");
+  // Until Task, Agent and Model are all known a running card is one line, so it never
+  // shows a placeholder or an empty label; an ended card keeps the lines it got.
+  if (!isComplete && !hasEnded) {
+    return subagent.description
+      ? `🧩 ${t("subagent.starting", { task: subagent.description })}`
+      : `🧩 ${t("subagent.starting_untitled")}`;
+  }
+
+  const activity = formatSubagentActivity(subagent, now);
+  if (headerLines.length === 0) {
+    return `🧩 ${activity}`;
+  }
+
+  return [`🧩 ${headerLines[0]}`, ...headerLines.slice(1), "", activity].join("\n");
 }
 
 export async function renderSubagentCards(

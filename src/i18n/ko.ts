@@ -25,6 +25,7 @@ export const ko: I18nDictionary = {
   "cmd.description.mcps": "MCP 서버",
   "cmd.description.opencode_start": "OpenCode 서버 시작",
   "cmd.description.opencode_stop": "OpenCode 서버 중지",
+  "cmd.description.reload": "Reload OpenCode configuration",
   "cmd.description.ls": "디렉터리 내용 보기",
   "cmd.description.help": "도움말",
 
@@ -177,6 +178,8 @@ export const ko: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "음성 답변",
   "settings.prompt_queue.label": "메시지 대기열",
+  "settings.prompt_queue.queue": "Queue",
+  "settings.prompt_queue.steer": "Steer",
   "settings.bottom_keyboard.label": "Bottom keyboard",
   "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "켜기",
@@ -369,6 +372,10 @@ export const ko: I18nDictionary = {
   "opencode_stop.success": "✅ OpenCode 서버가 성공적으로 중지되었습니다",
   "opencode_stop.error":
     "🔴 서버 중지 중 오류가 발생했습니다.\n\n자세한 내용은 애플리케이션 로그를 확인해 주세요.",
+  "reload.reloading": "🔄 Reloading OpenCode configuration...",
+  "reload.success": "✅ OpenCode configuration reloaded",
+  "reload.failed": "🔴 Failed to reload OpenCode configuration",
+  "reload.failed_with_error": "🔴 Failed to reload OpenCode configuration\n\nError: {error}",
 
   "agent.changed_message": "✅ 에이전트가 변경되었습니다: {name}",
   "agent.change_error_callback": "에이전트 변경 실패",
@@ -416,9 +423,20 @@ export const ko: I18nDictionary = {
   "variant.menu.error": "🔴 변형 목록을 가져오지 못했습니다",
 
   "context.button.confirm": "✅ 예, 컨텍스트를 압축합니다",
+  "context.button.details_compact": "📦 Compact context",
+  "context.button.close": "❌ Close",
+  "context.details.title": "📊 Context details",
+  "context.details.window": "Window: {used} / {limit} ({percent}%)",
+  "context.details.token_breakdown": "Token breakdown of the latest assistant message:",
+  "context.details.input": "Input: {count}",
+  "context.details.output": "Output: {count}",
+  "context.details.reasoning": "Reasoning: {count}",
+  "context.details.cache_read": "Cache read: {count}",
+  "context.details.cache_write": "Cache write: {count}",
+  "context.details.cost": "Cost: {cost}",
   "context.no_active_session": "⚠️ 활성 세션이 없습니다. /new로 세션을 만들어 주세요",
   "context.confirm_text":
-    '📊 세션 "{title}"의 컨텍스트 압축\n\n기록에서 오래된 메시지를 제거하여 컨텍스트 사용량을 줄입니다. 현재 작업은 중단되지 않습니다.\n\n계속하시겠습니까?',
+    '📊 세션 "{title}"의 컨텍스트 압축\n\n기록에서 오래된 메시지를 제거하여 컨텍스트 사용량을 줄입니다.\n\n계속하시겠습니까?',
   "context.callback_compacting": "컨텍스트를 압축하는 중...",
   "context.progress": "⏳ 컨텍스트를 압축하는 중...",
   "context.error": "❌ 컨텍스트 압축에 실패했습니다",
@@ -480,6 +498,7 @@ export const ko: I18nDictionary = {
   "keyboard.variant_default": "💡 기본값",
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added": "📥 대기열에 추가되었습니다 ({count}/{max}). 현재 작업이 끝나면 전송됩니다.",
+  "queue.steer_added": "📥 Added to the current task ({count}/{max}).",
   "queue.full":
     "⚠️ 대기열이 가득 찼습니다 ({max}). 메시지를 삭제하거나 현재 작업이 끝날 때까지 기다려 주세요.",
   "queue.media_limit":
@@ -504,9 +523,12 @@ export const ko: I18nDictionary = {
   "subagent.line.status": "상태: {status}",
   "subagent.line.task": "작업: {task}",
   "subagent.line.agent": "에이전트: {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "작업 중...",
   "subagent.working_with_details": "작업 중: {details}",
   "subagent.completed": "완료됨",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "작업 실패",
   "subagent.status.pending": "대기 중",
   "subagent.status.running": "실행 중",
@@ -539,6 +561,15 @@ export const ko: I18nDictionary = {
     "OpenCode 서버 사용자 이름을 입력하세요 (선택 사항).\nEnter를 누르면 기본값({defaultUsername})이 사용됩니다.\n> ",
   "runtime.wizard.ask_server_password":
     "OpenCode 서버 비밀번호를 입력하세요 (선택 사항).\nEnter를 누르면 비워 둡니다.\n> ",
+  "runtime.wizard.ask_server_version":
+    "Select OpenCode server version:\n1 - OpenCode V1 (1.x, npm package opencode-ai)\n2 - OpenCode V2 (2.x, npm package @opencode/cli)\nPress Enter to use default: {defaultVersion}\n> ",
+  "runtime.wizard.server_version_invalid": "Enter 1 or 2, or press Enter for default.\n",
+  "runtime.wizard.ask_server_password_required":
+    "Enter OpenCode V2 server password (required).\nShow it with: opencode service get password\n> ",
+  "runtime.wizard.server_password_required":
+    "The password is required for OpenCode V2. Please try again.\n",
+  "runtime.wizard.ask_server_password_keep":
+    "Enter OpenCode server password.\nPress Enter to keep the saved password.\n> ",
   "runtime.wizard.api_url_invalid":
     "유효한 URL(http/https)을 입력하거나 Enter를 눌러 기본값을 사용하세요.\n",
   "runtime.wizard.start": "OpenCode Telegram Bot 설정을 시작합니다.\n",

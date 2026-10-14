@@ -31,7 +31,9 @@ import { testModelsCommand } from "../commands/model-test-command.js";
 import { disableCommand, enableCommand } from "../commands/power-command.js";
 import { deleteSessionsCommand } from "../commands/delete-sessions-command.js";
 import { restartCommand } from "../commands/restart-command.js";
+import { reloadCommand } from "../commands/reload-command.js";
 import { BOT_COMMANDS } from "../commands/definitions.js";
+import { isKnownCommand } from "./command-utils.js";
 import { logger } from "../../utils/logger.js";
 import { flushPendingPrompt } from "../handlers/message-merger.js";
 import {
@@ -144,6 +146,9 @@ export function registerCommandRouter(bot: Bot<Context>, deps: CommandRouterDeps
   bot.command("opencode_stop", (ctx) =>
     opencodeStopCommand(ctx, { clearRuntimeState: deps.clearRuntimeState }),
   );
+  if (isKnownCommand("reload")) {
+    bot.command("reload", reloadCommand);
+  }
   bot.command("projects", projectsCommand);
   bot.command("worktree", worktreeCommand);
   bot.command("open", openCommand);

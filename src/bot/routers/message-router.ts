@@ -11,6 +11,8 @@ import {
 import { handleQuestionTextAnswer } from "../callbacks/question-callback-handler.js";
 import { handleRenameTextAnswer } from "../callbacks/rename-callback-handler.js";
 import { handleContextButtonPress } from "../menus/context-control-menu.js";
+import { withdrawInboxPrompt } from "../../app/services/prompt-inbox-service.js";
+import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { showAgentSelectionMenu } from "../menus/agent-selection-menu.js";
 import { showModelSelectionMenu } from "../menus/model-selection-menu.js";
 import { showVariantSelectionMenu } from "../menus/variant-selection-menu.js";
@@ -22,7 +24,6 @@ import {
   VARIANT_BUTTON_TEXT_PATTERN,
 } from "../message-patterns.js";
 import { promptQueue } from "../../app/managers/prompt-queue-manager.js";
-import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { findQueuedPromptByButtonLabel } from "../keyboards/queued-prompt-button.js";
 import { handleDocumentMessage } from "../handlers/document-handler.js";
 import { createMediaGroupAttachmentMiddleware } from "../handlers/media-group-handler.js";
@@ -64,6 +65,19 @@ export function registerMessageRouter(bot: Bot<Context>, deps: MessageRouterDeps
 
     const label = ctx.message?.text;
     const queuedPrompt = label ? findQueuedPromptByButtonLabel(label) : null;
+
+    if (queuedPrompt?.inbox) {
+      const result = await withdrawInboxPrompt(queuedPrompt);
+      const keyboard = keyboardManager.getKeyboard();
+      const replyKey =
+        result === "removed"
+          ? "queue.removed"
+          : result === "gone"
+            ? "queue.not_found"
+            : "bot.prompt_send_error";
+      await ctx.reply(t(replyKey), keyboard ? { reply_markup: keyboard } : {});
+      return;
+    }
 
     if (queuedPrompt) {
       promptQueue.removeById(queuedPrompt.id);

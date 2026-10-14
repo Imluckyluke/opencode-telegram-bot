@@ -120,4 +120,34 @@ describe("questionManager", () => {
     expect(questionManager.getRequestID()).toBeNull();
     expect(questionManager.getCurrentQuestion()).toBeNull();
   });
+
+  it("sends a V2 option value instead of its display line", () => {
+    questionManager.startQuestions(
+      [
+        {
+          question: "Pick one option",
+          header: "valued",
+          options: [
+            { label: "Yes", description: "accept", value: "yes" },
+            { label: "No", description: "decline" },
+          ],
+        },
+      ],
+      "req-value",
+    );
+
+    questionManager.selectOption(0, 0);
+    expect(questionManager.getReplyItems(0)).toEqual(["yes"]);
+
+    questionManager.selectOption(0, 1);
+    expect(questionManager.getReplyItems(0)).toEqual(["* No: decline"]);
+  });
+
+  it("prefers the custom answer for a single-choice question", () => {
+    questionManager.startQuestions([SINGLE_QUESTION], "req-custom");
+    questionManager.selectOption(0, 0);
+    questionManager.setCustomAnswer(0, "my own");
+
+    expect(questionManager.getReplyItems(0)).toEqual(["my own"]);
+  });
 });

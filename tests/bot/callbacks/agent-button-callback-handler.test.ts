@@ -67,14 +67,14 @@ describe("bot/callbacks/agent-button-callback-handler", () => {
     expect(call?.[2]).toBe(DEPS);
   });
 
-  it("reports a failure toast when the prompt is not delivered", async () => {
+  it("reports the failure in chat when the prompt is not delivered", async () => {
     processPromptMock.mockResolvedValueOnce(false);
     const ctx = createCallbackContext("ab:vps");
 
     expect(await handleAgentButtonCallback(ctx, DEPS)).toBe(true);
 
-    expect(ctx.answerCallbackQuery).toHaveBeenCalledWith({
-      text: t("callback.processing_error"),
-    });
+    // The callback is answered once (the checkmark); a second answer would be dropped.
+    expect(ctx.answerCallbackQuery).toHaveBeenCalledOnce();
+    expect(ctx.reply).toHaveBeenCalledWith(t("callback.processing_error"));
   });
 });

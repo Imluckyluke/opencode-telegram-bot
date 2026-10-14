@@ -18,6 +18,7 @@ export const it: I18nDictionary = {
   "cmd.description.mcps": "Server MCP",
   "cmd.description.opencode_start": "Avvia il server OpenCode",
   "cmd.description.opencode_stop": "Ferma il server OpenCode",
+  "cmd.description.reload": "Reload OpenCode configuration",
   "cmd.description.ls": "Elenca il contenuto della directory",
   "cmd.description.help": "Aiuto",
 
@@ -176,6 +177,8 @@ export const it: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "Risposte audio",
   "settings.prompt_queue.label": "Coda messaggi",
+  "settings.prompt_queue.queue": "Queue",
+  "settings.prompt_queue.steer": "Steer",
   "settings.bottom_keyboard.label": "Bottom keyboard",
   "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "On",
@@ -372,6 +375,10 @@ export const it: I18nDictionary = {
   "opencode_stop.success": "✅ Server OpenCode arrestato correttamente",
   "opencode_stop.error":
     "🔴 Si è verificato un errore durante l'arresto del server.\n\nControlla i log dell'applicazione per i dettagli.",
+  "reload.reloading": "🔄 Reloading OpenCode configuration...",
+  "reload.success": "✅ OpenCode configuration reloaded",
+  "reload.failed": "🔴 Failed to reload OpenCode configuration",
+  "reload.failed_with_error": "🔴 Failed to reload OpenCode configuration\n\nError: {error}",
 
   "agent.changed_message": "✅ Agente modificato in: {name}",
   "agent.change_error_callback": "Modifica dell'agente non riuscita",
@@ -419,6 +426,17 @@ export const it: I18nDictionary = {
   "variant.menu.error": "🔴 Recupero dell'elenco delle varianti non riuscito",
 
   "context.button.confirm": "✅ Sì, compatta il contesto",
+  "context.button.details_compact": "📦 Compact context",
+  "context.button.close": "❌ Close",
+  "context.details.title": "📊 Context details",
+  "context.details.window": "Window: {used} / {limit} ({percent}%)",
+  "context.details.token_breakdown": "Token breakdown of the latest assistant message:",
+  "context.details.input": "Input: {count}",
+  "context.details.output": "Output: {count}",
+  "context.details.reasoning": "Reasoning: {count}",
+  "context.details.cache_read": "Cache read: {count}",
+  "context.details.cache_write": "Cache write: {count}",
+  "context.details.cost": "Cost: {cost}",
   "context.no_active_session": "⚠️ Nessuna sessione attiva. Crea una sessione con /new",
   "context.confirm_text":
     "📊 Compattazione del contesto per la sessione \"{title}\"\n\nQuesto ridurrà l'uso del contesto rimuovendo i vecchi messaggi dalla cronologia. L'attività corrente non verrà interrotta.\n\nContinuare?",
@@ -485,6 +503,7 @@ export const it: I18nDictionary = {
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added":
     "📥 Aggiunto alla coda ({count}/{max}). Verrà inviato quando l'attività corrente termina.",
+  "queue.steer_added": "📥 Added to the current task ({count}/{max}).",
   "queue.full":
     "⚠️ La coda è piena ({max}). Rimuovi un messaggio o attendi che l'attività corrente termini.",
   "queue.media_limit":
@@ -509,9 +528,12 @@ export const it: I18nDictionary = {
   "subagent.line.status": "Stato: {status}",
   "subagent.line.task": "Attività: {task}",
   "subagent.line.agent": "Agente: {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "Al lavoro...",
   "subagent.working_with_details": "Al lavoro: {details}",
   "subagent.completed": "Completato",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "Attività non riuscita",
   "subagent.status.pending": "in attesa",
   "subagent.status.running": "in esecuzione",
@@ -545,6 +567,15 @@ export const it: I18nDictionary = {
     "Inserisci il nome utente del server OpenCode (facoltativo).\nPremi Invio per usare l'impostazione predefinita: {defaultUsername}\n> ",
   "runtime.wizard.ask_server_password":
     "Inserisci la password del server OpenCode (facoltativa).\nPremi Invio per lasciarla vuota.\n> ",
+  "runtime.wizard.ask_server_version":
+    "Select OpenCode server version:\n1 - OpenCode V1 (1.x, npm package opencode-ai)\n2 - OpenCode V2 (2.x, npm package @opencode/cli)\nPress Enter to use default: {defaultVersion}\n> ",
+  "runtime.wizard.server_version_invalid": "Enter 1 or 2, or press Enter for default.\n",
+  "runtime.wizard.ask_server_password_required":
+    "Enter OpenCode V2 server password (required).\nShow it with: opencode service get password\n> ",
+  "runtime.wizard.server_password_required":
+    "The password is required for OpenCode V2. Please try again.\n",
+  "runtime.wizard.ask_server_password_keep":
+    "Enter OpenCode server password.\nPress Enter to keep the saved password.\n> ",
   "runtime.wizard.api_url_invalid":
     "Inserisci un URL valido (http/https) o premi Invio per l'impostazione predefinita.\n",
   "runtime.wizard.start": "Configurazione di OpenCode Telegram Bot.\n",

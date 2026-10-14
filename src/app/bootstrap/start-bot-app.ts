@@ -8,6 +8,7 @@ import {
   registerOpenCodeReadyRefreshHandler,
 } from "../../opencode/ready-refresh.js";
 import { flushSettings, getPersistedLocale, loadSettings } from "../stores/settings-store.js";
+import { HealthServer } from "../services/health-server-service.js";
 import { setRuntimeLocale } from "../../i18n/index.js";
 import { scheduledTaskRuntime } from "../services/scheduled-task-runtime-service.js";
 import { LocalCommandRegistry } from "../services/local-command-registry.js";
@@ -214,6 +215,8 @@ export async function startBotApp(): Promise<void> {
   }
   await reconcileStoredModelSelection();
   registerOpenCodeReadyRefreshHandler();
+  const healthServer = new HealthServer();
+  await healthServer.start(config.health.port, version);
   const localCommandRegistry = await LocalCommandRegistry.load({
     directoryPath: runtimePaths.localCommandsDirPath,
     builtInCommands: BUILT_IN_COMMAND_NAMES,
@@ -244,6 +247,7 @@ export async function startBotApp(): Promise<void> {
     cleanupBotRuntime(`app_shutdown_${signal.toLowerCase()}`);
     opencodeAutoRestartService.stop();
     scheduledTaskRuntime.shutdown();
+    void healthServer.stop();
 
     shutdownTimeout = setTimeout(() => {
       logger.warn(`[App] Shutdown did not finish in ${SHUTDOWN_TIMEOUT_MS}ms, forcing exit.`);
@@ -337,6 +341,7 @@ export async function startBotApp(): Promise<void> {
     cleanupBotRuntime("app_shutdown_complete");
     opencodeAutoRestartService.stop();
     scheduledTaskRuntime.shutdown();
+    await healthServer.stop();
     await clearManagedServiceState().catch((error) => {
       logger.warn("[App] Failed to clear managed service state", error);
     });

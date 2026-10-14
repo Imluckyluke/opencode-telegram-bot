@@ -16,6 +16,7 @@ import { getStoredModel } from "../../app/services/model-selection-service.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
+import { formatSessionTitle } from "../../app/formatters/session-title-formatter.js";
 import { cancelMenu } from "./feedback.js";
 import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
 import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
@@ -234,7 +235,7 @@ async function ensureSessionForProject(
 
   setCurrentSession(sessionInfo);
   await ingestSessionInfoForCache(session);
-  await ctx.reply(t("bot.session_created", { title: session.title }));
+  await ctx.reply(t("bot.session_created", { title: formatSessionTitle(session.title) }));
 
   return sessionInfo;
 }

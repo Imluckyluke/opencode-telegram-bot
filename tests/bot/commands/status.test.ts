@@ -9,6 +9,7 @@ const botVersion = (JSON.parse(readFileSync("package.json", "utf-8")) as { versi
 const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
   getCurrentSessionMock: vi.fn(),
+  fetchSessionTitleMock: vi.fn(),
   getCurrentProjectMock: vi.fn(),
   fetchCurrentAgentMock: vi.fn(),
   fetchCurrentModelMock: vi.fn(),
@@ -47,6 +48,7 @@ vi.mock("../../../src/opencode/client.js", () => ({
 
 vi.mock("../../../src/app/services/session-service.js", () => ({
   getCurrentSession: mocked.getCurrentSessionMock,
+  fetchSessionTitle: mocked.fetchSessionTitleMock,
 }));
 
 vi.mock("../../../src/app/stores/settings-store.js", () => ({
@@ -91,6 +93,7 @@ describe("bot/commands/status-command", () => {
   beforeEach(() => {
     mocked.healthMock.mockReset();
     mocked.getCurrentSessionMock.mockReset();
+    mocked.fetchSessionTitleMock.mockReset();
     mocked.getCurrentProjectMock.mockReset();
     mocked.fetchCurrentAgentMock.mockReset();
     mocked.fetchCurrentModelMock.mockReset();
@@ -111,6 +114,7 @@ describe("bot/commands/status-command", () => {
 
     mocked.healthMock.mockResolvedValue({ data: { healthy: true, version: "1.0.0" }, error: null });
     mocked.getCurrentSessionMock.mockReturnValue({ id: "s1", title: "S", directory: "/repo" });
+    mocked.fetchSessionTitleMock.mockResolvedValue("S");
     mocked.getCurrentProjectMock.mockReturnValue({ id: "p1", worktree: "/repo", name: "Repo" });
     mocked.fetchCurrentAgentMock.mockResolvedValue("build");
     mocked.fetchCurrentModelMock.mockReturnValue({ providerID: "openai", modelID: "gpt-5" });
@@ -282,5 +286,43 @@ describe("bot/commands/status-command", () => {
     const message = mocked.sendBotTextMock.mock.calls[0]?.[0]?.text as string;
     expect(message).toContain("Model: 🧠 openai/gpt-5");
     expect(message).not.toContain("gpt-5 (");
+  });
+
+  it("names the current session with the title OpenCode has for it now", async () => {
+    mocked.getCurrentSessionMock.mockReturnValue({ id: "s1", title: "", directory: "/repo" });
+    mocked.fetchSessionTitleMock.mockResolvedValue("Greeting message");
+
+    const ctx = {
+      chat: { id: 42, type: "private" },
+      message: { text: "/status" },
+      api: {},
+      reply: vi.fn(),
+    } as unknown as Context;
+
+    await statusCommand(ctx as never);
+
+    expect(mocked.fetchSessionTitleMock).toHaveBeenCalledWith({
+      id: "s1",
+      title: "",
+      directory: "/repo",
+    });
+    const message = mocked.sendBotTextMock.mock.calls[0]?.[0]?.text as string;
+    expect(message).toContain("Current session: Greeting message");
+  });
+
+  it("shows a session OpenCode has not named yet as a new session", async () => {
+    mocked.fetchSessionTitleMock.mockResolvedValue("");
+
+    const ctx = {
+      chat: { id: 42, type: "private" },
+      message: { text: "/status" },
+      api: {},
+      reply: vi.fn(),
+    } as unknown as Context;
+
+    await statusCommand(ctx as never);
+
+    const message = mocked.sendBotTextMock.mock.calls[0]?.[0]?.text as string;
+    expect(message).toContain("Current session: new session");
   });
 });

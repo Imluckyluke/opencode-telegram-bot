@@ -164,7 +164,7 @@ function emitPermissionAsked(
 
 function emitBashTool(
   summaryAggregator: { processEvent(event: Event): void },
-  status: "running" | "completed" | "error",
+  status: "pending" | "running" | "completed" | "error",
   options: { callId?: string; command?: string } = {},
 ): void {
   const callId = options.callId ?? "call-bash";
@@ -178,13 +178,17 @@ function emitBashTool(
         type: "tool",
         callID: callId,
         tool: "bash",
-        state: {
-          status,
-          input: { command: options.command ?? "npm test" },
-          metadata: {},
-          ...(status === "completed" ? { output: "ok" } : {}),
-          ...(status === "error" ? { error: "command failed" } : {}),
-        },
+        // A pending call is still being composed: OpenCode has no arguments for it yet.
+        state:
+          status === "pending"
+            ? { status, input: {}, raw: "" }
+            : {
+                status,
+                input: { command: options.command ?? "npm test" },
+                metadata: {},
+                ...(status === "completed" ? { output: "ok" } : {}),
+                ...(status === "error" ? { error: "command failed" } : {}),
+              },
       },
     },
   } as unknown as Event);
@@ -307,6 +311,29 @@ function emitSubagentStart(
         projectID: "p1",
         version: "1",
         time: { created: Date.now(), updated: Date.now() },
+      },
+    },
+  } as unknown as Event);
+
+  emitSubagentModel(summaryAggregator, suffix);
+}
+
+/** The child's first assistant message: it brings the model the full card waits for. */
+function emitSubagentModel(
+  summaryAggregator: { processEvent(event: Event): void },
+  suffix = "1",
+): void {
+  summaryAggregator.processEvent({
+    type: "message.updated",
+    properties: {
+      info: {
+        id: `child-message-${suffix}`,
+        sessionID: `child-session-${suffix}`,
+        role: "assistant",
+        providerID: "openai",
+        modelID: "gpt-5.4",
+        agent: "explore",
+        time: { created: Date.now() },
       },
     },
   } as unknown as Event);
@@ -906,6 +933,46 @@ describe("bot/services/event-subscription-service", () => {
       expect(cardMessages.every((text) => !(text.includes("inspect task 1") && text.includes("inspect task 2")))).toBe(
         true,
       );
+    });
+
+    it("sends a starting line until the model is known, then edits it into the full card", async () => {
+      const { api, summaryAggregator } = await setupService(false);
+      let nextMessageId = 500;
+      api.sendMessage.mockImplementation(async () => ({ message_id: nextMessageId++ }));
+
+      useTrackerFakeTimers();
+      summaryAggregator.processEvent({
+        type: "session.created",
+        properties: {
+          info: {
+            id: "child-session-1",
+            parentID: "session-1",
+            title: "inspect task 1 (@explore subagent)",
+            slug: "child-1",
+            directory: "D:/repo",
+            projectID: "p1",
+            version: "1",
+            time: { created: Date.now(), updated: Date.now() },
+          },
+        },
+      } as unknown as Event);
+      await flushPendingDispatch();
+
+      const cardSends = api.sendMessage.mock.calls.filter((call) => String(call[1]).includes("🧩"));
+      expect(cardSends.map((call) => String(call[1]))).toEqual(["🧩 Starting task: inspect task 1"]);
+
+      emitSubagentModel(summaryAggregator);
+      await flushPendingDispatch();
+
+      const cardMessageId = (await api.sendMessage.mock.results[
+        api.sendMessage.mock.calls.indexOf(cardSends[0]!)
+      ]?.value)?.message_id;
+      const cardEdits = api.editMessageText.mock.calls.filter((call) => call[1] === cardMessageId);
+      expect(api.sendMessage.mock.calls.filter((call) => String(call[1]).includes("🧩"))).toHaveLength(1);
+      expect(String(cardEdits.at(-1)?.[2])).toBe(
+        "🧩 Task: inspect task 1\nAgent: explore\nModel: openai/gpt-5.4\n\n⚙️ Working...",
+      );
+      expect(collectSentTexts(api).some((text) => text.includes("Unknown"))).toBe(false);
     });
   });
 

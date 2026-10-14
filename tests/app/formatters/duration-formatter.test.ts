@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendDurationToFirstLine,
   bucketElapsedMs,
   formatDuration,
   formatDurationOverHours,
@@ -10,6 +11,11 @@ const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 
 describe("app/formatters/duration-formatter", () => {
+  it("puts the duration on the first line of a message that lists several", () => {
+    expect(appendDurationToFirstLine("one", "21s")).toBe("one · 🕒 21s");
+    expect(appendDurationToFirstLine("one\ntwo", "21s")).toBe("one · 🕒 21s\ntwo");
+  });
+
   describe("formatDuration", () => {
     it("renders sub-minute durations as seconds", () => {
       expect(formatDuration(20 * SECOND)).toBe("20s");

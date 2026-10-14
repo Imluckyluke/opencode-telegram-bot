@@ -25,6 +25,16 @@ export function appendDuration(text: string, elapsed: string): string {
   return `${text} · ${DURATION_ICON} ${elapsed}`;
 }
 
+/** Same as appendDuration, on the first line of a message that lists several. */
+export function appendDurationToFirstLine(text: string, elapsed: string): string {
+  const lineEnd = text.indexOf("\n");
+  if (lineEnd < 0) {
+    return appendDuration(text, elapsed);
+  }
+
+  return `${appendDuration(text.slice(0, lineEnd), elapsed)}${text.slice(lineEnd)}`;
+}
+
 function floorTo(value: number, step: number): number {
   return Math.floor(value / step) * step;
 }

@@ -1,9 +1,11 @@
 import type { Bot, Context } from "grammy";
 import { createIncomingPrompt } from "../../app/types/prompt.js";
+import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 import { processUserPrompt } from "../handlers/prompt.js";
 import { parseAgentButtonCallback, resolveAgentButtonValue } from "../inline/agent-buttons.js";
-import { alert, failure } from "./feedback.js";
+import { truncateTextSafe } from "../render/text-splitter.js";
+import { alert } from "./feedback.js";
 
 interface AgentButtonCallbackDeps {
   bot: Bot<Context>;
@@ -31,7 +33,7 @@ export async function handleAgentButtonCallback(
     return true;
   }
 
-  await ctx.answerCallbackQuery({ text: `✓ ${value}`.slice(0, 200) }).catch(() => {});
+  await ctx.answerCallbackQuery({ text: truncateTextSafe(`✓ ${value}`, 200) }).catch(() => {});
 
   let delivered = false;
   try {
@@ -40,7 +42,11 @@ export async function handleAgentButtonCallback(
     logger.warn("[Bot] Agent button prompt failed:", err);
   }
   if (!delivered) {
-    await failure(ctx, "callback.processing_error");
+    // The callback was already answered with the checkmark toast above, so a
+    // second answerCallbackQuery would be silently dropped. Tell the user in chat.
+    await ctx.reply(t("callback.processing_error")).catch((err) => {
+      logger.warn("[Bot] Failed to report agent button failure:", err);
+    });
   }
   return true;
 }

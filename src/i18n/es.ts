@@ -18,6 +18,7 @@ export const es: I18nDictionary = {
   "cmd.description.mcps": "MCP servers",
   "cmd.description.opencode_start": "Iniciar servidor OpenCode",
   "cmd.description.opencode_stop": "Detener servidor OpenCode",
+  "cmd.description.reload": "Reload OpenCode configuration",
   "cmd.description.ls": "Listar contenidos del directorio",
   "cmd.description.help": "Ayuda",
 
@@ -176,6 +177,8 @@ export const es: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "Respuestas de audio",
   "settings.prompt_queue.label": "Cola de mensajes",
+  "settings.prompt_queue.queue": "Queue",
+  "settings.prompt_queue.steer": "Steer",
   "settings.bottom_keyboard.label": "Bottom keyboard",
   "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "Activado",
@@ -372,6 +375,10 @@ export const es: I18nDictionary = {
   "opencode_stop.success": "✅ OpenCode Server detenido correctamente",
   "opencode_stop.error":
     "🔴 Ocurrió un error al detener el servidor.\n\nRevisa los logs de la aplicación para más detalles.",
+  "reload.reloading": "🔄 Reloading OpenCode configuration...",
+  "reload.success": "✅ OpenCode configuration reloaded",
+  "reload.failed": "🔴 Failed to reload OpenCode configuration",
+  "reload.failed_with_error": "🔴 Failed to reload OpenCode configuration\n\nError: {error}",
 
   "agent.changed_message": "✅ Agente cambiado a: {name}",
   "agent.change_error_callback": "No se pudo cambiar el agente",
@@ -419,9 +426,20 @@ export const es: I18nDictionary = {
   "variant.menu.error": "🔴 No se pudo obtener la lista de variantes",
 
   "context.button.confirm": "✅ Sí, compactar contexto",
+  "context.button.details_compact": "📦 Compact context",
+  "context.button.close": "❌ Close",
+  "context.details.title": "📊 Context details",
+  "context.details.window": "Window: {used} / {limit} ({percent}%)",
+  "context.details.token_breakdown": "Token breakdown of the latest assistant message:",
+  "context.details.input": "Input: {count}",
+  "context.details.output": "Output: {count}",
+  "context.details.reasoning": "Reasoning: {count}",
+  "context.details.cache_read": "Cache read: {count}",
+  "context.details.cache_write": "Cache write: {count}",
+  "context.details.cost": "Cost: {cost}",
   "context.no_active_session": "⚠️ No hay una sesión activa. Crea una sesión con /new",
   "context.confirm_text":
-    '📊 Compactación de contexto para la sesión "{title}"\n\nEsto reducirá el uso de contexto eliminando mensajes antiguos del historial. La tarea actual no se interrumpirá.\n\n¿Continuar?',
+    '📊 Compactación de contexto para la sesión "{title}"\n\nEsto reducirá el uso de contexto eliminando mensajes antiguos del historial.\n\n¿Continuar?',
   "context.callback_compacting": "Compactando contexto...",
   "context.progress": "⏳ Compactando contexto...",
   "context.error": "❌ La compactación de contexto falló",
@@ -484,6 +502,7 @@ export const es: I18nDictionary = {
   "keyboard.variant_default": "💡 Predeterminado",
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added": "📥 Añadido a la cola ({count}/{max}). Se enviará cuando termine la tarea actual.",
+  "queue.steer_added": "📥 Added to the current task ({count}/{max}).",
   "queue.media_limit":
     "⚠️ Los archivos multimedia en cola están limitados a {maxSizeMb} MiB. Espera a que se envíe un elemento.",
   "queue.full":
@@ -508,9 +527,12 @@ export const es: I18nDictionary = {
   "subagent.line.status": "Estado: {status}",
   "subagent.line.task": "Tarea: {task}",
   "subagent.line.agent": "Agente: {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "Trabajando...",
   "subagent.working_with_details": "Trabajando: {details}",
   "subagent.completed": "Completada",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "Error de tarea",
   "subagent.status.pending": "pendiente",
   "subagent.status.running": "en ejecucion",
@@ -544,6 +566,15 @@ export const es: I18nDictionary = {
     "Introduce el nombre de usuario del servidor OpenCode (opcional).\nPulsa Enter para usar el valor por defecto: {defaultUsername}\n> ",
   "runtime.wizard.ask_server_password":
     "Introduce la contrasena del servidor OpenCode (opcional).\nPulsa Enter para dejarla vacia.\n> ",
+  "runtime.wizard.ask_server_version":
+    "Select OpenCode server version:\n1 - OpenCode V1 (1.x, npm package opencode-ai)\n2 - OpenCode V2 (2.x, npm package @opencode/cli)\nPress Enter to use default: {defaultVersion}\n> ",
+  "runtime.wizard.server_version_invalid": "Enter 1 or 2, or press Enter for default.\n",
+  "runtime.wizard.ask_server_password_required":
+    "Enter OpenCode V2 server password (required).\nShow it with: opencode service get password\n> ",
+  "runtime.wizard.server_password_required":
+    "The password is required for OpenCode V2. Please try again.\n",
+  "runtime.wizard.ask_server_password_keep":
+    "Enter OpenCode server password.\nPress Enter to keep the saved password.\n> ",
   "runtime.wizard.api_url_invalid":
     "Introduce una URL válida (http/https) o pulsa Enter para usar el valor por defecto.\n",
   "runtime.wizard.start": "Configuración de OpenCode Telegram Bot.\n",

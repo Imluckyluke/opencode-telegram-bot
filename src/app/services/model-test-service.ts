@@ -134,8 +134,8 @@ export async function probeModel(
 
     const deadline = Date.now() + timeoutMs;
     for (;;) {
-      await sleep(MODEL_PROBE_POLL_MS);
-      const snapshot = await readProbeSnapshot(session.id, directory, startedAt).catch(
+      await sleep(Math.max(0, Math.min(MODEL_PROBE_POLL_MS, deadline - Date.now())));
+      const snapshot = await readProbeSnapshot(session.id, directory).catch(
         () => null,
       );
       if (snapshot?.completed) {
@@ -146,7 +146,7 @@ export async function probeModel(
           snippet: snapshot.text.slice(0, 120),
         };
       }
-      if (Date.now() > deadline) {
+      if (Date.now() >= deadline) {
         return { ...target, ok: false, error: "timeout waiting for reply" };
       }
     }
@@ -158,7 +158,6 @@ export async function probeModel(
 async function readProbeSnapshot(
   sessionId: string,
   directory: string,
-  since: number,
 ): Promise<{ text: string; completed: boolean } | null> {
   const { data, error } = await opencodeClient.session.messages({
     sessionID: sessionId,
@@ -172,10 +171,11 @@ async function readProbeSnapshot(
     if (message.info.role !== "assistant" || message.info.summary) {
       continue;
     }
+    // The probe session is brand new, so every assistant message belongs to
+    // this probe. Do not compare server timestamps against the local clock:
+    // clock skew (or the server stamping before our Date.now()) would hide
+    // a completed reply and turn every probe into a timeout.
     const created = message.info.time?.created ?? 0;
-    if (created < since) {
-      continue;
-    }
     const text = message.parts
       .filter((part) => part.type === "text" && typeof part.text === "string")
       .map((part) => part.text as string)

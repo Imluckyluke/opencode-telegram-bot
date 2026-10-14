@@ -382,6 +382,11 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     return `${RUNNING_ICON}${callId}`;
   }
 
+  /** Still being composed: OpenCode has not sent the call's arguments yet, so it is not shown. */
+  private isComposingTool(toolInfo: ToolInfo): boolean {
+    return "status" in toolInfo.state && toolInfo.state.status === "pending";
+  }
+
   private handleRunningToolTick(tick: RunningToolTick): void {
     const currentSession = getCurrentSession();
     if (!currentSession || currentSession.id !== tick.sessionId) {
@@ -406,7 +411,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
     }
 
     const toolInfo = this.runningToolInfos.get(this.getToolCacheKey(tick.sessionId, tick.callId));
-    if (!toolInfo) {
+    if (!toolInfo || this.isComposingTool(toolInfo)) {
       return;
     }
 
@@ -1218,7 +1223,9 @@ class EventSubscriptionService implements BotEventSubscriptionService {
       }
       await this.sessionCompletionTasks.get(sessionId)?.catch(() => undefined);
 
-      const completedRun = assistantRunState.finishRun(sessionId, "session_idle");
+      const completedRun = assistantRunState.isResponseCompleted(sessionId)
+        ? assistantRunState.finishRun(sessionId, "session_idle")
+        : null;
       clearPromptResponseMode(sessionId);
 
       if (!this.botInstance || !this.chatIdInstance) {
@@ -1761,7 +1768,7 @@ class EventSubscriptionService implements BotEventSubscriptionService {
   ): { callId: string; activity: string } | null {
     for (const callId of this.runningToolTracker.trackedCallIds(sessionId)) {
       const info = this.runningToolInfos.get(this.getToolCacheKey(sessionId, callId));
-      const activity = info ? this.getCompactToolActivity(info) : null;
+      const activity = info && !this.isComposingTool(info) ? this.getCompactToolActivity(info) : null;
       if (activity) {
         return { callId, activity };
       }

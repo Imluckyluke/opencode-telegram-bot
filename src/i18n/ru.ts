@@ -18,6 +18,7 @@ export const ru: I18nDictionary = {
   "cmd.description.mcps": "MCP серверы",
   "cmd.description.opencode_start": "Запустить OpenCode сервер",
   "cmd.description.opencode_stop": "Остановить OpenCode сервер",
+  "cmd.description.reload": "Перезагрузить конфигурацию OpenCode",
   "cmd.description.ls": "Список содержимого каталога",
   "cmd.description.help": "Справка",
 
@@ -167,6 +168,8 @@ export const ru: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Закреплять дашборд сессии",
   "settings.tts.label": "Аудиоответы",
   "settings.prompt_queue.label": "Очередь сообщений",
+  "settings.prompt_queue.queue": "Queue",
+  "settings.prompt_queue.steer": "Steer",
   "settings.bottom_keyboard.label": "Bottom keyboard",
   "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "Вкл",
@@ -360,6 +363,10 @@ export const ru: I18nDictionary = {
   "opencode_stop.success": "✅ OpenCode Server успешно остановлен",
   "opencode_stop.error":
     "🔴 Произошла ошибка при остановке сервера.\n\nПроверьте логи приложения для подробностей.",
+  "reload.reloading": "🔄 Перезагружаю конфигурацию OpenCode...",
+  "reload.success": "✅ Конфигурация OpenCode перезагружена",
+  "reload.failed": "🔴 Не удалось перезагрузить конфигурацию OpenCode",
+  "reload.failed_with_error": "🔴 Не удалось перезагрузить конфигурацию OpenCode\n\nОшибка: {error}",
 
   "agent.changed_message": "✅ Агент изменен на: {name}",
   "agent.change_error_callback": "Ошибка при смене агента",
@@ -407,9 +414,20 @@ export const ru: I18nDictionary = {
   "variant.menu.error": "🔴 Не удалось получить список вариантов",
 
   "context.button.confirm": "✅ Да, сжать контекст",
+  "context.button.details_compact": "📦 Сжать контекст",
+  "context.button.close": "❌ Закрыть",
+  "context.details.title": "📊 Детали контекста",
+  "context.details.window": "Окно: {used} / {limit} ({percent}%)",
+  "context.details.token_breakdown": "Токены последнего сообщения ассистента:",
+  "context.details.input": "Вход: {count}",
+  "context.details.output": "Выход: {count}",
+  "context.details.reasoning": "Рассуждения: {count}",
+  "context.details.cache_read": "Чтение кэша: {count}",
+  "context.details.cache_write": "Запись в кэш: {count}",
+  "context.details.cost": "Стоимость: {cost}",
   "context.no_active_session": "⚠️ Нет активной сессии. Создайте сессию командой /new",
   "context.confirm_text":
-    '📊 Сжатие контекста для сессии "{title}"\n\nЭто уменьшит использование контекста, удалив старые сообщения из истории. Текущая задача не будет прервана.\n\nПродолжить?',
+    '📊 Сжатие контекста для сессии "{title}"\n\nЭто уменьшит использование контекста, удалив старые сообщения из истории.\n\nПродолжить?',
   "context.callback_compacting": "Сжатие контекста...",
   "context.progress": "⏳ Сжимаю контекст...",
   "context.error": "❌ Ошибка при сжатии контекста",
@@ -472,6 +490,7 @@ export const ru: I18nDictionary = {
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added":
     "📥 Добавлено в очередь ({count}/{max}). Сообщение уйдёт после завершения текущей задачи.",
+  "queue.steer_added": "📥 Added to the current task ({count}/{max}).",
   "queue.full":
     "⚠️ Очередь заполнена ({max}). Удалите сообщение или дождитесь завершения текущей задачи.",
   "queue.media_limit":
@@ -496,9 +515,12 @@ export const ru: I18nDictionary = {
   "subagent.line.status": "Статус: {status}",
   "subagent.line.task": "Задача: {task}",
   "subagent.line.agent": "Агент: {agent}",
+  "subagent.starting": "Запуск задачи: {task}",
+  "subagent.starting_untitled": "Запуск задачи...",
   "subagent.working": "В работе...",
   "subagent.working_with_details": "В работе: {details}",
   "subagent.completed": "Завершена",
+  "subagent.interrupted": "Прервана",
   "subagent.failed": "Ошибка задачи",
   "subagent.status.pending": "ожидание",
   "subagent.status.running": "в работе",
@@ -531,6 +553,16 @@ export const ru: I18nDictionary = {
     "Введите логин OpenCode сервера (опционально).\nНажмите Enter для значения по умолчанию: {defaultUsername}\n> ",
   "runtime.wizard.ask_server_password":
     "Введите пароль OpenCode сервера (опционально).\nНажмите Enter, чтобы оставить пустым.\n> ",
+  "runtime.wizard.ask_server_version":
+    "Выберите версию сервера OpenCode:\n1 - OpenCode V1 (1.x, npm-пакет opencode-ai)\n2 - OpenCode V2 (2.x, npm-пакет @opencode/cli)\nНажмите Enter, чтобы использовать значение по умолчанию: {defaultVersion}\n> ",
+  "runtime.wizard.server_version_invalid":
+    "Введите 1 или 2 либо нажмите Enter для значения по умолчанию.\n",
+  "runtime.wizard.ask_server_password_required":
+    "Введите пароль сервера OpenCode V2 (обязательно).\nПоказать его: opencode service get password\n> ",
+  "runtime.wizard.server_password_required":
+    "Для OpenCode V2 пароль обязателен. Попробуйте ещё раз.\n",
+  "runtime.wizard.ask_server_password_keep":
+    "Введите пароль сервера OpenCode.\nНажмите Enter, чтобы оставить сохранённый пароль.\n> ",
   "runtime.wizard.api_url_invalid":
     "Введите корректный URL (http/https) или нажмите Enter для значения по умолчанию.\n",
   "runtime.wizard.start": "Настройка OpenCode Telegram Bot.\n",

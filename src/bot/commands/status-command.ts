@@ -1,7 +1,8 @@
 import { CommandContext, Context } from "grammy";
 import { opencodeClient } from "../../opencode/client.js";
 import { getGitWorktreeContext } from "../../app/services/worktree-service.js";
-import { getCurrentSession } from "../../app/services/session-service.js";
+import { fetchSessionTitle, getCurrentSession } from "../../app/services/session-service.js";
+import { formatSessionTitle } from "../../app/formatters/session-title-formatter.js";
 import { getCurrentProject } from "../../app/stores/settings-store.js";
 import { fetchCurrentAgent } from "../../app/services/agent-selection-service.js";
 import { fetchCurrentModel } from "../../app/services/model-selection-service.js";
@@ -76,7 +77,8 @@ export async function statusCommand(ctx: CommandContext<Context>) {
 
     const currentSession = getCurrentSession();
     if (currentSession) {
-      message += `\n${t("status.session_selected", { title: currentSession.title })}\n`;
+      const title = formatSessionTitle(await fetchSessionTitle(currentSession));
+      message += `\n${t("status.session_selected", { title })}\n`;
     } else {
       message += `\n${t("status.session_not_selected")}\n`;
       message += t("status.session_hint");

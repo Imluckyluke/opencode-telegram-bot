@@ -18,6 +18,7 @@ export const tr: I18nDictionary = {
   "cmd.description.mcps": "MCP sunucuları",
   "cmd.description.opencode_start": "OpenCode sunucusunu başlat",
   "cmd.description.opencode_stop": "OpenCode sunucusunu durdur",
+  "cmd.description.reload": "Reload OpenCode configuration",
   "cmd.description.ls": "Dizin içeriğini listele",
   "cmd.description.help": "Yardım",
 
@@ -171,6 +172,8 @@ export const tr: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Oturum panosunu sabitle",
   "settings.tts.label": "Sesli yanıtlar",
   "settings.prompt_queue.label": "Mesaj kuyruğu",
+  "settings.prompt_queue.queue": "Queue",
+  "settings.prompt_queue.steer": "Steer",
   "settings.bottom_keyboard.label": "Bottom keyboard",
   "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "Açık",
@@ -357,6 +360,10 @@ export const tr: I18nDictionary = {
   "opencode_stop.success": "✅ OpenCode Sunucusu başarıyla durduruldu",
   "opencode_stop.error":
     "🔴 Sunucu durdurulurken bir hata oluştu.\n\nAyrıntılar için uygulama günlüklerini kontrol edin.",
+  "reload.reloading": "🔄 Reloading OpenCode configuration...",
+  "reload.success": "✅ OpenCode configuration reloaded",
+  "reload.failed": "🔴 Failed to reload OpenCode configuration",
+  "reload.failed_with_error": "🔴 Failed to reload OpenCode configuration\n\nError: {error}",
 
   "agent.changed_message": "✅ Ajan değiştirildi: {name}",
   "agent.change_error_callback": "Ajan değiştirilemedi",
@@ -404,9 +411,20 @@ export const tr: I18nDictionary = {
   "variant.menu.error": "🔴 Varyant listesi alınamadı",
 
   "context.button.confirm": "✅ Evet, bağlamı sıkıştır",
+  "context.button.details_compact": "📦 Compact context",
+  "context.button.close": "❌ Close",
+  "context.details.title": "📊 Context details",
+  "context.details.window": "Window: {used} / {limit} ({percent}%)",
+  "context.details.token_breakdown": "Token breakdown of the latest assistant message:",
+  "context.details.input": "Input: {count}",
+  "context.details.output": "Output: {count}",
+  "context.details.reasoning": "Reasoning: {count}",
+  "context.details.cache_read": "Cache read: {count}",
+  "context.details.cache_write": "Cache write: {count}",
+  "context.details.cost": "Cost: {cost}",
   "context.no_active_session": "⚠️ Etkin oturum yok. /new ile bir oturum oluşturun",
   "context.confirm_text":
-    '📊 "{title}" oturumu için bağlam sıkıştırma\n\nBu işlem, geçmişteki eski mesajları kaldırarak bağlam kullanımını azaltır. Geçerli görev kesilmeyecek.\n\nDevam edilsin mi?',
+    '📊 "{title}" oturumu için bağlam sıkıştırma\n\nBu işlem, geçmişteki eski mesajları kaldırarak bağlam kullanımını azaltır.\n\nDevam edilsin mi?',
   "context.callback_compacting": "Bağlam sıkıştırılıyor...",
   "context.progress": "⏳ Bağlam sıkıştırılıyor...",
   "context.error": "❌ Bağlam sıkıştırma başarısız oldu",
@@ -468,6 +486,7 @@ export const tr: I18nDictionary = {
   "keyboard.variant_default": "💡 Varsayılan",
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added": "📥 Kuyruğa eklendi ({count}/{max}). Geçerli görev bittiğinde gönderilecek.",
+  "queue.steer_added": "📥 Added to the current task ({count}/{max}).",
   "queue.full":
     "⚠️ Kuyruk dolu ({max}). Bir mesajı kaldırın veya geçerli görevin bitmesini bekleyin.",
   "queue.media_limit":
@@ -492,9 +511,12 @@ export const tr: I18nDictionary = {
   "subagent.line.status": "Durum: {status}",
   "subagent.line.task": "Görev: {task}",
   "subagent.line.agent": "Ajan: {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "Çalışıyor...",
   "subagent.working_with_details": "Çalışıyor: {details}",
   "subagent.completed": "Tamamlandı",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "Görev başarısız oldu",
   "subagent.status.pending": "bekliyor",
   "subagent.status.running": "çalışıyor",
@@ -528,6 +550,15 @@ export const tr: I18nDictionary = {
     "OpenCode sunucu kullanıcı adını girin (isteğe bağlı).\nVarsayılanı kullanmak için Enter'a basın: {defaultUsername}\n> ",
   "runtime.wizard.ask_server_password":
     "OpenCode sunucu parolasını girin (isteğe bağlı).\nBoş bırakmak için Enter'a basın.\n> ",
+  "runtime.wizard.ask_server_version":
+    "Select OpenCode server version:\n1 - OpenCode V1 (1.x, npm package opencode-ai)\n2 - OpenCode V2 (2.x, npm package @opencode/cli)\nPress Enter to use default: {defaultVersion}\n> ",
+  "runtime.wizard.server_version_invalid": "Enter 1 or 2, or press Enter for default.\n",
+  "runtime.wizard.ask_server_password_required":
+    "Enter OpenCode V2 server password (required).\nShow it with: opencode service get password\n> ",
+  "runtime.wizard.server_password_required":
+    "The password is required for OpenCode V2. Please try again.\n",
+  "runtime.wizard.ask_server_password_keep":
+    "Enter OpenCode server password.\nPress Enter to keep the saved password.\n> ",
   "runtime.wizard.api_url_invalid":
     "Geçerli bir URL (http/https) girin veya varsayılan için Enter'a basın.\n",
   "runtime.wizard.start": "OpenCode Telegram Bot kurulumu.\n",

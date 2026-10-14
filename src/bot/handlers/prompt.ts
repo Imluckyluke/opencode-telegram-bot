@@ -1,7 +1,8 @@
 import { Bot, Context } from "grammy";
 import type { FilePartInput, TextPartInput } from "@opencode-ai/sdk/v2";
 import type { Model } from "@opencode-ai/sdk/v2";
-import { opencodeClient } from "../../opencode/client.js";
+import { opencodeClient, opencodeV2Client } from "../../opencode/client.js";
+import type { V2InboxDelivery } from "../../opencode/v2/client.js";
 import {
   clearSession,
   getCurrentSession,
@@ -23,6 +24,7 @@ import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { formatErrorDetails } from "../../utils/error-format.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
+import { formatSessionTitle } from "../../app/formatters/session-title-formatter.js";
 import { foregroundSessionState } from "../../app/managers/foreground-session-state-manager.js";
 import { assistantRunState } from "../../app/managers/assistant-run-state-manager.js";
 import { attachManager } from "../../app/managers/attach-manager.js";
@@ -44,6 +46,7 @@ import {
   supportsInput,
 } from "../../app/services/model-capabilities-service.js";
 import type { IncomingPrompt } from "../../app/types/prompt.js";
+import type { ModelInfo } from "../../app/types/model.js";
 import { withAgentContext } from "../../app/services/agent-context-service.js";
 import { isAllowedTelegramUser } from "../../config.js";
 import { dispatchNextQueuedPrompt } from "./prompt-queue-dispatch.js";
@@ -238,6 +241,206 @@ async function retireAttachmentConfirmation(
  * @param deps - Dependencies (bot and event subscription)
  * @returns true if the prompt was dispatched, false if it was blocked/failed early.
  */
+interface PreparedPromptRequest {
+  promptOptions: {
+    sessionID: string;
+    directory: string;
+    parts: Array<TextPartInput | FilePartInput>;
+    model?: { providerID: string; modelID: string };
+    agent?: string;
+    variant?: string;
+  };
+  currentAgent: string;
+  storedModel: ModelInfo;
+  sentText: string | null;
+  filePartCount: number;
+  promptErrorLogContext: {
+    sessionId: string;
+    directory: string;
+    agent: string;
+    modelProvider: string;
+    modelId: string;
+    variant: string;
+    promptLength: number;
+    fileCount: number;
+  };
+}
+
+/**
+ * Prepares the prompt options for a prompt in an existing session: photo
+ * preparation, parts building and the /ls attachment. Returns null when the
+ * prompt cannot be prepared; the user has been told why.
+ */
+async function preparePromptRequest(
+  ctx: Context,
+  input: IncomingPrompt,
+  deps: ProcessPromptDeps,
+  currentSession: { id: string; directory: string; title: string },
+): Promise<PreparedPromptRequest | null> {
+  const currentAgent = await resolveProjectAgent(getStoredAgent());
+  const storedModel = (deps.getStoredModel ?? getStoredModel)();
+  const preparedInput = await prepareTelegramPhotos(ctx, input, deps, storedModel);
+  if (!preparedInput) {
+    return null;
+  }
+
+  // Build parts array with text and files
+  const parts: Array<TextPartInput | FilePartInput> = [];
+  // The exact text sent to OpenCode (including the agent context note) is what
+  // echoes back over SSE, so suppression must be registered with it, not the raw input.
+  let sentText: string | null = null;
+
+  // Add text part if present
+  if (preparedInput.text.trim().length > 0) {
+    sentText = withAgentContext(preparedInput.text, undefined, {
+      github: isAllowedTelegramUser(ctx.from?.id),
+    });
+    parts.push({ type: "text", text: sentText });
+  }
+
+  // Add file parts
+  parts.push(...preparedInput.fileParts);
+
+  // A file picked in /ls belongs to this prompt. Capture whether one existed before
+  // resolving it: the resolver clears the attachment on every failed check, so afterwards
+  // a null result can no longer tell "nothing was attached" from "it went stale".
+  const pendingAttachment = promptAttachment.get();
+  const attachmentPart = await resolvePendingAttachment(currentSession.directory);
+
+  if (attachmentPart) {
+    parts.push(attachmentPart);
+  } else if (pendingAttachment) {
+    await ctx.reply(t("attachment.invalid"));
+  }
+
+  if (pendingAttachment) {
+    // Cleared here rather than next to `return true`: the catch below already clears the
+    // interaction on any failure but knows nothing about the attachment, which would leave
+    // it behind to be picked up silently by an unrelated later prompt.
+    promptAttachment.clear("consumed");
+    interactionManager.clear("attachment_consumed");
+    await retireAttachmentConfirmation(ctx, pendingAttachment.confirmationMessageId);
+  }
+
+  // If no text and files exist, use a placeholder
+  if (parts.length === 0 || (parts.length > 0 && parts.every((p) => p.type === "file"))) {
+    if (preparedInput.fileParts.length > 0) {
+      // Files without text - add a minimal system prompt
+      const attachmentText =
+        preparedInput.fileParts.length === 1 ? "See attached file" : "See attached files";
+      sentText = withAgentContext(attachmentText, undefined, {
+        github: isAllowedTelegramUser(ctx.from?.id),
+      });
+      parts.unshift({ type: "text", text: sentText });
+    }
+  }
+
+  // Counted from `parts` rather than `fileParts`: a file attached through /ls is added
+  // above and would otherwise be missing from the logs.
+  const filePartCount = parts.filter((part) => part.type === "file").length;
+
+  const promptOptions: PreparedPromptRequest["promptOptions"] = {
+    sessionID: currentSession.id,
+    directory: currentSession.directory,
+    parts,
+    agent: currentAgent,
+  };
+
+  // Use stored model (from settings or config)
+  if (storedModel.providerID && storedModel.modelID) {
+    promptOptions.model = {
+      providerID: storedModel.providerID,
+      modelID: storedModel.modelID,
+    };
+
+    // Add variant if specified
+    if (storedModel.variant) {
+      promptOptions.variant = storedModel.variant;
+    }
+  }
+
+  const promptErrorLogContext: PreparedPromptRequest["promptErrorLogContext"] = {
+    sessionId: currentSession.id,
+    directory: currentSession.directory,
+    agent: currentAgent || "default",
+    modelProvider: storedModel.providerID || "default",
+    modelId: storedModel.modelID || "default",
+    variant: storedModel.variant || "default",
+    promptLength: preparedInput.text.length,
+    fileCount: filePartCount,
+  };
+
+  return { promptOptions, currentAgent, storedModel, sentText, filePartCount, promptErrorLogContext };
+}
+
+/** Opens a run for a prompt OpenCode picked up from its inbox, with the stored agent and model. */
+export async function startInboxPromptRun(
+  session: { id: string; directory: string },
+  responseMode: "text_only" | "text_and_tts" | undefined,
+): Promise<void> {
+  const agent = await resolveProjectAgent(getStoredAgent());
+  const model = getStoredModel();
+  foregroundSessionState.markBusy(session.id, session.directory);
+  await markAttachedSessionBusy(session.id);
+  assistantRunState.startRun(session.id, {
+    startedAt: Date.now(),
+    configuredAgent: agent,
+    configuredProviderID: model.providerID,
+    configuredModelID: model.modelID,
+  });
+  setPromptResponseMode(session.id, responseMode ?? (getTtsMode() === "all" ? "text_and_tts" : "text_only"));
+}
+
+/**
+ * Sends a prompt into the inbox of the busy current session on OpenCode V2, where it waits
+ * for the running turn (steer) or for its end (queue). Returns where it waits, or null
+ * when it was not sent; the user has been told why.
+ */
+export async function admitPromptToInbox(
+  ctx: Context,
+  input: IncomingPrompt,
+  deps: ProcessPromptDeps,
+  delivery: V2InboxDelivery,
+): Promise<{ sessionId: string; inboxId: string } | null> {
+  const currentSession = getCurrentSession();
+  if (!currentSession) {
+    logger.warn("[Bot] Cannot send a prompt to the inbox: no current session");
+    await ctx.reply(t("bot.prompt_send_error"));
+    return null;
+  }
+
+  try {
+    const prepared = await preparePromptRequest(ctx, input, deps, currentSession);
+    if (!prepared) {
+      return null;
+    }
+
+    logger.info(
+      `[Bot] Sending prompt to the session inbox: session=${currentSession.id}, delivery=${delivery}, fileCount=${prepared.filePartCount}`,
+    );
+    const { data, error } = await opencodeV2Client.session.promptAsync({
+      ...prepared.promptOptions,
+      delivery,
+    });
+    if (error || !data) {
+      logger.error("[Bot] OpenCode refused the inbox prompt", prepared.promptErrorLogContext);
+      logger.error("[Bot] Inbox prompt error details:", formatErrorDetails(error, 6000));
+      await ctx.reply(t("bot.prompt_send_error"));
+      return null;
+    }
+
+    if (prepared.sentText) {
+      externalUserInputSuppressionManager.register(currentSession.id, prepared.sentText);
+    }
+
+    return { sessionId: currentSession.id, inboxId: data.inboxID };
+  } catch (err) {
+    logger.error(`[Bot] Failed to send prompt to the inbox: session=${currentSession.id}`, err);
+    await ctx.reply(t("bot.prompt_send_error"));
+    return null;
+  }
+}
+
 export async function processUserPrompt(
   ctx: Context,
   input: IncomingPrompt,
@@ -390,7 +593,7 @@ export async function processUserPrompt(
       ? createMainKeyboard(currentAgent, currentModel, contextInfo ?? undefined, variantName)
       : removeKeyboard();
 
-    await ctx.reply(t("bot.session_created", { title: currentSession.title }), {
+    await ctx.reply(t("bot.session_created", { title: formatSessionTitle(currentSession.title) }), {
       reply_markup: replyMarkup,
     });
   }
@@ -404,106 +607,20 @@ export async function processUserPrompt(
   }
 
   try {
-    const currentAgent = await resolveProjectAgent(getStoredAgent());
-    const storedModel = (deps.getStoredModel ?? getStoredModel)();
-    const preparedInput = await prepareTelegramPhotos(ctx, input, deps, storedModel);
-    if (!preparedInput) {
+    const prepared = await preparePromptRequest(ctx, input, deps, currentSession);
+    if (!prepared) {
       releaseSlot();
       return false;
     }
 
-    // Build parts array with text and files
-    const parts: Array<TextPartInput | FilePartInput> = [];
-    // The exact text sent to OpenCode (including the agent context note) is what
-    // echoes back over SSE, so suppression must be registered with it, not the raw input.
-    let sentText: string | null = null;
-
-    // Add text part if present
-    if (preparedInput.text.trim().length > 0) {
-      sentText = withAgentContext(preparedInput.text, undefined, {
-        github: isAllowedTelegramUser(ctx.from?.id),
-      });
-      parts.push({ type: "text", text: sentText });
-    }
-
-    // Add file parts
-    parts.push(...preparedInput.fileParts);
-
-    // A file picked in /ls belongs to this prompt. Capture whether one existed before
-    // resolving it: the resolver clears the attachment on every failed check, so afterwards
-    // a null result can no longer tell "nothing was attached" from "it went stale".
-    const pendingAttachment = promptAttachment.get();
-    const attachmentPart = await resolvePendingAttachment(currentSession.directory);
-
-    if (attachmentPart) {
-      parts.push(attachmentPart);
-    } else if (pendingAttachment) {
-      await ctx.reply(t("attachment.invalid"));
-    }
-
-    if (pendingAttachment) {
-      // Cleared here rather than next to `return true`: the catch below already clears the
-      // interaction on any failure but knows nothing about the attachment, which would leave
-      // it behind to be picked up silently by an unrelated later prompt.
-      promptAttachment.clear("consumed");
-      interactionManager.clear("attachment_consumed");
-      await retireAttachmentConfirmation(ctx, pendingAttachment.confirmationMessageId);
-    }
-
-    // If no text and files exist, use a placeholder
-    if (parts.length === 0 || (parts.length > 0 && parts.every((p) => p.type === "file"))) {
-      if (preparedInput.fileParts.length > 0) {
-        // Files without text - add a minimal system prompt
-        const attachmentText =
-          preparedInput.fileParts.length === 1 ? "See attached file" : "See attached files";
-        sentText = withAgentContext(attachmentText, undefined, {
-          github: isAllowedTelegramUser(ctx.from?.id),
-        });
-        parts.unshift({ type: "text", text: sentText });
-      }
-    }
-
-    // Counted from `parts` rather than `fileParts`: a file attached through /ls is added
-    // above and would otherwise be missing from the logs.
-    const filePartCount = parts.filter((part) => part.type === "file").length;
-
-    const promptOptions: {
-      sessionID: string;
-      directory: string;
-      parts: Array<TextPartInput | FilePartInput>;
-      model?: { providerID: string; modelID: string };
-      agent?: string;
-      variant?: string;
-    } = {
-      sessionID: currentSession.id,
-      directory: currentSession.directory,
-      parts,
-      agent: currentAgent,
-    };
-
-    // Use stored model (from settings or config)
-    if (storedModel.providerID && storedModel.modelID) {
-      promptOptions.model = {
-        providerID: storedModel.providerID,
-        modelID: storedModel.modelID,
-      };
-
-      // Add variant if specified
-      if (storedModel.variant) {
-        promptOptions.variant = storedModel.variant;
-      }
-    }
-
-    const promptErrorLogContext = {
-      sessionId: currentSession.id,
-      directory: currentSession.directory,
-      agent: currentAgent || "default",
-      modelProvider: storedModel.providerID || "default",
-      modelId: storedModel.modelID || "default",
-      variant: storedModel.variant || "default",
-      promptLength: preparedInput.text.length,
-      fileCount: filePartCount,
-    };
+    const {
+      promptOptions,
+      currentAgent,
+      storedModel,
+      sentText,
+      filePartCount,
+      promptErrorLogContext,
+    } = prepared;
 
     logger.info(
       `[Bot] Calling session.promptAsync (start-only) with agent=${currentAgent}, fileCount=${filePartCount}...`,
@@ -521,6 +638,16 @@ export async function processUserPrompt(
       configuredModelID: storedModel.modelID,
     });
     setPromptResponseMode(currentSession.id, responseMode);
+
+    // Show typing at once: the aggregator only starts its own indicator with
+    // the first assistant token, which can lag far behind on a loaded backend.
+    try {
+      void (bot.api.sendChatAction(ctx.chat!.id, "typing") as Promise<unknown>).catch((err) => {
+        logger.debug("[Bot] Failed to send immediate typing action:", err);
+      });
+    } catch (err) {
+      logger.debug("[Bot] Failed to send immediate typing action:", err);
+    }
 
     if (sentText) {
       externalUserInputSuppressionManager.register(currentSession.id, sentText);

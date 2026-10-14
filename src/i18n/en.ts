@@ -16,6 +16,7 @@ export const en = {
   "cmd.description.mcps": "MCP servers",
   "cmd.description.opencode_start": "Start OpenCode server",
   "cmd.description.opencode_stop": "Stop OpenCode server",
+  "cmd.description.reload": "Reload OpenCode configuration",
   "cmd.description.ls": "List directory contents",
   "cmd.description.help": "Help",
 
@@ -202,6 +203,8 @@ export const en = {
   "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "Audio replies",
   "settings.prompt_queue.label": "Message queue",
+  "settings.prompt_queue.queue": "Queue",
+  "settings.prompt_queue.steer": "Steer",
   "settings.bottom_keyboard.label": "Bottom keyboard",
   "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "On",
@@ -349,6 +352,10 @@ export const en = {
   "opencode_stop.success": "✅ OpenCode Server stopped successfully",
   "opencode_stop.error":
     "🔴 An error occurred while stopping server.\n\nCheck application logs for details.",
+  "reload.reloading": "🔄 Reloading OpenCode configuration...",
+  "reload.success": "✅ OpenCode configuration reloaded",
+  "reload.failed": "🔴 Failed to reload OpenCode configuration",
+  "reload.failed_with_error": "🔴 Failed to reload OpenCode configuration\n\nError: {error}",
 
   "agent.changed_message": "✅ Agent changed to: {name}",
   "agent.change_error_callback": "Failed to change agent",
@@ -396,9 +403,20 @@ export const en = {
   "variant.menu.error": "🔴 Failed to get variants list",
 
   "context.button.confirm": "✅ Yes, compact context",
+  "context.button.details_compact": "📦 Compact context",
+  "context.button.close": "❌ Close",
+  "context.details.title": "📊 Context details",
+  "context.details.window": "Window: {used} / {limit} ({percent}%)",
+  "context.details.token_breakdown": "Token breakdown of the latest assistant message:",
+  "context.details.input": "Input: {count}",
+  "context.details.output": "Output: {count}",
+  "context.details.reasoning": "Reasoning: {count}",
+  "context.details.cache_read": "Cache read: {count}",
+  "context.details.cache_write": "Cache write: {count}",
+  "context.details.cost": "Cost: {cost}",
   "context.no_active_session": "⚠️ No active session. Create a session with /new",
   "context.confirm_text":
-    '📊 Context compaction for session "{title}"\n\nThis will reduce context usage by removing old messages from history. Current task will not be interrupted.\n\nContinue?',
+    '📊 Context compaction for session "{title}"\n\nThis will reduce context usage by removing old messages from history.\n\nContinue?',
   "context.callback_compacting": "Compacting context...",
   "context.progress": "⏳ Compacting context...",
   "context.error": "❌ Context compaction failed",
@@ -462,6 +480,7 @@ export const en = {
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added":
     "📥 Added to queue ({count}/{max}). It will be sent when the current task finishes.",
+  "queue.steer_added": "📥 Added to the current task ({count}/{max}).",
   "queue.full":
     "⚠️ Queue is full ({max}). Remove a message or wait for the current task to finish.",
   "queue.media_limit":
@@ -486,9 +505,12 @@ export const en = {
   "subagent.line.status": "Status: {status}",
   "subagent.line.task": "Task: {task}",
   "subagent.line.agent": "Agent: {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "Working...",
   "subagent.working_with_details": "Working: {details}",
   "subagent.completed": "Completed",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "Task failed",
   "subagent.status.pending": "pending",
   "subagent.status.running": "running",
@@ -522,6 +544,15 @@ export const en = {
     "Enter OpenCode server username (optional).\nPress Enter to use default: {defaultUsername}\n> ",
   "runtime.wizard.ask_server_password":
     "Enter OpenCode server password (optional).\nPress Enter to keep it empty.\n> ",
+  "runtime.wizard.ask_server_version":
+    "Select OpenCode server version:\n1 - OpenCode V1 (1.x, npm package opencode-ai)\n2 - OpenCode V2 (2.x, npm package @opencode/cli)\nPress Enter to use default: {defaultVersion}\n> ",
+  "runtime.wizard.server_version_invalid": "Enter 1 or 2, or press Enter for default.\n",
+  "runtime.wizard.ask_server_password_required":
+    "Enter OpenCode V2 server password (required).\nShow it with: opencode service get password\n> ",
+  "runtime.wizard.server_password_required":
+    "The password is required for OpenCode V2. Please try again.\n",
+  "runtime.wizard.ask_server_password_keep":
+    "Enter OpenCode server password.\nPress Enter to keep the saved password.\n> ",
   "runtime.wizard.api_url_invalid": "Enter a valid URL (http/https) or press Enter for default.\n",
   "runtime.wizard.start": "OpenCode Telegram Bot setup.\n",
   "runtime.wizard.saved": "Configuration saved:\n- {envPath}\n",

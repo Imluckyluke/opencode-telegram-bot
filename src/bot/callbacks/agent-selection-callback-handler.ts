@@ -13,6 +13,7 @@ import { createMainKeyboardOrRemove } from "../keyboards/main-reply-keyboard.js"
 import { keyboardManager } from "../keyboards/keyboard-manager.js";
 import { pinnedMessageManager } from "../pinned/pinned-message-manager.js";
 import { clearActiveInlineMenu, ensureActiveInlineMenu } from "../menus/inline-menu.js";
+import { resolveAgentFromCallbackPayload } from "../menus/agent-selection-menu.js";
 
 /**
  * Handle agent selection callback
@@ -42,7 +43,14 @@ export async function handleAgentSelect(ctx: Context): Promise<boolean> {
       await pinnedMessageManager.refreshContextLimit();
     }
 
-    const agentName = callbackQuery.data.replace("agent:", "");
+    const agentName = await resolveAgentFromCallbackPayload(
+      callbackQuery.data.slice("agent:".length),
+    );
+    if (!agentName) {
+      clearActiveInlineMenu("agent_select_error");
+      await failure(ctx, "agent.change_error_callback");
+      return true;
+    }
 
     selectAgent(agentName);
     const settingsApplied = await applyAgentConfiguredSettings(agentName);

@@ -147,4 +147,24 @@ describe("bot/commands/new", () => {
       }),
     );
   });
+
+  it("names a session OpenCode has not named yet as a new session and keeps its title empty", async () => {
+    mocked.sessionCreateMock.mockResolvedValueOnce({
+      data: { id: "session-3", title: "" },
+      error: null,
+    });
+
+    const ctx = createContext();
+    await newCommand(ctx as never, createDeps());
+
+    expect(mocked.attachToSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        session: { id: "session-3", title: "", directory: "/repo" },
+      }),
+    );
+    expect(ctx.reply).toHaveBeenCalledWith(
+      t("new.created", { title: t("pinned.default_session_title") }),
+      expect.anything(),
+    );
+  });
 });

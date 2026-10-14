@@ -3,6 +3,7 @@ import type { Api } from "grammy";
 import { Agent as HttpsAgent } from "https";
 import { config } from "../../config.js";
 import { logger } from "../../utils/logger.js";
+import { withTelegramRateLimitRetry } from "../../utils/telegram-rate-limit-retry.js";
 
 export const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 const DOWNLOAD_TIMEOUT_MS = 300_000;
@@ -24,6 +25,53 @@ function telegramFileUrlBase(): string {
 
 export function buildTelegramFileUrl(filePath: string): string {
   return `${telegramFileUrlBase()}${config.telegram.token}/${filePath}`;
+}
+
+class TelegramFileDownloadResponseError extends Error {
+  readonly status: number;
+  readonly parameters?: { retry_after: number };
+
+  constructor(status: number, statusText: string, retryAfterSeconds: number | null) {
+    super(`Failed to download file: ${status} ${statusText}`);
+    this.status = status;
+    if (retryAfterSeconds !== null) {
+      this.parameters = { retry_after: retryAfterSeconds };
+    }
+  }
+}
+
+function redactBotToken(value: string): string {
+  return config.telegram.token ? value.replaceAll(config.telegram.token, "***") : value;
+}
+
+function sanitizeTelegramFileDownloadError(error: unknown): Error {
+  if (!(error instanceof Error)) {
+    return new Error(redactBotToken(String(error)));
+  }
+
+  const sanitized = new Error(redactBotToken(error.message));
+  sanitized.name = error.name;
+  if (error.stack) {
+    sanitized.stack = redactBotToken(error.stack);
+  }
+
+  for (const field of ["code", "errno", "status", "type"] as const) {
+    const value = Reflect.get(error, field);
+    if (typeof value === "string" || typeof value === "number") {
+      Reflect.set(sanitized, field, value);
+    }
+  }
+
+  return sanitized;
+}
+
+function getRetryAfterSeconds(response: Awaited<ReturnType<typeof nodeFetch>>): number | null {
+  const value = response.headers.get("retry-after");
+  if (!value) {
+    return null;
+  }
+  const seconds = Number.parseInt(value, 10);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
 }
 
 export async function downloadTelegramFile(api: Api, fileId: string): Promise<DownloadedFile> {
@@ -67,26 +115,49 @@ export async function downloadTelegramFile(api: Api, fileId: string): Promise<Do
     };
   }
 
-  const response = await nodeFetch(fileUrl, { ...fetchOptions, timeout: DOWNLOAD_TIMEOUT_MS });
+  let buffer: Buffer;
+  try {
+    buffer = await withTelegramRateLimitRetry(
+      async () => {
+        const response = await nodeFetch(fileUrl, { ...fetchOptions, timeout: DOWNLOAD_TIMEOUT_MS });
+        if (!response.ok) {
+          throw new TelegramFileDownloadResponseError(
+            response.status,
+            response.statusText,
+            getRetryAfterSeconds(response),
+          );
+        }
 
-  if (!response.ok) {
-    throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+        // Belt and suspenders: the metadata check above trusts Telegram, so enforce
+        // the cap again on the wire — declared length up front, actual bytes while
+        // streaming — instead of buffering an unbounded body into memory.
+        const declaredLength = response.headers?.get("content-length") ?? null;
+        if (declaredLength !== null) {
+          const declaredBytes = Number.parseInt(declaredLength, 10);
+          if (Number.isInteger(declaredBytes) && declaredBytes > MAX_FILE_SIZE_BYTES) {
+            throw new Error(
+              `File too large: ${(declaredBytes / (1024 * 1024)).toFixed(2)}MB (max 20MB)`,
+            );
+          }
+        }
+
+        return readCappedBody(response);
+      },
+      {
+        maxRetries: 3,
+        retryTransientServerErrors: true,
+        retryTransientNetworkErrors: true,
+        onRetry: ({ attempt, retryAfterMs }) => {
+          logger.warn(
+            `[FileDownload] Transient Telegram file download failure; retrying in ${retryAfterMs}ms (attempt=${attempt})`,
+          );
+        },
+      },
+    );
+  } catch (error) {
+    throw sanitizeTelegramFileDownloadError(error);
   }
 
-  // Belt and suspenders: the metadata check above trusts Telegram, so enforce
-  // the cap again on the wire — declared length up front, actual bytes while
-  // streaming — instead of buffering an unbounded body into memory.
-  const declaredLength = response.headers?.get("content-length") ?? null;
-  if (declaredLength !== null) {
-    const declaredBytes = Number.parseInt(declaredLength, 10);
-    if (Number.isInteger(declaredBytes) && declaredBytes > MAX_FILE_SIZE_BYTES) {
-      throw new Error(
-        `File too large: ${(declaredBytes / (1024 * 1024)).toFixed(2)}MB (max 20MB)`,
-      );
-    }
-  }
-
-  const buffer = await readCappedBody(response);
   logger.debug(`[FileDownload] Downloaded ${buffer.length} bytes`);
 
   return {

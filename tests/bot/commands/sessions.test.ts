@@ -304,6 +304,47 @@ describe("bot/commands/sessions", () => {
     expect(keyboardRows[11]?.[0]?.callback_data).toBe("inline:cancel:session");
   });
 
+  it("lists a session OpenCode has not named yet as a new session", async () => {
+    mocked.sessionListMock.mockResolvedValueOnce({
+      data: [{ ...createSession(0), title: "" }],
+      error: null,
+    });
+
+    const ctx = createCommandContext();
+    await sessionsCommand(ctx as never, createDeps());
+
+    const label = getKeyboardButtons(ctx)[0]?.[0]?.text;
+    expect(label).toMatch(new RegExp(`^1\\. ${t("pinned.default_session_title")} \\(`));
+  });
+
+  it("confirms the selection of an unnamed session as a new session and keeps its title empty", async () => {
+    mocked.sessionGetMock.mockResolvedValueOnce({
+      data: { ...createSession(0), title: "" },
+      error: null,
+    });
+
+    interactionManager.start({
+      kind: "inline",
+      expectedInput: "callback",
+      metadata: {
+        menuKind: "session",
+        messageId: 456,
+      },
+    });
+
+    const ctx = createCallbackContext("session:session-1", 456);
+    await handleSessionSelect(ctx, createDeps());
+
+    expect(mocked.attachToSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        session: { id: "session-1", title: "", directory: "/repo" },
+      }),
+    );
+    expect((ctx.api.sendMessage as ReturnType<typeof vi.fn>).mock.calls[1]?.[1]).toBe(
+      t("sessions.selected", { title: t("pinned.default_session_title") }),
+    );
+  });
+
   it("blocks sessions command while foreground session is busy", async () => {
     foregroundSessionState.markBusy("session-1", "D:\\Projects\\Repo");
 

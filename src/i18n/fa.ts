@@ -18,6 +18,7 @@ export const fa: I18nDictionary = {
   "cmd.description.mcps": "مدیریت سرورهای MCP",
   "cmd.description.opencode_start": "روشن کردن سرور OpenCode",
   "cmd.description.opencode_stop": "خاموش کردن سرور OpenCode",
+  "cmd.description.reload": "بارگذاری دوباره پیکربندی OpenCode",
   "cmd.description.ls": "گشتن در فایل‌های پروژه و دانلود آن‌ها",
   "cmd.description.help": "راهنمای کامل بات",
 
@@ -200,6 +201,8 @@ export const fa: I18nDictionary = {
   "settings.pin_session_dashboard.label": "سنجاق داشبورد نشست",
   "settings.tts.label": "پاسخ صوتی",
   "settings.prompt_queue.label": "صف پیام",
+  "settings.prompt_queue.queue": "صف",
+  "settings.prompt_queue.steer": "هدایت",
   "settings.bottom_keyboard.label": "کیبورد پایین",
   "settings.bottom_keyboard.removed": "⌨️ کیبورد پایین حذف شد.",
   "settings.value.on": "روشن",
@@ -340,6 +343,11 @@ export const fa: I18nDictionary = {
   "opencode_stop.success": "✅ سرور OpenCode با موفقیت متوقف شد",
   "opencode_stop.error": "🔴 هنگام توقف سرور خطایی رخ داد.\n\nلاگ برنامه را بررسی کنید.",
 
+  "reload.reloading": "🔄 در حال بارگذاری دوباره پیکربندی OpenCode...",
+  "reload.success": "✅ پیکربندی OpenCode دوباره بارگذاری شد",
+  "reload.failed": "🔴 بارگذاری دوباره پیکربندی OpenCode ناموفق بود",
+  "reload.failed_with_error": "🔴 بارگذاری دوباره پیکربندی OpenCode ناموفق بود\n\nخطا: {error}",
+
   "agent.changed_message": "✅ ایجنت تغییر کرد به: {name}",
   "agent.change_error_callback": "تغییر ایجنت ناموفق بود",
   "agent.menu.current": "ایجنت جاری: {name}\n\nایجنت را انتخاب کنید:",
@@ -386,6 +394,17 @@ export const fa: I18nDictionary = {
   "variant.menu.error": "🔴 دریافت فهرست واریانت‌ها ناموفق بود",
 
   "context.button.confirm": "✅ بله، فشرده‌سازی کانتکست",
+  "context.button.details_compact": "📦 جزئیات کانتکست",
+  "context.button.close": "❌ بستن",
+  "context.details.title": "📊 جزئیات کانتکست",
+  "context.details.window": "پنجره: {used} / {limit} ({percent}٪)",
+  "context.details.token_breakdown": "تفکیک توکن آخرین پاسخ دستیار:",
+  "context.details.input": "ورودی: {count}",
+  "context.details.output": "خروجی: {count}",
+  "context.details.reasoning": "استدلال: {count}",
+  "context.details.cache_read": "خواندن کش: {count}",
+  "context.details.cache_write": "نوشتن کش: {count}",
+  "context.details.cost": "هزینه: {cost}",
   "context.no_active_session": "⚠️ نشست فعالی نیست. با /new نشست بسازید",
   "context.confirm_text":
     '📊 فشرده‌سازی کانتکست برای نشست "{title}"\n\nاین کار با حذف پیام‌های قدیمی از تاریخچه، مصرف کانتکست را کم می‌کند. وظیفه جاری متوقف نمی‌شود.\n\nادامه می‌دهید؟',
@@ -448,6 +467,7 @@ export const fa: I18nDictionary = {
   "keyboard.variant_default": "💡 پیش‌فرض",
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added": "📥 به صف اضافه شد ({count}/{max}). وقتی وظیفه جاری تمام شود ارسال می‌شود.",
+  "queue.steer_added": "📥 به وظیفه جاری اضافه شد ({count}/{max}).",
   "queue.full": "⚠️ صف پر است ({max}). یک پیام را حذف کنید یا منتظر پایان وظیفه جاری بمانید.",
   "queue.media_limit":
     "⚠️ رسانه صف حداکثر {maxSizeMb} مگابایت است. منتظر ارسال یک مورد بمانید و دوباره تلاش کنید.",
@@ -468,12 +488,15 @@ export const fa: I18nDictionary = {
   "pinned.line.context": "کانتکست: {used} / {limit} ({percent}٪)",
   "pinned.line.cost": "هزینه: {cost} خرج شد",
   "subagent.header": "زیرایجنت {agent}: {description}",
+  "subagent.starting": "شروع وظیفه: {task}",
+  "subagent.starting_untitled": "شروع وظیفه...",
   "subagent.line.status": "وضعیت: {status}",
   "subagent.line.task": "وظیفه: {task}",
   "subagent.line.agent": "ایجنت: {agent}",
   "subagent.working": "در حال کار...",
   "subagent.working_with_details": "در حال کار: {details}",
   "subagent.completed": "تمام شد",
+  "subagent.interrupted": "متوقف شد",
   "subagent.failed": "وظیفه ناموفق بود",
   "subagent.status.pending": "در انتظار",
   "subagent.status.running": "در حال اجرا",
@@ -506,6 +529,15 @@ export const fa: I18nDictionary = {
     "نام کاربری سرور OpenCode را وارد کنید (اختیاری).\nبرای پیش‌فرض Enter بزنید: {defaultUsername}\n> ",
   "runtime.wizard.ask_server_password":
     "رمز سرور OpenCode را وارد کنید (اختیاری).\nبرای خالی ماندن Enter بزنید.\n> ",
+  "runtime.wizard.ask_server_version":
+    "نسخه سرور OpenCode را انتخاب کنید:\n1 - OpenCode V1 (1.x، پکیج npm با نام opencode-ai)\n2 - OpenCode V2 (2.x، پکیج npm با نام @opencode/cli)\nبرای پیش‌فرض Enter بزنید: {defaultVersion}\n> ",
+  "runtime.wizard.server_version_invalid": "عدد 1 یا 2 را وارد کنید، یا برای پیش‌فرض Enter بزنید.\n",
+  "runtime.wizard.ask_server_password_required":
+    "رمز سرور OpenCode V2 را وارد کنید (الزامی).\nبا این دستور نمایشش بده: opencode service get password\n> ",
+  "runtime.wizard.server_password_required":
+    "برای OpenCode V2 رمز لازم است. دوباره تلاش کنید.\n",
+  "runtime.wizard.ask_server_password_keep":
+    "رمز سرور OpenCode را وارد کنید.\nبرای نگه داشتن رمز ذخیره‌شده Enter بزنید.\n> ",
   "runtime.wizard.api_url_invalid":
     "یک آدرس معتبر (http/https) وارد کنید یا برای پیش‌فرض Enter بزنید.\n",
   "runtime.wizard.start": "راه‌اندازی بات تلگرام OpenCode.\n",

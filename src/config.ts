@@ -1,5 +1,7 @@
 import dotenv from "dotenv";
 import { getRuntimePaths } from "./runtime/paths.js";
+import { isContainerRuntime } from "./runtime/container.js";
+import { BOT_HEALTH_PORT_ENV, resolveHealthPort } from "./runtime/health-port.js";
 import { normalizeLocale, type Locale } from "./i18n/index.js";
 import { buildDefaultContextNote, DEFAULT_AGENT_CONTEXT_NOTE } from "./app/services/agent-context-service.js";
 
@@ -105,6 +107,18 @@ function getOptionalBooleanEnvVar(key: string, defaultValue: boolean): boolean {
 
   warnInvalidEnvVar(key, value, `default ${defaultValue}`);
   return defaultValue;
+}
+
+export type OpencodeServerVersion = "v1" | "v2";
+
+const DEFAULT_OPENCODE_API_URLS: Record<OpencodeServerVersion, string> = {
+  v1: "http://localhost:4096",
+  v2: "http://127.0.0.1:49374",
+};
+
+function getOptionalOpencodeServerVersionEnvVar(key: string): OpencodeServerVersion {
+  const normalized = getEnvVar(key, false).trim().toLowerCase();
+  return normalized === "v2" ? "v2" : "v1";
 }
 
 function getOptionalMessageFormatModeEnvVar(
@@ -279,8 +293,12 @@ export function isAllowedTelegramUser(userId: number | undefined | null): boolea
   return typeof userId === "number" && config.telegram.allowedUserIds.includes(userId);
 }
 
+const opencodeServerVersion = getOptionalOpencodeServerVersionEnvVar("OPENCODE_SERVER_VERSION");
+
 function getOpencodeApiUrl(): string {
-  return parseOpencodeApiUrl(getEnvVar("OPENCODE_API_URL", false).trim() || "http://localhost:4096");
+  return parseOpencodeApiUrl(
+    getEnvVar("OPENCODE_API_URL", false).trim() || DEFAULT_OPENCODE_API_URLS[opencodeServerVersion],
+  );
 }
 
 /** Validates a user-supplied OpenCode server URL (pure, exported for tests). */
@@ -321,6 +339,7 @@ function getAutoCompactThresholdPercent(): number {
 export const config = {
   telegram: buildTelegramConfig(),
   opencode: {
+    serverVersion: opencodeServerVersion,
     apiUrl: getOpencodeApiUrl(),
     username: getEnvVar("OPENCODE_SERVER_USERNAME", false) || "opencode",
     password: getEnvVar("OPENCODE_SERVER_PASSWORD", false),
@@ -338,6 +357,9 @@ export const config = {
   },
   server: {
     logLevel: getEnvVar("LOG_LEVEL", false) || "info",
+  },
+  health: {
+    port: resolveHealthPort(getEnvVar(BOT_HEALTH_PORT_ENV, false), isContainerRuntime()),
   },
   bot: {
     sessionsListLimit: getOptionalPositiveIntEnvVar("SESSIONS_LIST_LIMIT", 10),

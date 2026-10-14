@@ -182,7 +182,12 @@ function createContext(): Context {
 
 function createDeps(): ProcessPromptDeps {
   return {
-    bot: { api: { sendMessage: vi.fn().mockResolvedValue(undefined) } } as unknown as Bot<Context>,
+    bot: {
+      api: {
+        sendMessage: vi.fn().mockResolvedValue(undefined),
+        sendChatAction: vi.fn().mockResolvedValue(undefined),
+      },
+    } as unknown as Bot<Context>,
     ensureEventSubscription: vi.fn().mockResolvedValue(undefined),
   };
 }
@@ -264,9 +269,11 @@ describe("bot/handlers/prompt", () => {
   });
 
   it("registers suppression entry for text prompts", async () => {
-    const handled = await processUserPrompt(createContext(), "Review README", createDeps());
+    const deps = createDeps();
+    const handled = await processUserPrompt(createContext(), "Review README", deps);
 
     expect(handled).toBe(true);
+    expect(deps.bot.api.sendChatAction).toHaveBeenCalledWith(expect.any(Number), "typing");
     expect(mocked.attachToSessionMock).toHaveBeenCalledWith({
       bot: expect.any(Object),
       chatId: 777,
@@ -280,6 +287,35 @@ describe("bot/handlers/prompt", () => {
     expect(mocked.suppressionRegisterMock).toHaveBeenCalledWith(
       "session-1",
       expect.stringContaining("Review README"),
+    );
+  });
+
+  it("names a session it had to create as a new session while OpenCode has not named it", async () => {
+    mocked.currentSession = null;
+    mocked.sessionCreateMock.mockResolvedValueOnce({
+      data: { id: "session-2", title: "" },
+      error: null,
+    });
+    const ctx = createContext();
+    const baseDeps = createDeps();
+    const deps: ProcessPromptDeps = {
+      ...baseDeps,
+      keyboardManager: {
+        ...baseDeps.keyboardManager,
+        getContextInfo: vi.fn(() => null),
+      } as unknown as AppContainer["keyboardManager"],
+    };
+
+    await processUserPrompt(ctx, "Review README", deps);
+
+    expect(mocked.attachToSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        session: { id: "session-2", title: "", directory: "D:\\Projects\\Repo" },
+      }),
+    );
+    expect(ctx.reply).toHaveBeenCalledWith(
+      t("bot.session_created", { title: t("pinned.default_session_title") }),
+      expect.anything(),
     );
   });
 

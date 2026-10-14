@@ -32,7 +32,7 @@ describe("bot/routers/command-router", () => {
       clearRuntimeState: vi.fn(),
     });
 
-    expect(bot.command.mock.calls.map(([command]) => command)).toEqual([
+    const expected = [
       "start",
       "help",
       "status",
@@ -47,6 +47,7 @@ describe("bot/routers/command-router", () => {
       "settings",
       "opencode_start",
       "opencode_stop",
+      ...(config.opencode.serverVersion === "v2" ? ["reload"] : []),
       "projects",
       "worktree",
       "open",
@@ -65,7 +66,28 @@ describe("bot/routers/command-router", () => {
       "model",
       "agent",
       "variant",
-    ]);
+    ];
+    expect(bot.command.mock.calls.map(([command]) => command)).toEqual(expected);
+  });
+
+  it("registers /reload right after /opencode_stop on V2", async () => {
+    vi.stubEnv("OPENCODE_SERVER_VERSION", "v2");
+    vi.resetModules();
+    const router = await import("../../../src/bot/routers/command-router.js");
+    const bot = { command: vi.fn(), use: vi.fn() };
+
+    router.registerCommandRouter(bot as never, {
+      ensureEventSubscription: vi.fn(),
+      clearRuntimeState: vi.fn(),
+    });
+
+    const commands = bot.command.mock.calls.map(([command]) => command);
+    expect(
+      commands.slice(commands.indexOf("opencode_stop"), commands.indexOf("opencode_stop") + 2),
+    ).toEqual(["opencode_stop", "reload"]);
+
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 
   it("flushes a pending prompt before routing a command", async () => {

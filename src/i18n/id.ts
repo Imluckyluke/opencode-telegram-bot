@@ -25,6 +25,7 @@ export const id: I18nDictionary = {
   "cmd.description.mcps": "Server MCP",
   "cmd.description.opencode_start": "Mulai server OpenCode",
   "cmd.description.opencode_stop": "Hentikan server OpenCode",
+  "cmd.description.reload": "Reload OpenCode configuration",
   "cmd.description.ls": "Daftar isi direktori",
   "cmd.description.help": "Bantuan",
 
@@ -177,6 +178,8 @@ export const id: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Sematkan dasbor sesi",
   "settings.tts.label": "Balasan audio",
   "settings.prompt_queue.label": "Antrean pesan",
+  "settings.prompt_queue.queue": "Queue",
+  "settings.prompt_queue.steer": "Steer",
   "settings.bottom_keyboard.label": "Bottom keyboard",
   "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "Aktif",
@@ -357,6 +360,10 @@ export const id: I18nDictionary = {
   "opencode_stop.still_running": "Server masih merespons meski sudah diminta berhenti.",
   "opencode_stop.success": "✅ Server OpenCode berhasil dihentikan",
   "opencode_stop.error": "🔴 Gagal menghentikan server.\n\nPeriksa log aplikasi untuk detailnya.",
+  "reload.reloading": "🔄 Reloading OpenCode configuration...",
+  "reload.success": "✅ OpenCode configuration reloaded",
+  "reload.failed": "🔴 Failed to reload OpenCode configuration",
+  "reload.failed_with_error": "🔴 Failed to reload OpenCode configuration\n\nError: {error}",
 
   "agent.changed_message": "✅ Agent diubah menjadi: {name}",
   "agent.change_error_callback": "Gagal mengubah agent",
@@ -403,9 +410,20 @@ export const id: I18nDictionary = {
   "variant.menu.error": "🔴 Gagal memuat daftar varian",
 
   "context.button.confirm": "✅ Ya, ringkas konteks",
+  "context.button.details_compact": "📦 Compact context",
+  "context.button.close": "❌ Close",
+  "context.details.title": "📊 Context details",
+  "context.details.window": "Window: {used} / {limit} ({percent}%)",
+  "context.details.token_breakdown": "Token breakdown of the latest assistant message:",
+  "context.details.input": "Input: {count}",
+  "context.details.output": "Output: {count}",
+  "context.details.reasoning": "Reasoning: {count}",
+  "context.details.cache_read": "Cache read: {count}",
+  "context.details.cache_write": "Cache write: {count}",
+  "context.details.cost": "Cost: {cost}",
   "context.no_active_session": "⚠️ Tidak ada sesi aktif. Buat sesi dengan /new",
   "context.confirm_text":
-    '📊 Peringkasan konteks untuk sesi "{title}"\n\nIni akan mengurangi penggunaan konteks dengan menghapus pesan lama dari riwayat. Tugas saat ini tidak akan terganggu.\n\nLanjutkan?',
+    '📊 Peringkasan konteks untuk sesi "{title}"\n\nIni akan mengurangi penggunaan konteks dengan menghapus pesan lama dari riwayat.\n\nLanjutkan?',
   "context.callback_compacting": "Meringkas konteks...",
   "context.progress": "⏳ Meringkas konteks...",
   "context.error": "❌ Gagal meringkas konteks",
@@ -468,6 +486,7 @@ export const id: I18nDictionary = {
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added":
     "📥 Ditambahkan ke antrean ({count}/{max}). Akan dikirim setelah tugas saat ini selesai.",
+  "queue.steer_added": "📥 Added to the current task ({count}/{max}).",
   "queue.full": "⚠️ Antrean penuh ({max}). Hapus pesan atau tunggu tugas saat ini selesai.",
   "queue.media_limit":
     "⚠️ Media dalam antrean dibatasi {maxSizeMb} MiB. Tunggu hingga satu item terkirim, lalu coba lagi.",
@@ -491,9 +510,12 @@ export const id: I18nDictionary = {
   "subagent.line.status": "Status: {status}",
   "subagent.line.task": "Tugas: {task}",
   "subagent.line.agent": "Agent: {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "Bekerja...",
   "subagent.working_with_details": "Bekerja: {details}",
   "subagent.completed": "Selesai",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "Tugas gagal",
   "subagent.status.pending": "tertunda",
   "subagent.status.running": "berjalan",
@@ -527,6 +549,15 @@ export const id: I18nDictionary = {
     "Masukkan nama pengguna server OpenCode (opsional).\nTekan Enter untuk menggunakan default: {defaultUsername}\n> ",
   "runtime.wizard.ask_server_password":
     "Masukkan kata sandi server OpenCode (opsional).\nTekan Enter untuk membiarkannya kosong.\n> ",
+  "runtime.wizard.ask_server_version":
+    "Select OpenCode server version:\n1 - OpenCode V1 (1.x, npm package opencode-ai)\n2 - OpenCode V2 (2.x, npm package @opencode/cli)\nPress Enter to use default: {defaultVersion}\n> ",
+  "runtime.wizard.server_version_invalid": "Enter 1 or 2, or press Enter for default.\n",
+  "runtime.wizard.ask_server_password_required":
+    "Enter OpenCode V2 server password (required).\nShow it with: opencode service get password\n> ",
+  "runtime.wizard.server_password_required":
+    "The password is required for OpenCode V2. Please try again.\n",
+  "runtime.wizard.ask_server_password_keep":
+    "Enter OpenCode server password.\nPress Enter to keep the saved password.\n> ",
   "runtime.wizard.api_url_invalid":
     "Masukkan URL yang valid (http/https) atau tekan Enter untuk default.\n",
   "runtime.wizard.start": "Menyiapkan OpenCode Telegram Bot.\n",

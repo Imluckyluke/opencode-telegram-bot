@@ -29,6 +29,25 @@ describe("bot/streaming/response-streamer", () => {
     vi.useRealTimers();
   });
 
+  it("keeps streaming when deleting a surplus part fails", async () => {
+    let nextMessageId = 1;
+    const sendPart = vi.fn(async (part) => ({
+      messageId: nextMessageId++,
+      deliveredSignature: signature(part),
+    }));
+    const editPart = vi.fn(async (_messageId, part) => ({ deliveredSignature: signature(part) }));
+    const deleteText = vi.fn().mockRejectedValue(new Error("Bad Request: message to delete not found"));
+    const streamer = new ResponseStreamer({ throttleMs: 0, sendPart, editPart, deleteText });
+
+    streamer.enqueue("s1", "m1", { parts: [plainPart("a"), plainPart("b")] });
+    await vi.waitFor(() => expect(sendPart).toHaveBeenCalledTimes(2));
+    streamer.enqueue("s1", "m1", { parts: [plainPart("a2")] });
+    await vi.waitFor(() => expect(deleteText).toHaveBeenCalledWith(2));
+
+    const result = await streamer.complete("s1", "m1");
+    expect(result).toEqual({ streamed: true, telegramMessageIds: [1] });
+  });
+
   it("throttles updates and sends only the latest payload", async () => {
     vi.useFakeTimers();
 

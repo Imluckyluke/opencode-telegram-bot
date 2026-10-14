@@ -428,3 +428,145 @@ describe("downloadTelegramFile size caps", () => {
     expect(destroyMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("downloadTelegramFile transient retries", () => {
+  beforeEach(() => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "bot-token-xyz");
+    vi.stubEnv("TELEGRAM_ALLOWED_USER_ID", "123456789");
+    vi.stubEnv("OPENCODE_MODEL_PROVIDER", "test-provider");
+    vi.stubEnv("OPENCODE_MODEL_ID", "test-model");
+    vi.stubEnv("TELEGRAM_PROXY_URL", "");
+    vi.stubEnv("TELEGRAM_API_ROOT", "");
+    vi.stubEnv("TELEGRAM_PROXY_SECRET", "");
+    vi.stubEnv("TELEGRAM_FORCE_IPV4", "");
+    nodeFetchMock.mockReset();
+  });
+
+  function makeApiStub(): Api {
+    return {
+      getFile: vi.fn().mockResolvedValue({
+        file_path: "voice/sample.ogg",
+        file_size: 100,
+      }),
+    } as unknown as Api;
+  }
+
+  async function loadDownloadModule() {
+    vi.resetModules();
+    return import("../../../src/app/services/file-download-service.js");
+  }
+
+  it("retries a download when the TLS connection fails before it is established", async () => {
+    vi.useFakeTimers();
+    const tlsError = Object.assign(
+      new Error("Client network socket disconnected before secure TLS connection was established"),
+      { code: "ECONNRESET" },
+    );
+    nodeFetchMock.mockRejectedValueOnce(tlsError).mockResolvedValueOnce({
+      ok: true,
+      headers: { get: () => null },
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+    });
+
+    try {
+      const { downloadTelegramFile } = await loadDownloadModule();
+      const downloadPromise = downloadTelegramFile(makeApiStub(), "fid");
+      await vi.advanceTimersByTimeAsync(1000);
+
+      await expect(downloadPromise).resolves.toEqual(
+        expect.objectContaining({ filePath: "voice/sample.ogg" }),
+      );
+      expect(nodeFetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("redacts the bot token from download errors", async () => {
+    nodeFetchMock.mockRejectedValueOnce(
+      Object.assign(
+        new Error(
+          "request to https://api.telegram.org/file/botbot-token-xyz/voice/sample.ogg failed",
+        ),
+        { code: "CERT_HAS_EXPIRED" },
+      ),
+    );
+
+    const { downloadTelegramFile } = await loadDownloadModule();
+    const error = await downloadTelegramFile(makeApiStub(), "fid").catch(
+      (downloadError: unknown) => downloadError,
+    );
+    expect(error).toMatchObject({
+      code: "CERT_HAS_EXPIRED",
+      message: "request to https://api.telegram.org/file/bot***/voice/sample.ogg failed",
+    });
+    expect((error as Error).stack).not.toContain("bot-token-xyz");
+  });
+
+  it.each([
+    {
+      status: 429,
+      statusText: "Too Many Requests",
+      retryAfter: "2",
+      delayMs: 2000,
+    },
+    { status: 502, statusText: "Bad Gateway", retryAfter: null, delayMs: 1000 },
+  ])(
+    "retries a transient $status response",
+    async ({ status, statusText, retryAfter, delayMs }) => {
+      vi.useFakeTimers();
+      nodeFetchMock.mockResolvedValueOnce({
+        ok: false,
+        status,
+        statusText,
+        headers: { get: (name: string) => (name === "retry-after" ? retryAfter : null) },
+      });
+      nodeFetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => null },
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+      });
+
+      try {
+        const { downloadTelegramFile } = await loadDownloadModule();
+        const downloadPromise = downloadTelegramFile(makeApiStub(), "fid");
+        await vi.advanceTimersByTimeAsync(delayMs);
+
+        await expect(downloadPromise).resolves.toEqual(
+          expect.objectContaining({ filePath: "voice/sample.ogg" }),
+        );
+        expect(nodeFetchMock).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it("retries when reading a successful response body is interrupted", async () => {
+    vi.useFakeTimers();
+    const reset = Object.assign(new Error("socket hang up"), { code: "ECONNRESET" });
+    nodeFetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: { get: () => null },
+      arrayBuffer: () => Promise.reject(reset),
+    });
+    nodeFetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: { get: () => null },
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+    });
+
+    try {
+      const { downloadTelegramFile } = await loadDownloadModule();
+      const downloadPromise = downloadTelegramFile(makeApiStub(), "fid");
+      await vi.advanceTimersByTimeAsync(1000);
+
+      await expect(downloadPromise).resolves.toEqual(
+        expect.objectContaining({ filePath: "voice/sample.ogg" }),
+      );
+      expect(nodeFetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

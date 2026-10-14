@@ -25,6 +25,7 @@ export const ar: I18nDictionary = {
   "cmd.description.mcps": "خوادم MCP",
   "cmd.description.opencode_start": "تشغيل خادم OpenCode",
   "cmd.description.opencode_stop": "إيقاف خادم OpenCode",
+  "cmd.description.reload": "Reload OpenCode configuration",
   "cmd.description.ls": "استعراض ملفات المجلد",
   "cmd.description.help": "المساعدة",
   "cmd.description.rename": "تغيير اسم الجلسة الحالية",
@@ -180,6 +181,8 @@ export const ar: I18nDictionary = {
   "settings.pin_session_dashboard.label": "Pin session dashboard",
   "settings.tts.label": "الردود الصوتية",
   "settings.prompt_queue.label": "قائمة انتظار الرسائل",
+  "settings.prompt_queue.queue": "Queue",
+  "settings.prompt_queue.steer": "Steer",
   "settings.bottom_keyboard.label": "Bottom keyboard",
   "settings.bottom_keyboard.removed": "⌨️ Bottom keyboard removed.",
   "settings.value.on": "مفعّل",
@@ -358,6 +361,10 @@ export const ar: I18nDictionary = {
   "opencode_stop.still_running": "لا يزال الخادم يستجيب بعد طلب الإيقاف.",
   "opencode_stop.success": "✅ تم إيقاف خادم OpenCode بنجاح",
   "opencode_stop.error": "🔴 حدث خطأ أثناء إيقاف الخادم.\n\nراجع سجلات التطبيق للتفاصيل.",
+  "reload.reloading": "🔄 Reloading OpenCode configuration...",
+  "reload.success": "✅ OpenCode configuration reloaded",
+  "reload.failed": "🔴 Failed to reload OpenCode configuration",
+  "reload.failed_with_error": "🔴 Failed to reload OpenCode configuration\n\nError: {error}",
 
   "agent.changed_message": "✅ تم تغيير الوكيل إلى: {name}",
   "agent.change_error_callback": "تعذر تغيير الوكيل",
@@ -403,9 +410,20 @@ export const ar: I18nDictionary = {
   "variant.menu.error": "🔴 تعذر تحميل قائمة الخيارات",
 
   "context.button.confirm": "✅ نعم، اضغط السياق",
+  "context.button.details_compact": "📦 Compact context",
+  "context.button.close": "❌ Close",
+  "context.details.title": "📊 Context details",
+  "context.details.window": "Window: {used} / {limit} ({percent}%)",
+  "context.details.token_breakdown": "Token breakdown of the latest assistant message:",
+  "context.details.input": "Input: {count}",
+  "context.details.output": "Output: {count}",
+  "context.details.reasoning": "Reasoning: {count}",
+  "context.details.cache_read": "Cache read: {count}",
+  "context.details.cache_write": "Cache write: {count}",
+  "context.details.cost": "Cost: {cost}",
   "context.no_active_session": "⚠️ لا توجد جلسة نشطة. أنشئ جلسة باستخدام /new",
   "context.confirm_text":
-    '📊 ضغط السياق للجلسة "{title}"\n\nسيؤدي ذلك إلى تقليل استخدام السياق عبر إزالة الرسائل القديمة من السجل. لن تتم مقاطعة المهمة الحالية.\n\nهل تريد المتابعة؟',
+    '📊 ضغط السياق للجلسة "{title}"\n\nسيؤدي ذلك إلى تقليل استخدام السياق عبر إزالة الرسائل القديمة من السجل.\n\nهل تريد المتابعة؟',
   "context.callback_compacting": "جارٍ ضغط السياق...",
   "context.progress": "⏳ جارٍ ضغط السياق...",
   "context.error": "❌ فشل ضغط السياق",
@@ -467,6 +485,7 @@ export const ar: I18nDictionary = {
   "keyboard.variant_default": "💡 الإعداد الافتراضي",
   "keyboard.queued_prompt": "❌ {index}. {text}",
   "queue.added": "📥 أُضيفت إلى قائمة الانتظار ({count}/{max}). ستُرسل بعد انتهاء المهمة الحالية.",
+  "queue.steer_added": "📥 Added to the current task ({count}/{max}).",
   "queue.full": "⚠️ قائمة الانتظار ممتلئة ({max}). احذف رسالة أو انتظر انتهاء المهمة الحالية.",
   "queue.media_limit":
     "⚠️ الوسائط في قائمة الانتظار محدودة بـ {maxSizeMb} MiB. انتظر إرسال عنصر ثم أعد المحاولة.",
@@ -490,9 +509,12 @@ export const ar: I18nDictionary = {
   "subagent.line.status": "الحالة: {status}",
   "subagent.line.task": "المهمة: {task}",
   "subagent.line.agent": "الوكيل: {agent}",
+  "subagent.starting": "Starting task: {task}",
+  "subagent.starting_untitled": "Starting task...",
   "subagent.working": "جارٍ العمل...",
   "subagent.working_with_details": "جارٍ العمل: {details}",
   "subagent.completed": "مكتملة",
+  "subagent.interrupted": "Interrupted",
   "subagent.failed": "فشلت المهمة",
   "subagent.status.pending": "قيد الانتظار",
   "subagent.status.running": "قيد التشغيل",
@@ -525,6 +547,15 @@ export const ar: I18nDictionary = {
     "أدخل اسم مستخدم خادم OpenCode (اختياري).\nاضغط Enter لاستخدام القيمة الافتراضية: {defaultUsername}\n> ",
   "runtime.wizard.ask_server_password":
     "أدخل كلمة مرور خادم OpenCode (اختياري).\nاضغط Enter لتركها فارغة.\n> ",
+  "runtime.wizard.ask_server_version":
+    "Select OpenCode server version:\n1 - OpenCode V1 (1.x, npm package opencode-ai)\n2 - OpenCode V2 (2.x, npm package @opencode/cli)\nPress Enter to use default: {defaultVersion}\n> ",
+  "runtime.wizard.server_version_invalid": "Enter 1 or 2, or press Enter for default.\n",
+  "runtime.wizard.ask_server_password_required":
+    "Enter OpenCode V2 server password (required).\nShow it with: opencode service get password\n> ",
+  "runtime.wizard.server_password_required":
+    "The password is required for OpenCode V2. Please try again.\n",
+  "runtime.wizard.ask_server_password_keep":
+    "Enter OpenCode server password.\nPress Enter to keep the saved password.\n> ",
   "runtime.wizard.api_url_invalid":
     "أدخل رابطًا صالحًا (http/https) أو اضغط Enter لاستخدام الافتراضي.\n",
   "runtime.wizard.start": "إعداد OpenCode Telegram Bot.\n",
