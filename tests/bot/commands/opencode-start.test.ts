@@ -7,12 +7,15 @@ const mocked = vi.hoisted(() => ({
   healthMock: vi.fn(),
   resolveLocalOpencodeTargetMock: vi.fn(),
   startLocalOpencodeServerMock: vi.fn(),
+  canStartLocalOpencodeServerMock: vi.fn(),
+  explainFailedHealthCheckMock: vi.fn(),
   notifyReadyMock: vi.fn(),
   editBotTextMock: vi.fn(),
   loggerDebugMock: vi.fn(),
   loggerInfoMock: vi.fn(),
   loggerWarnMock: vi.fn(),
   loggerErrorMock: vi.fn(),
+  isContainerRuntimeMock: vi.fn().mockReturnValue(false),
   config: {
     opencode: {
       apiUrl: "http://localhost:4096",
@@ -30,6 +33,20 @@ vi.mock("../../../src/opencode/client.js", () => ({
       health: mocked.healthMock,
     },
   },
+  opencodeServerVersion: "v1",
+}));
+
+vi.mock("../../../src/runtime/container.js", () => ({
+  isContainerRuntime: mocked.isContainerRuntimeMock,
+}));
+
+vi.mock("../../../src/opencode/local-start.js", () => ({
+  canStartLocalOpencodeServer: mocked.canStartLocalOpencodeServerMock,
+}));
+
+vi.mock("../../../src/opencode/server-health.js", () => ({
+  explainFailedHealthCheck: mocked.explainFailedHealthCheckMock,
+  __resetServerHealthStateForTests: vi.fn(),
 }));
 
 vi.mock("../../../src/opencode/process.js", () => ({
@@ -79,15 +96,21 @@ describe("bot/commands/opencode-start-command", () => {
     mocked.healthMock.mockReset();
     mocked.resolveLocalOpencodeTargetMock.mockReset();
     mocked.startLocalOpencodeServerMock.mockReset();
+    mocked.canStartLocalOpencodeServerMock.mockReset();
+    mocked.explainFailedHealthCheckMock.mockReset();
     mocked.notifyReadyMock.mockReset();
     mocked.editBotTextMock.mockReset();
     mocked.loggerDebugMock.mockReset();
     mocked.loggerInfoMock.mockReset();
     mocked.loggerWarnMock.mockReset();
     mocked.loggerErrorMock.mockReset();
+    mocked.isContainerRuntimeMock.mockReset();
+    mocked.isContainerRuntimeMock.mockReturnValue(false);
 
     mocked.config.opencode.apiUrl = "http://localhost:4096";
     mocked.resolveLocalOpencodeTargetMock.mockReturnValue({ host: "localhost", port: 4096 });
+    mocked.canStartLocalOpencodeServerMock.mockResolvedValue(true);
+    mocked.explainFailedHealthCheckMock.mockResolvedValue(undefined);
     mocked.notifyReadyMock.mockResolvedValue(true);
     mocked.editBotTextMock.mockResolvedValue(undefined);
   });
@@ -99,7 +122,7 @@ describe("bot/commands/opencode-start-command", () => {
 
   it("warns when running in a container even if the API URL is local", async () => {
     const ctx = createContext();
-    vi.stubEnv("OPENCODE_TELEGRAM_CONTAINER", "1");
+    mocked.isContainerRuntimeMock.mockReturnValueOnce(true);
 
     await opencodeStartCommand(ctx as never);
 
@@ -143,10 +166,14 @@ describe("bot/commands/opencode-start-command", () => {
 
     await opencodeStartCommand(ctx as never);
 
-    expect(mocked.startLocalOpencodeServerMock).toHaveBeenCalledWith({
-      host: "localhost",
-      port: 4096,
-    });
+    expect(mocked.startLocalOpencodeServerMock).toHaveBeenCalledWith(
+      {
+        host: "localhost",
+        port: 4096,
+      },
+      "v1",
+    );
+    expect(mocked.explainFailedHealthCheckMock).not.toHaveBeenCalled();
     expect(childProcess.unref).toHaveBeenCalledTimes(1);
     expect(mocked.editBotTextMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -154,6 +181,23 @@ describe("bot/commands/opencode-start-command", () => {
       }),
     );
     expect(mocked.notifyReadyMock).toHaveBeenCalledWith("opencode_start_success");
+  });
+
+  it("replies with the generic start failure and starts nothing when a start is refused", async () => {
+    const ctx = createContext();
+    mocked.healthMock.mockRejectedValue(new Error("offline"));
+    mocked.canStartLocalOpencodeServerMock.mockResolvedValue(false);
+
+    await opencodeStartCommand(ctx as never);
+
+    expect(mocked.canStartLocalOpencodeServerMock).toHaveBeenCalledWith(
+      { host: "localhost", port: 4096 },
+      "always",
+    );
+    expect(ctx.reply).toHaveBeenCalledTimes(1);
+    expect(ctx.reply).toHaveBeenCalledWith(t("opencode_start.error"));
+    expect(mocked.startLocalOpencodeServerMock).not.toHaveBeenCalled();
+    expect(mocked.notifyReadyMock).not.toHaveBeenCalled();
   });
 
   it("reports command error when ready lifecycle fails unexpectedly", async () => {
@@ -191,6 +235,7 @@ describe("bot/commands/opencode-start-command", () => {
         text: t("opencode_start.started_not_ready", { pid: 321 }),
       }),
     );
+    expect(mocked.explainFailedHealthCheckMock).toHaveBeenCalledWith("always");
     expect(mocked.notifyReadyMock).not.toHaveBeenCalled();
   });
 
@@ -206,10 +251,13 @@ describe("bot/commands/opencode-start-command", () => {
     await vi.advanceTimersByTimeAsync(20_000);
     await commandPromise;
 
-    expect(mocked.startLocalOpencodeServerMock).toHaveBeenCalledWith({
-      host: "localhost",
-      port: 4096,
-    });
+    expect(mocked.startLocalOpencodeServerMock).toHaveBeenCalledWith(
+      {
+        host: "localhost",
+        port: 4096,
+      },
+      "v1",
+    );
     expect(mocked.editBotTextMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         text: t("opencode_start.started_not_ready", { pid: 456 }),

@@ -2,8 +2,10 @@ import { config } from "../config.js";
 import { isContainerRuntime } from "../runtime/container.js";
 import { logger } from "../utils/logger.js";
 import { redactUrlCredentials } from "../utils/url-redact.js";
-import { opencodeClient } from "./client.js";
+import { opencodeClient, opencodeServerVersion } from "./client.js";
+import { canStartLocalOpencodeServer } from "./local-start.js";
 import { opencodeReadyLifecycle } from "./ready-lifecycle.js";
+import { explainFailedHealthCheck } from "./server-health.js";
 import {
   resolveLocalOpencodeTarget,
   startLocalOpencodeServer,
@@ -151,11 +153,18 @@ export class OpencodeAutoRestartService {
         return;
       }
 
+      if (!(await canStartLocalOpencodeServer(this.localTarget, "once"))) {
+        logger.debug(
+          `[OpenCodeAutoRestart] OpenCode server is unavailable; not starting a local server: reason=${reason}`,
+        );
+        return;
+      }
+
       logger.warn(
         `[OpenCodeAutoRestart] OpenCode server is unavailable, starting local server: reason=${reason}, port=${this.localTarget.port}`,
       );
 
-      const childProcess = startLocalOpencodeServer(this.localTarget);
+      const childProcess = startLocalOpencodeServer(this.localTarget, opencodeServerVersion);
       childProcess.once("error", (error) => {
         logger.error("[OpenCodeAutoRestart] OpenCode server process failed to start", error);
       });
@@ -165,6 +174,7 @@ export class OpencodeAutoRestartService {
 
       const ready = await waitForOpencodeServerReady(SERVER_READY_TIMEOUT_MS);
       if (!ready) {
+        await explainFailedHealthCheck("once");
         logger.warn(
           `[OpenCodeAutoRestart] OpenCode server was started but did not become ready: pid=${pid ?? "unknown"}, port=${this.localTarget.port}`,
         );

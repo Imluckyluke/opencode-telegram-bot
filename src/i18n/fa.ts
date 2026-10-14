@@ -520,6 +520,15 @@ export const fa: I18nDictionary = {
     "نام کاربری سرور OpenCode را وارد کنید (اختیاری).\nبرای پیش‌فرض Enter بزنید: {defaultUsername}\n> ",
   "runtime.wizard.ask_server_password":
     "رمز سرور OpenCode را وارد کنید (اختیاری).\nبرای خالی ماندن Enter بزنید.\n> ",
+  "runtime.wizard.ask_server_version":
+    "نسخه سرور OpenCode را انتخاب کنید:\n1 - OpenCode V1 (1.x، پکیج npm با نام opencode-ai)\n2 - OpenCode V2 (2.x، پکیج npm با نام @opencode/cli)\nبرای پیش‌فرض Enter بزنید: {defaultVersion}\n> ",
+  "runtime.wizard.server_version_invalid": "عدد 1 یا 2 را وارد کنید، یا برای پیش‌فرض Enter بزنید.\n",
+  "runtime.wizard.ask_server_password_required":
+    "رمز سرور OpenCode V2 را وارد کنید (الزامی).\nبا این دستور نمایشش بده: opencode service get password\n> ",
+  "runtime.wizard.server_password_required":
+    "برای OpenCode V2 رمز لازم است. دوباره تلاش کنید.\n",
+  "runtime.wizard.ask_server_password_keep":
+    "رمز سرور OpenCode را وارد کنید.\nبرای نگه داشتن رمز ذخیره‌شده Enter بزنید.\n> ",
   "runtime.wizard.api_url_invalid":
     "یک آدرس معتبر (http/https) وارد کنید یا برای پیش‌فرض Enter بزنید.\n",
   "runtime.wizard.start": "راه‌اندازی بات تلگرام OpenCode.\n",
