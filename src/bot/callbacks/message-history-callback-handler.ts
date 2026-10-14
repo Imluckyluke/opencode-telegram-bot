@@ -227,11 +227,14 @@ export async function handleMessagesCallback(
       await ctx.answerCallbackQuery();
 
       try {
-        await opencodeClient.session.revert({
+        const { error: revertError } = await opencodeClient.session.revert({
           sessionID: metadata.sessionId,
           directory: metadata.projectDirectory,
           messageID: selectedMessage.id,
         });
+        if (revertError) {
+          throw revertError;
+        }
 
         const successText = t("messages.revert_success", { text: selectedMessage.text });
         await ctx.editMessageText(truncateMessageHistoryText(successText, TELEGRAM_MESSAGE_LIMIT));

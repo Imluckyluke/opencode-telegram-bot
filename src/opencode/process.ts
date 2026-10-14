@@ -135,6 +135,16 @@ export function startLocalOpencodeServer(target: LocalOpencodeTarget): ChildProc
     windowsHide: spawnCommand.windowsHide,
   });
   trackedServers.set(target.port, child);
+  // Forget the child once it is gone so a later restart does not reuse a
+  // stale entry (or a recycled PID). Also swallow spawn errors here so callers
+  // that reuse the tracked child do not need to add a listener every time.
+  const forget = () => {
+    if (trackedServers.get(target.port) === child) {
+      trackedServers.delete(target.port);
+    }
+  };
+  child.once("exit", forget);
+  child.once("error", forget);
   return child;
 }
 

@@ -1,5 +1,6 @@
+import path from "node:path";
 import type { CommandContext, Context } from "grammy";
-import { getProjectRoot, isWithinProjectRoot } from "../../app/services/file-browser-service.js";
+import { getProjectRoot, isWithinProjectRootSafe } from "../../app/services/file-browser-service.js";
 import { interactionManager } from "../../app/managers/interaction-manager.js";
 import { isForegroundBusy } from "../../app/services/run-control-service.js";
 import { t } from "../../i18n/index.js";
@@ -28,13 +29,17 @@ export async function lsCommand(ctx: CommandContext<Context>): Promise<void> {
   }
 
   const args = typeof ctx.match === "string" ? ctx.match.trim() : undefined;
-  const targetDir = args || resolveInitialLsDirectory(ctx.from?.id);
+  // Relative arguments are relative to the project root, not the bot's cwd.
+  const targetDir = args
+    ? path.resolve(projectRoot, args)
+    : resolveInitialLsDirectory(ctx.from?.id);
   if (!targetDir) {
     await ctx.reply(t("bot.project_not_selected"));
     return;
   }
 
-  if (!isWithinProjectRoot(targetDir)) {
+  // realpath-based check: a symlink inside the project must not escape it.
+  if (!(await isWithinProjectRootSafe(targetDir))) {
     await ctx.reply(`❌ ${t("ls.access_denied")}`);
     return;
   }

@@ -28,7 +28,14 @@ async function deleteProjectSessions(worktree: string): Promise<{ deleted: numbe
         continue;
       }
       try {
-        await opencodeClient.session.delete({ sessionID: session.id, directory: worktree });
+        // The SDK reports HTTP failures via `error` instead of throwing.
+        const { error } = await opencodeClient.session.delete({
+          sessionID: session.id,
+          directory: worktree,
+        });
+        if (error) {
+          throw error;
+        }
         deleted += 1;
       } catch (error) {
         failed += 1;
@@ -49,6 +56,8 @@ async function deleteProjectSessions(worktree: string): Promise<{ deleted: numbe
  */
 export const DELETE_SESSIONS_CONFIRM_CALLBACK = "deletesessions:confirm";
 export const DELETE_SESSIONS_CANCEL_CALLBACK = "deletesessions:cancel";
+
+let deleteSessionsInProgress = false;
 
 /**
  * Owner-only instant wipe. Asks for a second confirmation first: wiping
@@ -83,8 +92,20 @@ export async function handleDeleteSessionsCallback(ctx: Context): Promise<boolea
     return true;
   }
 
-  await ctx.answerCallbackQuery();
-  await executeDeleteSessions(ctx);
+  // A double tap (or a second tap on an old confirm message) must not start a
+  // second concurrent wipe.
+  if (deleteSessionsInProgress) {
+    await ctx.answerCallbackQuery({ text: t("deletesessions.started") });
+    return true;
+  }
+  deleteSessionsInProgress = true;
+  try {
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageReplyMarkup().catch(() => {});
+    await executeDeleteSessions(ctx);
+  } finally {
+    deleteSessionsInProgress = false;
+  }
   return true;
 }
 

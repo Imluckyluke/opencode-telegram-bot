@@ -183,7 +183,9 @@ export class MediaGroupAttachmentHandler {
 
   private createFlushTimer(key: string): ReturnType<typeof setTimeout> {
     return setTimeout(() => {
-      void this.flushBatch(key);
+      this.flushBatch(key).catch((err: unknown) => {
+        logger.error(`[MediaGroup] Unhandled media group flush failure: key=${key}`, err);
+      });
     }, this.debounceMs);
   }
 
@@ -274,7 +276,11 @@ export class MediaGroupAttachmentHandler {
       await processPrompt(replyCtx, createIncomingPrompt(promptText, { fileParts }), this.deps);
     } catch (err) {
       logger.error(`[MediaGroup] Failed to process media group: key=${key}`, err);
-      await replyCtx.reply(t("bot.media_group_download_error"));
+      // This runs from a timer: a failed error reply (chat gone, 429) must
+      // not escape as an unhandled rejection.
+      await replyCtx.reply(t("bot.media_group_download_error")).catch((replyErr: unknown) => {
+        logger.warn(`[MediaGroup] Failed to report media group error: key=${key}`, replyErr);
+      });
     }
   }
 

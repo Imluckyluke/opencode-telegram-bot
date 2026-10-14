@@ -19,6 +19,7 @@ import { resetAutoCompactState } from "../../app/services/session-compact-servic
 import { isExpectedOpencodeUnavailableError } from "../../utils/opencode-error.js";
 import type { FileChange, PinnedMessageState, TokensInfo } from "./pinned-message-types.js";
 import { t } from "../../i18n/index.js";
+import { truncateTextSafe } from "../render/text-splitter.js";
 import {
   formatContextLine,
   formatCostLine,
@@ -777,7 +778,9 @@ class PinnedMessageManager {
       }
     }
 
-    return lines.join("\n");
+    // Long session titles / worktree paths / file paths must not push the
+    // dashboard past Telegram's 4096-char limit, or every edit fails.
+    return truncateTextSafe(lines.join("\n"), 4000);
   }
 
   async applyPinnedDashboardEnabled(enabled: boolean): Promise<void> {

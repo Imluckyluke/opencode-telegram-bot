@@ -14,6 +14,7 @@ const SERVER_READY_TIMEOUT_MS = 10000;
 const SERVER_READY_POLL_INTERVAL_MS = 500;
 const HEALTH_CHECK_TIMEOUT_MS = 3000;
 const HEALTH_CHECK_TIMED_OUT = Symbol("health-check-timed-out");
+const instrumentedChildren = new WeakSet<object>();
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -156,9 +157,14 @@ export class OpencodeAutoRestartService {
       );
 
       const childProcess = startLocalOpencodeServer(this.localTarget);
-      childProcess.once("error", (error) => {
-        logger.error("[OpenCodeAutoRestart] OpenCode server process failed to start", error);
-      });
+      // The same tracked child may be returned on every failed check; avoid
+      // stacking a new listener on it each interval.
+      if (!instrumentedChildren.has(childProcess)) {
+        instrumentedChildren.add(childProcess);
+        childProcess.once("error", (error) => {
+          logger.error("[OpenCodeAutoRestart] OpenCode server process failed to start", error);
+        });
+      }
 
       const pid = childProcess.pid;
       childProcess.unref();
